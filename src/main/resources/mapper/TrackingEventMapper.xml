@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.TrackingEventMapper">
+
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.TrackingEvent">
+        <id column="id" property="id"/>
+        <result column="tracking_id" property="trackingId"/>
+        <result column="event_time" property="eventTime"/>
+        <result column="event_description" property="eventDescription"/>
+        <result column="event_location" property="eventLocation"/>
+        <result column="city" property="city"/>
+        <result column="postal_code" property="postalCode"/>
+        <result column="provider_key" property="providerKey"/>
+        <result column="provider_name" property="providerName"/>
+        <result column="event_code" property="eventCode"/>
+        <result column="stage" property="stage"/>
+        <result column="sub_status" property="subStatus"/>
+        <result column="time_iso" property="timeIso"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.TrackingEvent" useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO tracking_events (
+            tracking_id, event_time, event_description, event_location, city, postal_code,
+            provider_key, provider_name, event_code, stage, sub_status, time_iso
+        )
+        VALUES (
+            #{trackingId}, #{eventTime}, #{eventDescription}, #{eventLocation}, #{city}, #{postalCode},
+            #{providerKey}, #{providerName}, #{eventCode}, #{stage}, #{subStatus}, #{timeIso}
+        )
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO tracking_events (
+            tracking_id, event_time, event_description, event_location, city, postal_code,
+            provider_key, provider_name, event_code, stage, sub_status, time_iso
+        )
+        VALUES
+        <foreach collection="events" item="event" separator=",">
+            (#{event.trackingId}, #{event.eventTime}, #{event.eventDescription}, #{event.eventLocation},
+            #{event.city}, #{event.postalCode}, #{event.providerKey}, #{event.providerName},
+            #{event.eventCode}, #{event.stage}, #{event.subStatus}, #{event.timeIso})
+        </foreach>
+    </insert>
+
+    <select id="selectByTrackingId" resultMap="BaseResultMap">
+        SELECT * FROM tracking_events
+        WHERE tracking_id = #{trackingId}
+        ORDER BY event_time DESC
+    </select>
+
+    <delete id="deleteByTrackingId">
+        DELETE FROM tracking_events WHERE tracking_id = #{trackingId}
+    </delete>
+
+</mapper>

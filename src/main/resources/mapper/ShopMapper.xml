@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ShopMapper">
+
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.Shop">
+        <id column="id" property="id"/>
+        <result column="shop_name" property="shopName"/>
+        <result column="platform" property="platform"/>
+        <result column="store_url" property="storeUrl"/>
+        <result column="api_key" property="apiKey"/>
+        <result column="api_secret" property="apiSecret"/>
+        <result column="access_token" property="accessToken"/>
+        <result column="timezone" property="timezone"/>
+        <result column="shop_domain" property="shopDomain"/>
+        <result column="oauth_state" property="oauthState"/>
+        <result column="oauth_scope" property="oauthScope"/>
+        <result column="token_expires_at" property="tokenExpiresAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.Shop" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO shops (shop_name, platform, store_url, api_key, api_secret, access_token, timezone,
+                           shop_domain, oauth_state, oauth_scope, token_expires_at)
+        VALUES (#{shopName}, #{platform}, #{storeUrl}, #{apiKey}, #{apiSecret}, #{accessToken}, #{timezone},
+                #{shopDomain}, #{oauthState}, #{oauthScope}, #{tokenExpiresAt})
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM shops WHERE id = #{id}
+    </select>
+
+    <select id="selectByShopDomain" resultMap="BaseResultMap">
+        SELECT * FROM shops WHERE shop_domain = #{shopDomain}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM shops
+        <where>
+            <if test="platform != null and platform != ''">
+                AND platform = #{platform}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        <if test="offset != null and pageSize != null">
+            LIMIT #{offset}, #{pageSize}
+        </if>
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM shops
+        <where>
+            <if test="platform != null and platform != ''">
+                AND platform = #{platform}
+            </if>
+        </where>
+    </select>
+
+    <update id="update" parameterType="com.logistics.track17.entity.Shop">
+        UPDATE shops
+        <set>
+            <if test="shopName != null">shop_name = #{shopName},</if>
+            <if test="platform != null">platform = #{platform},</if>
+            <if test="storeUrl != null">store_url = #{storeUrl},</if>
+            <if test="apiKey != null">api_key = #{apiKey},</if>
+            <if test="apiSecret != null">api_secret = #{apiSecret},</if>
+            <if test="accessToken != null">access_token = #{accessToken},</if>
+            <if test="timezone != null">timezone = #{timezone},</if>
+            <if test="shopDomain != null">shop_domain = #{shopDomain},</if>
+            <if test="oauthState != null">oauth_state = #{oauthState},</if>
+            <if test="oauthScope != null">oauth_scope = #{oauthScope},</if>
+            <if test="tokenExpiresAt != null">token_expires_at = #{tokenExpiresAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM shops WHERE id = #{id}
+    </delete>
+
+    <select id="countOrdersByShopId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM orders WHERE shop_id = #{shopId}
+    </select>
+
+</mapper>
