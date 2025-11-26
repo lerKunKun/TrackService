@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: track-17-server
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 0
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.logistics.track17.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+# JWT Configuration
+jwt:
+  secret: track17-logistics-secret-key-change-in-production
+  expiration: 86400000  # 24 hours
+
+# 17Track API Configuration
+track17:
+  api:
+    url: https://api.17track.net/track/v2.4
+    token: ${TRACK17-TOKEN}
+    register-endpoint: /register
+    query-endpoint: /gettrackinfo
+    timeout: 10000
+
+# Shopify OAuth Configuration
+shopify:
+  api:
+    key: ${SHOPIFY_API_KEY}
+    secret: ${SHOPIFY_API_SECRET}
+  oauth:
+    redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback
+    frontend-redirect: http://localhost:3000/shops
+
+# Logging
+logging:
+  level:
+    com.logistics.track17: DEBUG
+    org.springframework.web: INFO
+    org.mybatis: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
