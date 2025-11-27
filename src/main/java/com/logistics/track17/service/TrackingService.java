@@ -13,11 +13,14 @@ import com.logistics.track17.util.Track17V2Parser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +35,13 @@ public class TrackingService {
     private final ParcelMapper parcelMapper;
     private final Track17Service track17Service;
     private final CarrierService carrierService;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    // 运单详情缓存配置
+    private static final String TRACKING_CACHE_PREFIX = "tracking:detail:";
+    private static final long TRACKING_CACHE_EXPIRE_SECONDS = 300; // 5分钟过期
 
     public TrackingService(TrackingNumberMapper trackingNumberMapper,
                            TrackingEventMapper trackingEventMapper,
@@ -217,9 +227,20 @@ public class TrackingService {
     }
 
     /**
-     * 获取运单详情
+     * 获取运单详情（带缓存）
      */
     public TrackingResponse getById(Long id) {
+        // 先查缓存
+        String cacheKey = TRACKING_CACHE_PREFIX + id;
+        TrackingResponse cached = (TrackingResponse) redisTemplate.opsForValue().get(cacheKey);
+
+        if (cached != null) {
+            log.debug("Cache hit for tracking: {}", id);
+            return cached;
+        }
+
+        // 缓存未命中，查数据库
+        log.debug("Cache miss for tracking: {}", id);
         TrackingNumber trackingNumber = trackingNumberMapper.selectById(id);
         if (trackingNumber == null) {
             throw BusinessException.of(404, "运单不存在");
@@ -233,6 +254,11 @@ public class TrackingService {
                 .map(this::convertToEventResponse)
                 .collect(Collectors.toList());
         response.setEvents(eventResponses);
+
+        // 写入缓存（5分钟过期）
+        redisTemplate.opsForValue().set(cacheKey, response,
+                TRACKING_CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        log.debug("Cached tracking: {}", id);
 
         return response;
     }
@@ -303,6 +329,11 @@ public class TrackingService {
             log.error("Failed to sync tracking number: {}", id, e);
             throw BusinessException.of("同步失败: " + e.getMessage());
         }
+
+        // 清除缓存
+        String cacheKey = TRACKING_CACHE_PREFIX + id;
+        redisTemplate.delete(cacheKey);
+        log.debug("Cache invalidated for tracking: {}", id);
 
         return getById(id);
     }
@@ -379,6 +410,11 @@ public class TrackingService {
             log.warn("Version conflict when updating remarks for tracking: {}, version: {}", id, oldVersion);
             throw BusinessException.of("数据已被其他用户修改，请刷新后重试");
         }
+
+        // 清除缓存
+        String cacheKey = TRACKING_CACHE_PREFIX + id;
+        redisTemplate.delete(cacheKey);
+        log.debug("Cache invalidated for tracking: {}", id);
 
         log.info("Remarks updated successfully for tracking number: {}", id);
         return getById(id);

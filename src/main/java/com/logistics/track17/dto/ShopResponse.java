@@ -15,9 +15,12 @@ public class ShopResponse {
     private String shopName;
     private String platform;
     private String storeUrl;
-    private String apiKey;  // 不返回完整的密钥，只返回前4位
+    private String shopDomain;  // Shopify店铺域名
+    private String apiKey;  // 不返回完整的密钥,只返回前4位
     private String timezone;
     private Long orderCount;
+    private String connectionStatus;  // 连接状态
+    private LocalDateTime lastValidatedAt;  // 最后验证时间
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

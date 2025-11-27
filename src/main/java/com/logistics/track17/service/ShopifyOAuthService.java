@@ -56,20 +56,23 @@ public class ShopifyOAuthService {
         String state = generateState();
 
         // Shopify推荐的scopes（根据需求调整）
-        // 只请求基本的读取权限
-        String scopes = "read_orders";
+        // 根据实际需求请求必要的权限
+        String scopes = "read_orders,write_orders,read_products,write_products";
 
         // 构建OAuth授权URL
+        // 关键：添加 grant_options[]=offline 以获取永久有效的 offline access token
+        // 参考: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
         String authUrl = UriComponentsBuilder
                 .fromHttpUrl(String.format("https://%s/admin/oauth/authorize", shopDomain))
                 .queryParam("client_id", shopifyApiKey)
                 .queryParam("scope", scopes)
                 .queryParam("redirect_uri", redirectUri)
                 .queryParam("state", state)
+                .queryParam("grant_options[]", "offline")  // 请求 offline access token（永久有效）
                 .build()
                 .toUriString();
 
-        log.info("Authorization URL generated: {}", authUrl);
+        log.info("Authorization URL generated with offline access: {}", authUrl);
         return authUrl;
     }
 
@@ -203,5 +206,95 @@ public class ShopifyOAuthService {
         }
         // 验证格式: xxx.myshopify.com
         return shopDomain.matches("^[a-zA-Z0-9-]+\\.myshopify\\.com$");
+    }
+
+    /**
+     * 验证 Access Token 是否仍然有效
+     * 通过调用 Shopify API 的 shop 端点来验证
+     *
+     * @param shopDomain 店铺域名
+     * @param accessToken 访问令牌
+     * @return 是否有效
+     */
+    public boolean validateAccessToken(String shopDomain, String accessToken) {
+        log.info("Validating access token for shop: {}", shopDomain);
+
+        try {
+            String shopUrl = String.format("https://%s/admin/api/2024-10/shop.json", shopDomain);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Shopify-Access-Token", accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<String> request = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    shopUrl,
+                    HttpMethod.GET,
+                    request,
+                    String.class
+            );
+
+            boolean isValid = response.getStatusCode() == HttpStatus.OK;
+            log.info("Access token validation result for {}: {}", shopDomain, isValid ? "VALID" : "INVALID");
+
+            return isValid;
+
+        } catch (Exception e) {
+            log.error("Error validating access token for shop: {}", shopDomain, e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取店铺信息（用于验证连接状态）
+     *
+     * @param shopDomain 店铺域名
+     * @param accessToken 访问令牌
+     * @return 店铺信息
+     */
+    public Map<String, Object> getShopInfo(String shopDomain, String accessToken) {
+        log.info("Fetching shop info for: {}", shopDomain);
+
+        try {
+            String shopUrl = String.format("https://%s/admin/api/2024-10/shop.json", shopDomain);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Shopify-Access-Token", accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<String> request = new HttpEntity<>(headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    shopUrl,
+                    HttpMethod.GET,
+                    request,
+                    String.class
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode responseJson = objectMapper.readTree(response.getBody());
+                JsonNode shop = responseJson.get("shop");
+
+                Map<String, Object> shopInfo = new HashMap<>();
+                shopInfo.put("name", shop.get("name").asText());
+                shopInfo.put("email", shop.get("email").asText());
+                shopInfo.put("domain", shop.get("domain").asText());
+                shopInfo.put("myshopify_domain", shop.get("myshopify_domain").asText());
+                shopInfo.put("plan_name", shop.get("plan_name").asText());
+                shopInfo.put("currency", shop.get("currency").asText());
+                shopInfo.put("timezone", shop.has("iana_timezone") ? shop.get("iana_timezone").asText() : "UTC");
+
+                log.info("Successfully fetched shop info for: {}", shopDomain);
+                return shopInfo;
+            } else {
+                log.error("Failed to fetch shop info: {}", response.getStatusCode());
+                throw BusinessException.of("获取店铺信息失败");
+            }
+
+        } catch (Exception e) {
+            log.error("Error fetching shop info", e);
+            throw BusinessException.of("获取店铺信息失败: " + e.getMessage());
+        }
     }
 }

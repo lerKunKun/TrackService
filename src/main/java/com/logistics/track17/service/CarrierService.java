@@ -3,6 +3,8 @@ package com.logistics.track17.service;
 import com.logistics.track17.entity.Carrier;
 import com.logistics.track17.mapper.CarrierMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,16 +23,20 @@ public class CarrierService {
     }
 
     /**
-     * 根据17Track carrier ID获取承运商
+     * 根据17Track carrier ID获取承运商（带缓存）
      */
+    @Cacheable(value = "carrier", key = "'id:' + #carrierId", unless = "#result == null")
     public Carrier getByCarrierId(Integer carrierId) {
+        log.debug("Querying carrier by ID from database: {}", carrierId);
         return carrierMapper.selectByCarrierId(carrierId);
     }
 
     /**
-     * 根据系统carrier code获取承运商
+     * 根据系统carrier code获取承运商（带缓存）
      */
+    @Cacheable(value = "carrier", key = "'code:' + #carrierCode", unless = "#result == null")
     public Carrier getByCarrierCode(String carrierCode) {
+        log.debug("Querying carrier by code from database: {}", carrierCode);
         return carrierMapper.selectByCarrierCode(carrierCode);
     }
 
@@ -49,12 +55,14 @@ public class CarrierService {
     }
 
     /**
-     * 批量导入承运商
+     * 批量导入承运商（清除缓存）
      */
+    @CacheEvict(value = "carrier", allEntries = true)
     public int batchImport(List<Carrier> carriers) {
         if (carriers == null || carriers.isEmpty()) {
             return 0;
         }
+        log.info("Batch importing {} carriers, clearing cache", carriers.size());
         return carrierMapper.batchInsert(carriers);
     }
 }

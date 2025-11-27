@@ -23,9 +23,11 @@ import java.util.stream.Collectors;
 public class ShopService {
 
     private final ShopMapper shopMapper;
+    private final ShopifyOAuthService shopifyOAuthService;
 
-    public ShopService(ShopMapper shopMapper) {
+    public ShopService(ShopMapper shopMapper, ShopifyOAuthService shopifyOAuthService) {
         this.shopMapper = shopMapper;
+        this.shopifyOAuthService = shopifyOAuthService;
     }
 
     /**
@@ -207,5 +209,93 @@ public class ShopService {
             return "****";
         }
         return secret.substring(0, 4) + "****";
+    }
+
+    /**
+     * 验证店铺连接状态（健康检查）
+     * 检查 access token 是否仍然有效
+     *
+     * @param id 店铺ID
+     * @return 连接状态信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public java.util.Map<String, Object> validateConnection(Long id) {
+        log.info("Validating connection for shop: {}", id);
+
+        Shop shop = shopMapper.selectById(id);
+        if (shop == null) {
+            throw BusinessException.of(404, "店铺不存在");
+        }
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("shopId", id);
+        result.put("shopName", shop.getShopName());
+        result.put("platform", shop.getPlatform());
+
+        // 只有 Shopify 平台才需要验证 token
+        if (!"shopify".equalsIgnoreCase(shop.getPlatform())) {
+            result.put("status", "unsupported");
+            result.put("message", "该平台不支持连接验证");
+            return result;
+        }
+
+        if (StringUtils.isBlank(shop.getAccessToken()) || StringUtils.isBlank(shop.getShopDomain())) {
+            result.put("status", "invalid");
+            result.put("message", "缺少访问令牌或店铺域名");
+            shop.setConnectionStatus("invalid");
+            shopMapper.update(shop);
+            return result;
+        }
+
+        // 验证 token 是否有效
+        boolean isValid = shopifyOAuthService.validateAccessToken(shop.getShopDomain(), shop.getAccessToken());
+
+        if (isValid) {
+            result.put("status", "active");
+            result.put("message", "连接正常");
+            shop.setConnectionStatus("active");
+            shop.setLastValidatedAt(java.time.LocalDateTime.now());
+        } else {
+            result.put("status", "invalid");
+            result.put("message", "访问令牌已失效，请重新授权");
+            shop.setConnectionStatus("invalid");
+        }
+
+        shopMapper.update(shop);
+
+        result.put("tokenType", shop.getTokenType());
+        result.put("lastValidatedAt", shop.getLastValidatedAt());
+
+        log.info("Connection validation completed for shop {}: {}", id, result.get("status"));
+        return result;
+    }
+
+    /**
+     * 批量验证所有店铺的连接状态
+     *
+     * @return 验证结果列表
+     */
+    public List<java.util.Map<String, Object>> validateAllConnections() {
+        log.info("Validating all shop connections");
+
+        List<Shop> shops = shopMapper.selectList(null, null, null);
+        List<java.util.Map<String, Object>> results = new java.util.ArrayList<>();
+
+        for (Shop shop : shops) {
+            try {
+                java.util.Map<String, Object> result = validateConnection(shop.getId());
+                results.add(result);
+            } catch (Exception e) {
+                log.error("Failed to validate connection for shop: {}", shop.getId(), e);
+                java.util.Map<String, Object> result = new java.util.HashMap<>();
+                result.put("shopId", shop.getId());
+                result.put("status", "error");
+                result.put("message", e.getMessage());
+                results.add(result);
+            }
+        }
+
+        log.info("Completed validation for {} shops", results.size());
+        return results;
     }
 }
