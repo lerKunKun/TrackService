@@ -55,4 +55,18 @@
         DELETE FROM tracking_events WHERE tracking_id = #{trackingId}
     </delete>
 
+    <!-- 批量删除多个运单的事件（性能优化：使用IN代替循环） -->
+    <delete id="deleteByTrackingIds">
+        DELETE FROM tracking_events
+        WHERE tracking_id IN
+        <foreach collection="trackingIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 统计运单的事件数量 -->
+    <select id="countByTrackingId" resultType="int">
+        SELECT COUNT(*) FROM tracking_events WHERE tracking_id = #{trackingId}
+    </select>
+
 </mapper>

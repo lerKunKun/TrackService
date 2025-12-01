@@ -29,4 +29,14 @@ public interface TrackingEventMapper {
      * 删除运单的所有事件
      */
     int deleteByTrackingId(@Param("trackingId") Long trackingId);
+
+    /**
+     * 批量删除多个运单的事件（性能优化）
+     */
+    int deleteByTrackingIds(@Param("trackingIds") List<Long> trackingIds);
+
+    /**
+     * 统计运单的事件数量
+     */
+    int countByTrackingId(@Param("trackingId") Long trackingId);
 }

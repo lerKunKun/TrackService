@@ -23,29 +23,4 @@ public class TrackingEvent {
     private String subStatus;           // 子状态
     private String timeIso;             // ISO时间字符串
     private LocalDateTime createdAt;
-
-    // 兼容旧字段名（用于已有代码）
-    public String getStatus() {
-        return eventDescription;
-    }
-
-    public void setStatus(String status) {
-        this.eventDescription = status;
-    }
-
-    public String getDescription() {
-        return eventDescription;
-    }
-
-    public void setDescription(String description) {
-        this.eventDescription = description;
-    }
-
-    public String getLocation() {
-        return eventLocation;
-    }
-
-    public void setLocation(String location) {
-        this.eventLocation = location;
-    }
 }

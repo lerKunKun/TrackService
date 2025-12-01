@@ -21,7 +21,4 @@ public class TrackingEventResponse {
     private String subStatus;           // 子状态
     private String providerName;        // 承运商名称
     private String timeIso;             // ISO时间字符串
-
-    // 兼容旧字段名
-    private String status;              // 等同于description
 }

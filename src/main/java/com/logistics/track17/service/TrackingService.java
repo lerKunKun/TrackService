@@ -305,13 +305,11 @@ public class TrackingService {
                     // 清除旧事件
                     trackingEventMapper.deleteByTrackingId(id);
 
-                    // 使用V2解析器解析并保存新事件
+                    // 使用批量插入保存新事件（性能优化）
                     List<TrackingEvent> events = Track17V2Parser.parseEvents(item, id);
                     if (!events.isEmpty()) {
-                        for (TrackingEvent event : events) {
-                            trackingEventMapper.insert(event);
-                        }
-                        log.info("Saved {} tracking events", events.size());
+                        trackingEventMapper.insertBatch(events);
+                        log.info("Batch saved {} tracking events", events.size());
                     }
 
                     log.info("Tracking number synced successfully with V2 data: {}", id);
@@ -444,8 +442,9 @@ public class TrackingService {
     public void deleteBatch(List<Long> ids) {
         log.info("Batch deleting tracking numbers: {}", ids.size());
 
-        for (Long id : ids) {
-            trackingEventMapper.deleteByTrackingId(id);
+        // 性能优化：使用批量删除代替循环
+        if (!ids.isEmpty()) {
+            trackingEventMapper.deleteByTrackingIds(ids);
         }
 
         trackingNumberMapper.deleteBatch(ids);
