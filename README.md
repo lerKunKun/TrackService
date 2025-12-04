@@ -47,6 +47,21 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 - ✅ **事件追踪**：记录完整的物流轨迹事件
 - ✅ **承运商识别**：自动识别并记录承运商信息
 
+#### 数据统计
+- ✅ **统计看板**：首页数据统计概览
+- ✅ **运单统计**：总运单数、今日新增、按状态分布
+- ✅ **店铺统计**：店铺总数统计
+- ✅ **用户统计**：用户总数统计
+- ✅ **承运商分析**：按承运商分组统计（Top 10）
+- ✅ **趋势分析**：最近7天运单趋势图
+
+#### 用户管理
+- ✅ **用户列表**：分页查询用户列表
+- ✅ **用户详情**：查看用户详细信息
+- ✅ **用户创建**：创建新用户账号
+- ✅ **用户更新**：更新用户信息
+- ✅ **用户删除**：删除用户账号
+
 #### 系统优化
 - ✅ **Redis 缓存**：OAuth state、Token 等关键数据缓存
 - ✅ **连接池管理**：数据库和 Redis 连接池优化
@@ -59,7 +74,6 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 - 🔄 自动同步 Shopify 订单（基于 Webhook 自动创建运单）
 - 📊 物流轨迹可视化展示（时间线组件）
 - 🔔 异常运单提醒（超时、退回等）
-- 📈 数据统计看板（运单状态分布、时效分析）
 - 🌐 更多平台集成（Shopline、TikTok Shop）
 - 🔐 多用户权限管理
 - 📱 移动端适配
@@ -261,13 +275,18 @@ track-17-server/
 │   │   │   │   ├── ShopController.java
 │   │   │   │   ├── TrackingController.java
 │   │   │   │   ├── ShopifyOAuthController.java     # Shopify OAuth
-│   │   │   │   └── ShopifyWebhookController.java   # Shopify Webhook
+│   │   │   │   ├── ShopifyWebhookController.java   # Shopify Webhook
+│   │   │   │   ├── StatsController.java            # 统计控制器
+│   │   │   │   ├── UserController.java             # 用户控制器
+│   │   │   │   └── CarrierController.java          # 承运商控制器
 │   │   │   ├── service/         # 业务逻辑
 │   │   │   │   ├── ShopService.java
 │   │   │   │   ├── TrackingService.java
 │   │   │   │   ├── CarrierService.java
 │   │   │   │   ├── ShopifyOAuthService.java        # Shopify OAuth 服务
-│   │   │   │   └── ShopifyWebhookService.java      # Shopify Webhook 服务
+│   │   │   │   ├── ShopifyWebhookService.java      # Shopify Webhook 服务
+│   │   │   │   ├── StatsService.java               # 统计服务
+│   │   │   │   └── UserService.java                # 用户服务
 │   │   │   ├── mapper/          # MyBatis Mapper 接口
 │   │   │   ├── entity/          # 实体类
 │   │   │   ├── dto/             # 数据传输对象
@@ -339,6 +358,19 @@ track-17-server/
 - `POST /api/v1/tracking/{id}/sync` - 手动同步运单
 - `DELETE /api/v1/tracking/{id}` - 删除运单
 - `POST /api/v1/tracking/batch-delete` - 批量删除运单
+
+### 统计数据
+- `GET /api/v1/stats/dashboard` - 获取首页统计数据
+
+### 用户管理
+- `POST /api/v1/users` - 创建用户
+- `GET /api/v1/users` - 获取用户列表（支持分页）
+- `GET /api/v1/users/{id}` - 获取用户详情
+- `PUT /api/v1/users/{id}` - 更新用户
+- `DELETE /api/v1/users/{id}` - 删除用户
+
+### 承运商管理
+- `GET /api/v1/carriers` - 获取所有承运商列表
 
 详细 API 文档请查看：
 - [API 文档](docs/API_DOCUMENTATION.md)
@@ -561,6 +593,8 @@ Redis 用途：
 - **运单管理**：手动添加、查询、详情、同步、删除
 - **17Track 集成**：自动注册、物流查询、事件追踪
 - **Redis 缓存**：OAuth state 管理、连接池优化
+- **数据统计看板**：首页统计数据、运单趋势、承运商分析
+- **用户管理**：用户 CRUD 操作、分页查询
 
 ### 进行中 🚧
 
@@ -631,5 +665,6 @@ MIT License
 
 ---
 
-**版本**: v1.0.0
-**最后更新**: 2025-11-27
+**版本**: v1.1.0  
+**最后更新**: 2025-12-04
+
