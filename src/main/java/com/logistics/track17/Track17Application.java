@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * Track-17 Logistics System Application
  *
- * @author Track17 Team
+ * @author Jax
  * @version 1.0.0
  */
 @SpringBootApplication

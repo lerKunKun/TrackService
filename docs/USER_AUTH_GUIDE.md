@@ -432,4 +432,4 @@ INSERT INTO `users` (`username`, `password`, `email`, `real_name`, `role`, `stat
 
 **最后更新**: 2025-11-23
 **版本**: v1.1.0
-**作者**: Track17 Team
+**作者**: Jax
