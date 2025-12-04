@@ -62,7 +62,7 @@
     </select>
 
     <!-- 统计用户总数 -->
-    <select id="count" resultType="int">
+    <select id="count" resultType="java.lang.Long">
         SELECT COUNT(*) FROM users
     </select>
 

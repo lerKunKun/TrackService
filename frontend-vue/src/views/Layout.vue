@@ -30,6 +30,10 @@
           :theme="'dark'"
           @click="handleMenuClick"
         >
+          <a-menu-item key="dashboard">
+            <DashboardOutlined />
+            <span>首页概览</span>
+          </a-menu-item>
           <a-menu-item key="shops">
             <ShopOutlined />
             <span>店铺管理</span>
@@ -63,6 +67,7 @@ import {
   RocketOutlined,
   UserOutlined,
   LogoutOutlined,
+  DashboardOutlined,
   ShopOutlined,
   CarOutlined,
   TeamOutlined
@@ -74,13 +79,15 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const collapsed = ref(false)
-const selectedKeys = ref(['shops'])
+const selectedKeys = ref(['dashboard'])
 
 // 监听路由变化，更新菜单选中状态
 watch(
   () => route.path,
   (path) => {
-    if (path.includes('shops')) {
+    if (path.includes('dashboard') || path === '/') {
+      selectedKeys.value = ['dashboard']
+    } else if (path.includes('shops')) {
       selectedKeys.value = ['shops']
     } else if (path.includes('tracking')) {
       selectedKeys.value = ['tracking']

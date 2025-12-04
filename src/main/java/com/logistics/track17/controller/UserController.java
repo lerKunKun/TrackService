@@ -35,7 +35,7 @@ public class UserController {
         log.info("Get users list, page: {}, size: {}", page, size);
 
         List<UserDTO> users = userService.getUsersByPage(page, size);
-        int total = userService.getUserCount();
+        Long total = userService.getUserCount();
 
         Map<String, Object> data = new HashMap<>();
         data.put("list", users);

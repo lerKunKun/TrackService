@@ -198,4 +198,33 @@
         ORDER BY carrier_code
     </select>
 
+    <select id="countToday" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM tracking_numbers
+        WHERE DATE(created_at) = CURDATE()
+    </select>
+
+    <select id="countByStatus" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM tracking_numbers
+        WHERE track_status = #{status}
+    </select>
+
+    <select id="countByCarrier" resultType="java.util.Map">
+        SELECT carrier_code as carrierCode, COUNT(*) as count
+        FROM tracking_numbers
+        WHERE carrier_code IS NOT NULL AND carrier_code != ''
+        GROUP BY carrier_code
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countByDay" resultType="java.util.Map">
+        SELECT DATE(created_at) as date, COUNT(*) as count
+        FROM tracking_numbers
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(created_at)
+        ORDER BY date ASC
+    </select>
+
 </mapper>

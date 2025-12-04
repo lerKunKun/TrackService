@@ -40,7 +40,7 @@ public interface UserMapper {
     /**
      * 统计用户总数
      */
-    int count();
+    Long count();
 
     /**
      * 插入用户

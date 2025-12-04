@@ -222,7 +222,7 @@ public class UserService {
     /**
      * 统计用户总数
      */
-    public int getUserCount() {
+    public Long getUserCount() {
         return userMapper.count();
     }
 

@@ -361,6 +361,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -373,6 +374,8 @@ import {
 import { trackingApi } from '@/api/tracking'
 import { shopApi } from '@/api/shop'
 import dayjs from 'dayjs'
+
+const route = useRoute()
 
 const columns = [
   {
@@ -895,6 +898,14 @@ const formatDate = (date) => {
 }
 
 onMounted(() => {
+  // 从URL参数读取筛选条件
+  if (route.query.status) {
+    searchParams.status = route.query.status
+  }
+  if (route.query.carrierCode) {
+    searchParams.carrierCode = route.query.carrierCode
+  }
+
   fetchShops()
   fetchCarriers()
   fetchTrackings()

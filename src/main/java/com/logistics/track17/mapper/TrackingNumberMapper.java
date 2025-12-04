@@ -76,4 +76,24 @@ public interface TrackingNumberMapper {
      * 获取所有已使用的承运商代码
      */
     List<String> selectDistinctCarriers();
+
+    /**
+     * 统计今日新增运单数
+     */
+    Long countToday();
+
+    /**
+     * 按状态统计运单数量
+     */
+    Long countByStatus(@Param("status") String status);
+
+    /**
+     * 按承运商统计运单数量（前N个）
+     */
+    List<java.util.Map<String, Object>> countByCarrier(@Param("limit") Integer limit);
+
+    /**
+     * 统计最近N天每天的运单数量
+     */
+    List<java.util.Map<String, Object>> countByDay(@Param("days") Integer days);
 }

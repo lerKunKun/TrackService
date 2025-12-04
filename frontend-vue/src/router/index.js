@@ -11,9 +11,15 @@ const routes = [
   {
     path: '/',
     component: () => import('@/views/Layout.vue'),
-    redirect: '/shops',
+    redirect: '/dashboard',
     meta: { requiresAuth: true },
     children: [
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('@/views/Dashboard.vue'),
+        meta: { title: '首页概览' }
+      },
       {
         path: 'shops',
         name: 'Shops',
