@@ -90,19 +90,13 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 - **JWT** - 认证令牌
 - **Lombok** - 简化代码
 
-### 前端（两个版本可选）
-
-**Vue3 版本（推荐）**
-- Vue 3 (Composition API)
-- Vite 5
-- Ant Design Vue 4
-- Vue Router 4
-- Pinia
-- Axios
-
-**原生版本（简易）**
-- 原生 HTML/CSS/JavaScript
-- Fetch API
+### 前端
+- **Vue 3** - Composition API
+- **Vite 5** - 构建工具
+- **Ant Design Vue 4** - UI 组件库
+- **Vue Router 4** - 路由管理
+- **Pinia** - 状态管理
+- **Axios** - HTTP 客户端
 
 ### 外部服务
 - **17Track API** - 物流追踪服务
@@ -117,7 +111,7 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 - **MySQL 8.0+**
 - **Redis 6.0+**（必需）
 
-### 前端（Vue3 版本）
+### 前端
 - **Node.js 16+** 或更高版本
 - **npm** 或 **yarn** 或 **pnpm**
 
@@ -230,12 +224,10 @@ java -jar target/track-17-server-1.0.0.jar
 
 启动成功后，后端服务运行在 `http://localhost:8080`
 
-### 7. 访问前端界面
-
-#### 方式一：Vue3 版本（推荐）
+### 7. 启动前端
 
 ```bash
-# 进入 Vue3 前端目录
+# 进入前端目录
 cd frontend-vue
 
 # 安装依赖
@@ -245,14 +237,6 @@ npm install
 npm run dev
 
 # 访问 http://localhost:3000
-```
-
-#### 方式二：原生版本（简易）
-
-使用浏览器直接打开前端页面：
-
-```
-frontend/login.html
 ```
 
 **默认登录账号：**
@@ -296,7 +280,7 @@ track-17-server/
 │   │       ├── mapper/          # MyBatis XML 映射文件
 │   │       └── application.yml  # 应用配置
 │   └── test/
-├── frontend-vue/                # Vue3 前端（推荐）
+├── frontend-vue/                # Vue3 前端
 │   ├── src/
 │   │   ├── api/                # API 接口
 │   │   ├── assets/             # 静态资源
@@ -308,10 +292,6 @@ track-17-server/
 │   ├── index.html
 │   ├── vite.config.js
 │   └── package.json
-├── frontend/                    # 原生前端（简易版）
-│   ├── login.html              # 登录页面
-│   ├── shops.html              # 店铺管理页面
-│   └── tracking.html           # 运单管理页面
 ├── docs/                        # 文档目录
 │   ├── API_SHOP_MANAGEMENT.md         # 店铺管理 API
 │   ├── FRONTEND_SHOP_INTEGRATION.md   # 前端集成指南

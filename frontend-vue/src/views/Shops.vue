@@ -17,7 +17,9 @@
       </div>
 
       <!-- 表格 -->
+      <!-- 表格 (PC端) -->
       <a-table
+        v-if="!isMobile"
         :columns="columns"
         :data-source="tableData"
         :loading="loading"
@@ -56,6 +58,57 @@
           {{ formatDate(record.createdAt) }}
         </template>
       </a-table>
+
+      <!-- 卡片列表 (移动端) -->
+      <div v-else class="mobile-list">
+        <a-spin :spinning="loading">
+          <div v-if="tableData.length > 0">
+            <div v-for="item in tableData" :key="item.id" class="mobile-card">
+              <div class="card-header">
+                <span class="shop-name">{{ item.shopName }}</span>
+                <a-tag :color="getPlatformColor(item.platform)">
+                  {{ item.platform.toUpperCase() }}
+                </a-tag>
+              </div>
+              <div class="card-body">
+                <div class="info-row">
+                  <span class="label">URL:</span>
+                  <span class="value text-ellipsis">{{ item.storeUrl }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">创建时间:</span>
+                  <span class="value">{{ formatDate(item.createdAt) }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <a-button type="link" size="small" @click="handleEdit(item)">
+                  编辑
+                </a-button>
+                <a-popconfirm
+                  title="确定要删除该店铺吗？"
+                  ok-text="确定"
+                  cancel-text="取消"
+                  @confirm="handleDelete(item.id)"
+                >
+                  <a-button type="link" danger size="small">
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </div>
+            </div>
+            <div class="mobile-pagination">
+              <a-pagination
+                v-model:current="pagination.current"
+                :total="pagination.total"
+                :page-size="pagination.pageSize"
+                simple
+                @change="(page) => handleTableChange({ current: page, pageSize: pagination.pageSize })"
+              />
+            </div>
+          </div>
+          <a-empty v-else description="暂无数据" />
+        </a-spin>
+      </div>
     </div>
 
     <!-- 添加/编辑店铺弹窗 -->
@@ -146,7 +199,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Grid } from 'ant-design-vue'
 import { PlusOutlined, ShopOutlined } from '@ant-design/icons-vue'
 import { shopApi } from '@/api/shop'
 import dayjs from 'dayjs'
@@ -174,11 +227,6 @@ const columns = [
     ellipsis: true
   },
   {
-    title: 'API Key',
-    dataIndex: 'apiKey',
-    width: 120
-  },
-  {
     title: '创建时间',
     dataIndex: 'createdAt',
     width: 180,
@@ -201,6 +249,10 @@ const pagination = reactive({
   showSizeChanger: true,
   showTotal: (total) => `共 ${total} 条`
 })
+
+const useBreakpoint = Grid.useBreakpoint
+const screens = useBreakpoint()
+const isMobile = computed(() => !screens.value.md)
 
 const modalVisible = ref(false)
 const confirmLoading = ref(false)
@@ -420,5 +472,109 @@ onMounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+/* Mobile Styles */
+.mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+}
+
+.mobile-card:active {
+  background: #fafafa;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shop-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #262626;
+}
+
+.card-body {
+  margin-bottom: 12px;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-row .label {
+  color: #8c8c8c;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.info-row .value {
+  color: #262626;
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.card-actions .ant-btn {
+  padding: 4px 12px;
+  height: auto;
+}
+
+.mobile-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+@media (max-width: 576px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .toolbar h2 {
+    margin-bottom: 4px;
+  }
+  
+  .page-container {
+    padding: 12px;
+  }
+  
+  .content-card {
+    padding: 12px;
+  }
 }
 </style>

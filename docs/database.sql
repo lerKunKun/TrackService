@@ -148,11 +148,19 @@ CREATE TABLE `tracking_events` (
   `event_time` DATETIME NOT NULL COMMENT '事件时间',
   `event_description` TEXT COMMENT '事件描述',
   `event_location` VARCHAR(255) COMMENT '事件地点',
+  `city` VARCHAR(100) COMMENT '城市',
+  `postal_code` VARCHAR(20) COMMENT '邮编',
+  `provider_key` INT COMMENT '承运商ID',
+  `provider_name` VARCHAR(100) COMMENT '承运商名称',
   `event_code` VARCHAR(50) COMMENT '事件代码',
+  `stage` VARCHAR(50) COMMENT '阶段: InfoReceived/InTransit/Delivered/Exception等',
+  `sub_status` VARCHAR(100) COMMENT '子状态',
+  `time_iso` VARCHAR(50) COMMENT 'ISO时间字符串',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
   KEY `idx_tracking_id` (`tracking_id`),
   KEY `idx_event_time` (`event_time`),
+  KEY `idx_provider_name` (`provider_name`),
   CONSTRAINT `fk_events_tracking` FOREIGN KEY (`tracking_id`) REFERENCES `tracking_numbers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='物流事件表';
 

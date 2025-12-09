@@ -20,7 +20,8 @@ import java.util.stream.Collectors;
 
 /**
  * Shopify OAuth服务
- * 参考: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
+ * 参考:
+ * https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
  */
 @Slf4j
 @Service
@@ -61,14 +62,15 @@ public class ShopifyOAuthService {
 
         // 构建OAuth授权URL
         // 关键：添加 grant_options[]=offline 以获取永久有效的 offline access token
-        // 参考: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
+        // 参考:
+        // https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant
         String authUrl = UriComponentsBuilder
                 .fromHttpUrl(String.format("https://%s/admin/oauth/authorize", shopDomain))
                 .queryParam("client_id", shopifyApiKey)
                 .queryParam("scope", scopes)
                 .queryParam("redirect_uri", redirectUri)
                 .queryParam("state", state)
-                .queryParam("grant_options[]", "offline")  // 请求 offline access token（永久有效）
+                .queryParam("grant_options[]", "offline") // 请求 offline access token（永久有效）
                 .build()
                 .toUriString();
 
@@ -79,7 +81,7 @@ public class ShopifyOAuthService {
     /**
      * 使用授权码换取访问令牌
      *
-     * @param code 授权码
+     * @param code       授权码
      * @param shopDomain Shopify店铺域名
      * @return 访问令牌信息（包含access_token和scope）
      */
@@ -104,8 +106,7 @@ public class ShopifyOAuthService {
             ResponseEntity<String> response = restTemplate.postForEntity(
                     tokenUrl,
                     request,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 // 解析响应
@@ -156,8 +157,7 @@ public class ShopifyOAuthService {
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKeySpec = new SecretKeySpec(
                     shopifyApiSecret.getBytes(StandardCharsets.UTF_8),
-                    "HmacSHA256"
-            );
+                    "HmacSHA256");
             mac.init(secretKeySpec);
 
             byte[] hash = mac.doFinal(queryString.getBytes(StandardCharsets.UTF_8));
@@ -172,6 +172,74 @@ public class ShopifyOAuthService {
 
         } catch (Exception e) {
             log.error("Error validating HMAC", e);
+            return false;
+        }
+    }
+
+    /**
+     * 验证HMAC签名（使用原始query string）
+     * 这是推荐的方式，因为使用已解码的参数可能导致验证失败
+     * 
+     * @param queryString 原始query string
+     * @return 是否有效
+     */
+    public boolean validateHmacFromQueryString(String queryString) {
+        if (queryString == null || queryString.isEmpty()) {
+            log.warn("Query string is empty");
+            return false;
+        }
+
+        try {
+            // 解析query string为参数Map
+            Map<String, String> params = new HashMap<>();
+            String[] pairs = queryString.split("&");
+            for (String pair : pairs) {
+                int idx = pair.indexOf("=");
+                if (idx > 0) {
+                    String key = pair.substring(0, idx);
+                    String value = pair.substring(idx + 1);
+                    params.put(key, value);
+                }
+            }
+
+            // 提取hmac值
+            String hmac = params.get("hmac");
+            if (hmac == null) {
+                log.warn("HMAC parameter missing from query string");
+                return false;
+            }
+
+            // 构建待签名的字符串（移除hmac，按key排序）
+            String messageToSign = params.entrySet().stream()
+                    .filter(e -> !e.getKey().equals("hmac"))
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .collect(Collectors.joining("&"));
+
+            log.debug("Message to sign: {}", messageToSign);
+
+            // 计算HMAC-SHA256
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(
+                    shopifyApiSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256");
+            mac.init(secretKeySpec);
+
+            byte[] hash = mac.doFinal(messageToSign.getBytes(StandardCharsets.UTF_8));
+            String calculatedHmac = bytesToHex(hash);
+
+            boolean valid = calculatedHmac.equalsIgnoreCase(hmac);
+            if (!valid) {
+                log.warn("HMAC validation failed. Expected: {}, Got: {}", calculatedHmac, hmac);
+                log.warn("Message signed: {}", messageToSign);
+            } else {
+                log.info("HMAC validation successful for query string");
+            }
+
+            return valid;
+
+        } catch (Exception e) {
+            log.error("Error validating HMAC from query string", e);
             return false;
         }
     }
@@ -212,7 +280,7 @@ public class ShopifyOAuthService {
      * 验证 Access Token 是否仍然有效
      * 通过调用 Shopify API 的 shop 端点来验证
      *
-     * @param shopDomain 店铺域名
+     * @param shopDomain  店铺域名
      * @param accessToken 访问令牌
      * @return 是否有效
      */
@@ -232,8 +300,7 @@ public class ShopifyOAuthService {
                     shopUrl,
                     HttpMethod.GET,
                     request,
-                    String.class
-            );
+                    String.class);
 
             boolean isValid = response.getStatusCode() == HttpStatus.OK;
             log.info("Access token validation result for {}: {}", shopDomain, isValid ? "VALID" : "INVALID");
@@ -249,7 +316,7 @@ public class ShopifyOAuthService {
     /**
      * 获取店铺信息（用于验证连接状态）
      *
-     * @param shopDomain 店铺域名
+     * @param shopDomain  店铺域名
      * @param accessToken 访问令牌
      * @return 店铺信息
      */
@@ -269,8 +336,7 @@ public class ShopifyOAuthService {
                     shopUrl,
                     HttpMethod.GET,
                     request,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode responseJson = objectMapper.readTree(response.getBody());

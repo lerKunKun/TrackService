@@ -87,11 +87,30 @@
           </a-select>
         </a-form-item>
 
-        <a-form-item label="创建日期">
+        <a-form-item label="开始日期" v-if="!isMobile">
           <a-range-picker
             v-model:value="searchParams.dateRange"
             style="width: 240px"
             format="YYYY-MM-DD"
+          />
+        </a-form-item>
+        
+        <!-- 移动端分开的日期选择器 -->
+        <a-form-item label="开始日期" v-if="isMobile">
+          <a-date-picker
+            v-model:value="searchParams.startDate"
+            format="YYYY-MM-DD"
+            placeholder="选择开始日期"
+            style="width: 100%"
+          />
+        </a-form-item>
+        
+        <a-form-item label="结束日期" v-if="isMobile">
+          <a-date-picker
+            v-model:value="searchParams.endDate"
+            format="YYYY-MM-DD"
+            placeholder="选择结束日期"
+            style="width: 100%"
           />
         </a-form-item>
 
@@ -109,7 +128,9 @@
       </a-form>
 
       <!-- 表格 -->
+      <!-- 表格 (PC端) -->
       <a-table
+        v-if="!isMobile"
         :columns="columns"
         :data-source="tableData"
         :loading="loading"
@@ -171,6 +192,72 @@
           {{ formatDate(record.createdAt) }}
         </template>
       </a-table>
+
+      <!-- 卡片列表 (移动端) -->
+      <div v-else class="mobile-list">
+        <a-spin :spinning="loading">
+          <div v-if="tableData.length > 0">
+            <div v-for="item in tableData" :key="item.id" class="mobile-card">
+              <div class="card-header">
+                <div class="header-left">
+                  <a-typography-text copyable class="tracking-number">
+                    {{ item.trackingNumber }}
+                  </a-typography-text>
+                </div>
+                <a-tag :color="getStatusColor(item.trackStatus)">
+                  {{ getStatusText(item.trackStatus) }}
+                </a-tag>
+              </div>
+              <div class="card-body">
+                <div class="info-row">
+                  <span class="label">承运商:</span>
+                  <span class="value">
+                    <a-tag color="blue" size="small">
+                      {{ item.carrierCode?.toUpperCase() }}
+                    </a-tag>
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="label">来源:</span>
+                  <span class="value">{{ getSourceText(item.source) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">创建时间:</span>
+                  <span class="value">{{ formatDate(item.createdAt) }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <a-button type="link" size="small" @click="handleView(item)">
+                  查看
+                </a-button>
+                <a-button type="link" size="small" @click="handleSync(item.id)">
+                  同步
+                </a-button>
+                <a-popconfirm
+                  title="确定要删除该运单吗？"
+                  ok-text="确定"
+                  cancel-text="取消"
+                  @confirm="handleDelete(item.id)"
+                >
+                  <a-button type="link" danger size="small">
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </div>
+            </div>
+            <div class="mobile-pagination">
+              <a-pagination
+                v-model:current="pagination.current"
+                :total="pagination.total"
+                :page-size="pagination.pageSize"
+                simple
+                @change="(page) => handleTableChange({ current: page, pageSize: pagination.pageSize })"
+              />
+            </div>
+          </div>
+          <a-empty v-else description="暂无数据" />
+        </a-spin>
+      </div>
     </div>
 
     <!-- 添加运单弹窗 -->
@@ -210,8 +297,9 @@
     <a-modal
       v-model:open="detailModalVisible"
       title="运单详情"
-      width="700px"
+      :width="isMobile ? '95%' : '700px'"
       :footer="null"
+      wrapClassName="tracking-detail-modal"
     >
       <a-descriptions bordered :column="2" v-if="currentDetail">
         <a-descriptions-item label="运单号" :span="2">
@@ -267,20 +355,29 @@
 
       <!-- 物流轨迹 -->
       <a-divider>物流轨迹</a-divider>
-      <a-timeline v-if="currentDetail?.events && currentDetail.events.length > 0">
-        <a-timeline-item
-          v-for="event in currentDetail.events"
-          :key="event.id"
-          :color="getEventColor(event.stage)"
-        >
-          <p><strong>{{ formatDate(event.eventTime) }}</strong></p>
-          <p>{{ event.status }}</p>
-          <p v-if="event.location" class="event-location">
-            <EnvironmentOutlined /> {{ event.location }}
-          </p>
-          <p class="event-desc">{{ event.description }}</p>
-        </a-timeline-item>
-      </a-timeline>
+      <div v-if="currentDetail?.events && currentDetail.events.length > 0" class="timeline-container">
+        <div v-for="(group, index) in groupedByCarrier" :key="index" class="carrier-section">
+          <!-- 承运商标题 -->
+          <div class="carrier-title" v-if="groupedByCarrier.length > 1">
+            <span class="carrier-icon">🚚</span>
+            {{ group.providerName }}
+          </div>
+          
+          <!-- 该承运商的事件列表 -->
+          <a-timeline>
+            <a-timeline-item
+              v-for="event in group.events"
+              :key="event.id"
+              :color="getEventColor(event.subStatus || event.stage)"
+            >
+              <div class="timeline-item">
+                <div class="event-time">{{ formatEventDate(event.eventTime) }}</div>
+                <div class="event-desc">{{ event.description }}</div>
+              </div>
+            </a-timeline-item>
+          </a-timeline>
+        </div>
+      </div>
       <a-empty v-else description="暂无物流轨迹" />
     </a-modal>
 
@@ -362,7 +459,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { message, Modal, Grid } from 'ant-design-vue'
 import {
   PlusOutlined,
   SearchOutlined,
@@ -432,12 +529,18 @@ const pagination = reactive({
   showTotal: (total) => `共 ${total} 条`
 })
 
+const useBreakpoint = Grid.useBreakpoint
+const screens = useBreakpoint()
+const isMobile = computed(() => !screens.value.md)
+
 const searchParams = reactive({
   keyword: '',
   shopId: undefined,
   status: undefined,
   carrierCode: undefined,
-  dateRange: []
+  dateRange: [],
+  startDate: null,  // 移动端开始日期
+  endDate: null     // 移动端结束日期
 })
 
 const shopList = ref([])
@@ -515,10 +618,20 @@ const fetchTrackings = async () => {
       carrierCode: searchParams.carrierCode
     }
 
-    // 处理日期范围
-    if (searchParams.dateRange && searchParams.dateRange.length === 2) {
+    // 处理日期范围 - PC端
+    if (!isMobile.value && searchParams.dateRange && searchParams.dateRange.length === 2) {
       params.startDate = dayjs(searchParams.dateRange[0]).format('YYYY-MM-DD')
       params.endDate = dayjs(searchParams.dateRange[1]).format('YYYY-MM-DD')
+    }
+    
+    // 处理日期范围 - 移动端
+    if (isMobile.value) {
+      if (searchParams.startDate) {
+        params.startDate = dayjs(searchParams.startDate).format('YYYY-MM-DD')
+      }
+      if (searchParams.endDate) {
+        params.endDate = dayjs(searchParams.endDate).format('YYYY-MM-DD')
+      }
     }
 
     const data = await trackingApi.getList(params)
@@ -882,20 +995,60 @@ const getSourceText = (source) => {
 }
 
 // 获取事件颜色
-const getEventColor = (stage) => {
+const getEventColor = (status) => {
+  if (!status) return 'gray'
+  
+  // 处理 subStatus 格式
+  if (status.startsWith('Delivered')) return 'green'
+  if (status.startsWith('InTransit') || status.startsWith('OutForDelivery') || status.startsWith('AvailableForPickup')) return 'blue'
+  if (status.startsWith('Exception')) return 'red'
+  if (status.startsWith('InfoReceived')) return 'gray'
+  
+  // 处理 stage 格式
   const colors = {
     InfoReceived: 'gray',
     InTransit: 'blue',
+    Arrival: 'blue',
+    OutForDelivery: 'blue',
+    AvailableForPickup: 'blue',
     Delivered: 'green',
     Exception: 'red'
   }
-  return colors[stage] || 'gray'
+  
+  return colors[status] || 'blue'
 }
 
 // 格式化日期
 const formatDate = (date) => {
   return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
+
+// 格式化事件日期（用于物流轨迹）
+const formatEventDate = (date) => {
+  return date ? dayjs(date).format('YYYY/MM/DD HH:mm:ss') : '-'
+}
+
+// 按承运商分组事件
+const groupedByCarrier = computed(() => {
+  if (!currentDetail.value?.events || currentDetail.value.events.length === 0) {
+    return []
+  }
+  
+  const groups = new Map()
+  
+  currentDetail.value.events.forEach(event => {
+    const provider = event.providerName || '未知承运商'
+    if (!groups.has(provider)) {
+      groups.set(provider, [])
+    }
+    groups.get(provider).push(event)
+  })
+  
+  return Array.from(groups.entries()).map(([providerName, events]) => ({
+    providerName,
+    events: events.sort((a, b) => new Date(b.eventTime) - new Date(a.eventTime))
+  }))
+})
 
 onMounted(() => {
   // 从URL参数读取筛选条件
@@ -943,13 +1096,129 @@ onMounted(() => {
   border-radius: 4px;
 }
 
-.event-location {
-  color: #8c8c8c;
-  font-size: 13px;
+
+/* 物流轨迹样式 */
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.carrier-section {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fafafa;
+}
+
+.carrier-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.carrier-icon {
+  font-size: 18px;
+}
+
+.timeline-item {
+  padding: 4px 0;
+}
+
+.event-time {
+  font-weight: 600;
+  font-size: 14px;
+  color: #262626;
+  margin-bottom: 8px;
 }
 
 .event-desc {
-  color: #595959;
+  font-size: 14px;
+  color: #262626;
+  line-height: 1.6;
+  margin-bottom: 6px;
+  word-wrap: break-word;
+}
+
+.event-provider {
+  font-size: 12px;
+  color: #8c8c8c;
   margin-top: 4px;
 }
+
+.provider-label {
+  font-weight: 500;
+}
+
+/* 运单详情弹窗移动端样式 */
+:global(.tracking-detail-modal) {
+  max-width: 95vw;
+}
+
+:global(.tracking-detail-modal .ant-modal-body) {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  :global(.tracking-detail-modal .ant-descriptions-item-label) {
+    padding: 8px !important;
+    font-size: 13px;
+  }
+  
+  :global(.tracking-detail-modal .ant-descriptions-item-content) {
+    padding: 8px !important;
+    font-size: 13px;
+  }
+  
+  :global(.tracking-detail-modal .ant-timeline) {
+    margin-left: 0;
+    padding-left: 10px;
+  }
+  
+  :global(.tracking-detail-modal .ant-timeline-item) {
+    padding-bottom: 16px;
+  }
+  
+  :global(.tracking-detail-modal .ant-timeline-item-content) {
+    margin-left: 20px !important;
+    width: calc(100% - 20px) !important;
+  }
+  
+  .timeline-container {
+    gap: 16px;
+  }
+  
+  .carrier-section {
+    padding: 12px;
+  }
+  
+  .carrier-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  
+  .timeline-item {
+    font-size: 13px;
+  }
+  
+  .event-time {
+    font-size: 13px;
+  }
+  
+  .event-desc {
+    font-size: 13px;
+  }
+  
+  .event-provider {
+    font-size: 11px;
+  }
+}
+
 </style>

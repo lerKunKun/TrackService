@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -41,8 +42,8 @@ public class ShopifyOAuthController {
     private static final long STATE_EXPIRE_SECONDS = 300; // 5分钟过期
 
     public ShopifyOAuthController(ShopifyOAuthService shopifyOAuthService,
-                                   ShopService shopService,
-                                   ShopifyWebhookService webhookService) {
+            ShopService shopService,
+            ShopifyWebhookService webhookService) {
         this.shopifyOAuthService = shopifyOAuthService;
         this.shopService = shopService;
         this.webhookService = webhookService;
@@ -56,7 +57,7 @@ public class ShopifyOAuthController {
      */
     @GetMapping("/authorize")
     public void authorize(@RequestParam String shopDomain,
-                          HttpServletResponse response) throws IOException {
+            HttpServletResponse response) throws IOException {
         log.info("Starting Shopify OAuth for shop: {}", shopDomain);
 
         // 验证域名格式
@@ -93,6 +94,8 @@ public class ShopifyOAuthController {
             @RequestParam String state,
             @RequestParam String hmac,
             @RequestParam(required = false) String timestamp,
+            @RequestParam(required = false) String host,
+            HttpServletRequest request,
             HttpServletResponse response) throws IOException {
 
         log.info("Received OAuth callback from shop: {}", shop);
@@ -118,17 +121,9 @@ public class ShopifyOAuthController {
             redisTemplate.delete(key);
             log.info("OAuth state validated and removed from Redis: {}", state);
 
-            // 2. 验证HMAC签名
-            Map<String, String> params = new HashMap<>();
-            params.put("code", code);
-            params.put("shop", shop);
-            params.put("state", state);
-            params.put("hmac", hmac);
-            if (timestamp != null) {
-                params.put("timestamp", timestamp);
-            }
-
-            if (!shopifyOAuthService.validateHmac(params)) {
+            // 2. 验证HMAC签名（使用原始query string）
+            String queryString = request.getQueryString();
+            if (!shopifyOAuthService.validateHmacFromQueryString(queryString)) {
                 log.warn("HMAC validation failed for shop: {}", shop);
                 response.sendRedirect(frontendRedirect + "?oauth=error&reason=hmac_failed");
                 return;
@@ -161,15 +156,15 @@ public class ShopifyOAuthController {
                 // 更新现有店铺
                 existingShop.setShopName((String) shopInfo.getOrDefault("name", existingShop.getShopName()));
                 existingShop.setAccessToken(accessToken);
-                existingShop.setTokenType("offline");  // 使用 offline token
-                existingShop.setConnectionStatus("active");  // 连接状态正常
+                existingShop.setTokenType("offline"); // 使用 offline token
+                existingShop.setConnectionStatus("active"); // 连接状态正常
                 existingShop.setLastValidatedAt(LocalDateTime.now());
                 existingShop.setOauthScope(scope);
                 existingShop.setOauthState(state);
                 existingShop.setShopDomain(shop);
                 existingShop.setStoreUrl("https://" + shop);
                 existingShop.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
-                existingShop.setTokenExpiresAt(null);  // Offline token 永不过期
+                existingShop.setTokenExpiresAt(null); // Offline token 永不过期
                 existingShop.setIsActive(true);
                 shopService.update(existingShop);
 
@@ -177,19 +172,19 @@ public class ShopifyOAuthController {
             } else {
                 // 创建新店铺 - 需要设置 userId（临时使用 ID=1 的管理员）
                 Shop newShop = new Shop();
-                newShop.setUserId(1L);  // TODO: 从当前登录用户获取
+                newShop.setUserId(1L); // TODO: 从当前登录用户获取
                 newShop.setShopName((String) shopInfo.getOrDefault("name", shop.replace(".myshopify.com", "")));
                 newShop.setPlatform("shopify");
                 newShop.setStoreUrl("https://" + shop);
                 newShop.setShopDomain(shop);
                 newShop.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
                 newShop.setAccessToken(accessToken);
-                newShop.setTokenType("offline");  // 使用 offline token
-                newShop.setConnectionStatus("active");  // 连接状态正常
+                newShop.setTokenType("offline"); // 使用 offline token
+                newShop.setConnectionStatus("active"); // 连接状态正常
                 newShop.setLastValidatedAt(LocalDateTime.now());
                 newShop.setOauthScope(scope);
                 newShop.setOauthState(state);
-                newShop.setTokenExpiresAt(null);  // Offline token 永不过期
+                newShop.setTokenExpiresAt(null); // Offline token 永不过期
                 newShop.setIsActive(true);
                 shopService.create(newShop);
 

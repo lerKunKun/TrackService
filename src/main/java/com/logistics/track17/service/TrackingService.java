@@ -44,10 +44,10 @@ public class TrackingService {
     private static final long TRACKING_CACHE_EXPIRE_SECONDS = 300; // 5分钟过期
 
     public TrackingService(TrackingNumberMapper trackingNumberMapper,
-                           TrackingEventMapper trackingEventMapper,
-                           ParcelMapper parcelMapper,
-                           Track17Service track17Service,
-                           CarrierService carrierService) {
+            TrackingEventMapper trackingEventMapper,
+            ParcelMapper parcelMapper,
+            Track17Service track17Service,
+            CarrierService carrierService) {
         this.trackingNumberMapper = trackingNumberMapper;
         this.trackingEventMapper = trackingEventMapper;
         this.parcelMapper = parcelMapper;
@@ -73,19 +73,18 @@ public class TrackingService {
             // 注册到17Track
             Track17RegisterResponse registerResponse = track17Service.registerTracking(
                     request.getTrackingNumber(),
-                    request.getCarrierCode()
-            );
+                    request.getCarrierCode());
 
             // 检查运单号是否被拒绝（无效）
             if (registerResponse != null && registerResponse.getData() != null
                     && registerResponse.getData().getRejected() != null
                     && !registerResponse.getData().getRejected().isEmpty()) {
 
-                Track17RegisterResponse.Track17RegisterData.RejectedItem rejectedItem =
-                        registerResponse.getData().getRejected().get(0);
+                Track17RegisterResponse.Track17RegisterData.RejectedItem rejectedItem = registerResponse.getData()
+                        .getRejected().get(0);
                 String errorMsg = rejectedItem.getError() != null
-                    ? rejectedItem.getError().getMessage()
-                    : "运单号无效";
+                        ? rejectedItem.getError().getMessage()
+                        : "运单号无效";
 
                 log.warn("Tracking number rejected by 17Track: {} - {}",
                         request.getTrackingNumber(), errorMsg);
@@ -97,8 +96,8 @@ public class TrackingService {
                     && registerResponse.getData().getAccepted() != null
                     && !registerResponse.getData().getAccepted().isEmpty()) {
 
-                Track17RegisterResponse.Track17RegisterData.AcceptedItem acceptedItem =
-                        registerResponse.getData().getAccepted().get(0);
+                Track17RegisterResponse.Track17RegisterData.AcceptedItem acceptedItem = registerResponse.getData()
+                        .getAccepted().get(0);
                 carrierId = acceptedItem.getCarrier();
 
                 if (StringUtils.isBlank(actualCarrierCode) && carrierId != null) {
@@ -111,8 +110,7 @@ public class TrackingService {
             try {
                 Track17QueryResponse queryResponse = track17Service.queryTracking(
                         request.getTrackingNumber(),
-                        request.getCarrierCode()
-                );
+                        request.getCarrierCode());
 
                 if (queryResponse != null && queryResponse.getData() != null
                         && queryResponse.getData().getAccepted() != null
@@ -199,16 +197,15 @@ public class TrackingService {
      * 获取运单列表（分页、筛选、搜索）
      */
     public PageResult<TrackingResponse> getList(String keyword, Long shopId, String status,
-                                                String carrierCode, String startDate, String endDate,
-                                                Integer page, Integer pageSize) {
+            String carrierCode, String startDate, String endDate,
+            Integer page, Integer pageSize) {
         page = page == null || page < 1 ? 1 : page;
         pageSize = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 100);
 
         int offset = (page - 1) * pageSize;
 
         List<TrackingNumber> trackingNumbers = trackingNumberMapper.selectList(
-                keyword, shopId, status, carrierCode, startDate, endDate, offset, pageSize
-        );
+                keyword, shopId, status, carrierCode, startDate, endDate, offset, pageSize);
 
         Long total = trackingNumberMapper.count(keyword, shopId, status, carrierCode, startDate, endDate);
 
@@ -279,8 +276,7 @@ public class TrackingService {
             // 调用17Track V2 API查询
             Track17V2Response queryResponse = track17Service.queryTrackingV2(
                     trackingNumber.getTrackingNumber(),
-                    trackingNumber.getCarrierCode()
-            );
+                    trackingNumber.getCarrierCode());
 
             // 解析17Track V2返回的数据
             if (queryResponse != null && queryResponse.getData() != null) {
@@ -346,15 +342,15 @@ public class TrackingService {
         switch (z0) {
             case 0:
             case 1:
-                return "InfoReceived";  // 待查询、查询中
+                return "InfoReceived"; // 待查询、查询中
             case 2:
-                return "InTransit";     // 运输途中
+                return "InTransit"; // 运输途中
             case 3:
             case 4:
-                return "Delivered";     // 到达待取、成功签收
+                return "Delivered"; // 到达待取、成功签收
             case 5:
             case 6:
-                return "Exception";     // 疑难件、退件签收
+                return "Exception"; // 疑难件、退件签收
             default:
                 return "InfoReceived";
         }
@@ -495,31 +491,30 @@ public class TrackingService {
                 try {
                     Track17RegisterResponse registerResponse = track17Service.registerTracking(
                             item.getTrackingNumber(),
-                            item.getCarrierCode()
-                    );
+                            item.getCarrierCode());
 
                     // 检查运单号是否被拒绝（无效）
                     if (registerResponse != null && registerResponse.getData() != null
                             && registerResponse.getData().getRejected() != null
                             && !registerResponse.getData().getRejected().isEmpty()) {
 
-                        Track17RegisterResponse.Track17RegisterData.RejectedItem rejectedItem =
-                                registerResponse.getData().getRejected().get(0);
+                        Track17RegisterResponse.Track17RegisterData.RejectedItem rejectedItem = registerResponse
+                                .getData().getRejected().get(0);
                         String errorMsg = rejectedItem.getError() != null
                                 ? rejectedItem.getError().getMessage()
                                 : "运单号无效";
 
                         log.warn("Tracking number rejected by 17Track: {} - {}", item.getTrackingNumber(), errorMsg);
                         failed++;
-                        continue;  // 跳过无效运单号
+                        continue; // 跳过无效运单号
                     }
 
                     if (registerResponse != null && registerResponse.getData() != null
                             && registerResponse.getData().getAccepted() != null
                             && !registerResponse.getData().getAccepted().isEmpty()) {
 
-                        Track17RegisterResponse.Track17RegisterData.AcceptedItem acceptedItem =
-                                registerResponse.getData().getAccepted().get(0);
+                        Track17RegisterResponse.Track17RegisterData.AcceptedItem acceptedItem = registerResponse
+                                .getData().getAccepted().get(0);
                         carrierId = acceptedItem.getCarrier();
 
                         if (StringUtils.isBlank(actualCarrierCode) && carrierId != null) {
@@ -532,14 +527,14 @@ public class TrackingService {
                     try {
                         Track17QueryResponse queryResponse = track17Service.queryTracking(
                                 item.getTrackingNumber(),
-                                item.getCarrierCode()
-                        );
+                                item.getCarrierCode());
 
                         if (queryResponse != null && queryResponse.getData() != null
                                 && queryResponse.getData().getAccepted() != null
                                 && !queryResponse.getData().getAccepted().isEmpty()) {
 
-                            Track17QueryResponse.Track17Data.AcceptedItem queryItem = queryResponse.getData().getAccepted().get(0);
+                            Track17QueryResponse.Track17Data.AcceptedItem queryItem = queryResponse.getData()
+                                    .getAccepted().get(0);
                             if (queryItem.getTrack() != null) {
                                 actualCarrierName = queryItem.getTrack().getW1();
                             }
@@ -549,9 +544,10 @@ public class TrackingService {
                                 item.getTrackingNumber(), e.getMessage());
                     }
                 } catch (Exception e) {
-                    log.error("Failed to register tracking to 17Track for {}: {}", item.getTrackingNumber(), e.getMessage());
+                    log.error("Failed to register tracking to 17Track for {}: {}", item.getTrackingNumber(),
+                            e.getMessage());
                     failed++;
-                    continue;  // 跳过注册失败的运单号
+                    continue; // 跳过注册失败的运单号
                 }
 
                 // 创建包裹对象
@@ -559,7 +555,7 @@ public class TrackingService {
                 parcel.setCarrierCode(actualCarrierCode);
                 parcel.setCarrierName(actualCarrierName);
                 parcel.setStatus("in_transit");
-                parcelMapper.insert(parcel);  // 包裹仍需逐个插入以获取ID
+                parcelMapper.insert(parcel); // 包裹仍需逐个插入以获取ID
 
                 // 创建运单对象
                 TrackingNumber trackingNumber = new TrackingNumber();
@@ -623,6 +619,9 @@ public class TrackingService {
     private TrackingEventResponse convertToEventResponse(TrackingEvent event) {
         TrackingEventResponse response = new TrackingEventResponse();
         BeanUtils.copyProperties(event, response);
+        // 手动映射字段名不匹配的字段
+        response.setDescription(event.getEventDescription()); // eventDescription -> description
+        response.setLocation(event.getEventLocation()); // eventLocation -> location
         return response;
     }
 }

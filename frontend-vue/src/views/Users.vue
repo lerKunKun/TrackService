@@ -10,7 +10,9 @@
       </div>
 
       <!-- 用户表格 -->
+      <!-- 用户表格 (PC端) -->
       <a-table
+        v-if="!isMobile"
         :columns="columns"
         :data-source="userList"
         :loading="loading"
@@ -62,6 +64,83 @@
           </template>
         </template>
       </a-table>
+
+      <!-- 卡片列表 (移动端) -->
+      <div v-else class="mobile-list">
+        <a-spin :spinning="loading">
+          <div v-if="userList.length > 0">
+            <div v-for="item in userList" :key="item.id" class="mobile-card">
+              <div class="card-header">
+                <span class="username">{{ item.username }}</span>
+                <a-tag :color="item.role === 'ADMIN' ? 'blue' : 'default'">
+                  {{ item.role === 'ADMIN' ? '管理员' : '普通用户' }}
+                </a-tag>
+              </div>
+              <div class="card-body">
+                <div class="info-row">
+                  <span class="label">真实姓名:</span>
+                  <span class="value">{{ item.realName || '-' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">邮箱:</span>
+                  <span class="value">{{ item.email || '-' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">状态:</span>
+                  <span class="value">
+                    <a-tag :color="item.status === 1 ? 'green' : 'red'">
+                      {{ item.status === 1 ? '启用' : '禁用' }}
+                    </a-tag>
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="label">创建时间:</span>
+                  <span class="value">{{ item.createdAt }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <a-button type="link" size="small" @click="showEditModal(item)">
+                  编辑
+                </a-button>
+                <a-button type="link" size="small" @click="showPasswordModal(item)">
+                  改密
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="handleToggleStatus(item)"
+                >
+                  {{ item.status === 1 ? '禁用' : '启用' }}
+                </a-button>
+                <a-popconfirm
+                  title="确定要删除此用户吗？"
+                  @confirm="handleDelete(item.id)"
+                  :disabled="item.role === 'ADMIN'"
+                >
+                  <a-button
+                    type="link"
+                    size="small"
+                    danger
+                    :disabled="item.role === 'ADMIN'"
+                  >
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </div>
+            </div>
+            <div class="mobile-pagination">
+              <a-pagination
+                v-model:current="pagination.current"
+                :total="pagination.total"
+                :page-size="pagination.pageSize"
+                simple
+                @change="(page) => handleTableChange({ current: page, pageSize: pagination.pageSize })"
+              />
+            </div>
+          </div>
+          <a-empty v-else description="暂无数据" />
+        </a-spin>
+      </div>
     </a-card>
 
     <!-- 新增/编辑用户弹窗 -->
@@ -133,8 +212,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { message, Grid } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { userApi } from '@/api/user'
 
@@ -161,6 +240,10 @@ const pagination = reactive({
   showSizeChanger: true,
   showTotal: (total) => `共 ${total} 条`
 })
+
+const useBreakpoint = Grid.useBreakpoint
+const screens = useBreakpoint()
+const isMobile = computed(() => !screens.value.md)
 
 // 弹窗状态
 const modalVisible = ref(false)
@@ -378,5 +461,89 @@ onMounted(() => {
 
 .table-operations {
   margin-bottom: 16px;
+}
+
+/* Mobile Styles */
+.mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+}
+
+.mobile-card:active {
+  background: #fafafa;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.username {
+  font-weight: 600;
+  font-size: 16px;
+  color: #262626;
+}
+
+.card-body {
+  margin-bottom: 12px;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.info-row .label {
+  color: #8c8c8c;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.info-row .value {
+  color: #262626;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+}
+
+.card-actions .ant-btn {
+  padding: 4px 12px;
+  height: auto;
+}
+
+.mobile-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+@media (max-width: 576px) {
+  .page-content {
+    padding: 12px;
+  }
 }
 </style>

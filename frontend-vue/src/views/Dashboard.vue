@@ -2,7 +2,7 @@
   <div class="page-container">
     <!-- 统计卡片区域 -->
     <a-row :gutter="16" class="stats-row">
-      <a-col :span="6">
+      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card" @click="goToPage('/tracking')">
           <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%)">
             <FileTextOutlined />
@@ -21,7 +21,7 @@
         </div>
       </a-col>
 
-      <a-col :span="6">
+      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card" @click="goToPage('/shops')">
           <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%)">
             <ShopOutlined />
@@ -40,7 +40,7 @@
         </div>
       </a-col>
 
-      <a-col :span="6">
+      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card" @click="goToPage('/users')">
           <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%)">
             <TeamOutlined />
@@ -59,7 +59,7 @@
         </div>
       </a-col>
 
-      <a-col :span="6">
+      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
         <div class="stat-card stat-card-exception" @click="goToTracking('Exception')">
           <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)">
             <WarningOutlined />
@@ -82,7 +82,8 @@
     <!-- 详细统计区域 -->
     <a-row :gutter="16" class="detail-row">
       <!-- 运单状态分布 -->
-      <a-col :span="12">
+      <!-- 运单状态分布 -->
+      <a-col :xs="24" :md="12" style="margin-bottom: 16px">
         <div class="content-card">
           <div class="card-header">
             <h3>运单状态分布</h3>
@@ -137,7 +138,7 @@
       </a-col>
 
       <!-- 承运商排行 -->
-      <a-col :span="12">
+      <a-col :xs="24" :md="12" style="margin-bottom: 16px">
         <div class="content-card">
           <div class="card-header">
             <h3>承运商排行 (Top 10)</h3>
