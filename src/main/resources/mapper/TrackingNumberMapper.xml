@@ -31,7 +31,24 @@
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
         <result column="version" property="version"/>
+        <result column="deleted_at" property="deletedAt"/>
     </resultMap>
+
+    <!-- 基础列表（用于列表查询，减少数据传输） -->
+    <sql id="Base_Column_List">
+        id, user_id, parcel_id, tracking_number, carrier_code, carrier_name,
+        track_status, sub_status, latest_event_time, latest_event_desc,
+        created_at, updated_at, deleted_at
+    </sql>
+
+    <!-- 详细列表（用于详情查询） -->
+    <sql id="Detail_Column_List">
+        id, user_id, parcel_id, tracking_number, carrier_code, carrier_name, carrier_id,
+        source, remarks, track_status, sub_status, sub_status_descr,
+        days_of_transit, days_after_last_update, latest_event_time, latest_event_desc,
+        latest_event_location, pickup_time, delivered_time, last_sync_at, next_sync_at,
+        destination_country, origin_country, created_at, updated_at, version, deleted_at
+    </sql>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.TrackingNumber" useGeneratedKeys="true"
             keyProperty="id">
@@ -61,16 +78,19 @@
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM tracking_numbers WHERE id = #{id}
+        SELECT <include refid="Detail_Column_List"/>
+        FROM tracking_numbers WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
     <select id="selectByTrackingNumber" resultMap="BaseResultMap">
-        SELECT * FROM tracking_numbers WHERE tracking_number = #{trackingNumber}
+        SELECT <include refid="Detail_Column_List"/>
+        FROM tracking_numbers WHERE tracking_number = #{trackingNumber} AND deleted_at IS NULL
     </select>
 
     <select id="selectByTrackingNumbers" resultMap="BaseResultMap">
-        SELECT * FROM tracking_numbers
-        WHERE tracking_number IN
+        SELECT <include refid="Base_Column_List"/>
+        FROM tracking_numbers
+        WHERE deleted_at IS NULL AND tracking_number IN
         <foreach collection="trackingNumbers" item="trackingNumber" open="(" separator="," close=")">
             #{trackingNumber}
         </foreach>
@@ -85,6 +105,7 @@
             LEFT JOIN orders o ON p.order_id = o.id
         </if>
         <where>
+            tn.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
                 AND (
                     tn.tracking_number LIKE CONCAT(#{keyword}, '%')
@@ -124,6 +145,7 @@
             LEFT JOIN orders o ON p.order_id = o.id
         </if>
         <where>
+            tn.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
                 AND (
                     tn.tracking_number LIKE CONCAT(#{keyword}, '%')
@@ -180,40 +202,43 @@
         </if>
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM tracking_numbers WHERE id = #{id}
-    </delete>
+    <!-- 软删除运单 -->
+    <update id="deleteById">
+        UPDATE tracking_numbers SET deleted_at = NOW() WHERE id = #{id}
+    </update>
 
-    <delete id="deleteBatch">
-        DELETE FROM tracking_numbers WHERE id IN
+    <!-- 批量软删除运单 -->
+    <update id="deleteBatch">
+        UPDATE tracking_numbers SET deleted_at = NOW()
+        WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 
     <select id="selectDistinctCarriers" resultType="java.lang.String">
         SELECT DISTINCT carrier_code
         FROM tracking_numbers
-        WHERE carrier_code IS NOT NULL AND carrier_code != ''
+        WHERE deleted_at IS NULL AND carrier_code IS NOT NULL AND carrier_code != ''
         ORDER BY carrier_code
     </select>
 
     <select id="countToday" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM tracking_numbers
-        WHERE DATE(created_at) = CURDATE()
+        WHERE deleted_at IS NULL AND DATE(created_at) = CURDATE()
     </select>
 
     <select id="countByStatus" resultType="java.lang.Long">
         SELECT COUNT(*)
         FROM tracking_numbers
-        WHERE track_status = #{status}
+        WHERE deleted_at IS NULL AND track_status = #{status}
     </select>
 
     <select id="countByCarrier" resultType="java.util.Map">
         SELECT carrier_code as carrierCode, COUNT(*) as count
         FROM tracking_numbers
-        WHERE carrier_code IS NOT NULL AND carrier_code != ''
+        WHERE deleted_at IS NULL AND carrier_code IS NOT NULL AND carrier_code != ''
         GROUP BY carrier_code
         ORDER BY count DESC
         LIMIT #{limit}
@@ -222,7 +247,7 @@
     <select id="countByDay" resultType="java.util.Map">
         SELECT DATE(created_at) as date, COUNT(*) as count
         FROM tracking_numbers
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        WHERE deleted_at IS NULL AND created_at >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
         GROUP BY DATE(created_at)
         ORDER BY date ASC
     </select>

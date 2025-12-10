@@ -9,6 +9,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/dingtalk/callback',
+    name: 'DingTalkCallback',
+    component: () => import('@/views/DingTalkCallback.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     component: () => import('@/views/Layout.vue'),
     redirect: '/dashboard',
@@ -37,6 +43,12 @@ const routes = [
         name: 'Users',
         component: () => import('@/views/Users.vue'),
         meta: { title: '用户管理' }
+      },
+      {
+        path: 'allowed-corp-ids',
+        name: 'AllowedCorpIds',
+        component: () => import('@/views/AllowedCorpIds.vue'),
+        meta: { title: '企业CorpID管理', requiresAdmin: true }
       }
     ]
   }

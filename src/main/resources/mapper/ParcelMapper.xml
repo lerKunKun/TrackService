@@ -16,17 +16,25 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <!-- 基础列表 -->
+    <sql id="Base_Column_List">
+        id, order_id, parcel_no, carrier_code, carrier_name,
+        shipped_at, delivered_at, status, created_at, updated_at
+    </sql>
+
     <insert id="insert" parameterType="com.logistics.track17.entity.Parcel" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO parcels (order_id, parcel_no, carrier_code, carrier_name, shipped_at, delivered_at, status)
         VALUES (#{orderId}, #{parcelNo}, #{carrierCode}, #{carrierName}, #{shippedAt}, #{deliveredAt}, #{status})
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM parcels WHERE id = #{id}
+        SELECT <include refid="Base_Column_List"/>
+        FROM parcels WHERE id = #{id}
     </select>
 
     <select id="selectByOrderId" resultMap="BaseResultMap">
-        SELECT * FROM parcels WHERE order_id = #{orderId} LIMIT 1
+        SELECT <include refid="Base_Column_List"/>
+        FROM parcels WHERE order_id = #{orderId} LIMIT 1
     </select>
 
 </mapper>

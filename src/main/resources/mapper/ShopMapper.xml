@@ -25,7 +25,22 @@
         <result column="last_sync_time" property="lastSyncTime"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>
+        <result column="deleted_at" property="deletedAt"/>
     </resultMap>
+
+    <!-- 基础列表（用于列表查询，不包含敏感信息） -->
+    <sql id="Base_Column_List">
+        id, user_id, shop_name, platform, shop_domain, timezone,
+        connection_status, is_active, last_sync_time, created_at, updated_at, deleted_at
+    </sql>
+
+    <!-- 详细列表（用于详情查询，包含所有字段） -->
+    <sql id="Detail_Column_List">
+        id, user_id, shop_name, platform, shop_url, shop_domain, timezone,
+        api_key, api_secret, access_token, token_type, connection_status,
+        last_validated_at, webhook_secret, oauth_state, oauth_scope,
+        token_expires_at, is_active, last_sync_time, created_at, updated_at, deleted_at
+    </sql>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.Shop" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO shops (user_id, shop_name, platform, shop_url, shop_domain, timezone,
@@ -37,16 +52,20 @@
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT * FROM shops WHERE id = #{id}
+        SELECT <include refid="Detail_Column_List"/>
+        FROM shops WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
     <select id="selectByShopDomain" resultMap="BaseResultMap">
-        SELECT * FROM shops WHERE shop_domain = #{shopDomain}
+        SELECT <include refid="Detail_Column_List"/>
+        FROM shops WHERE shop_domain = #{shopDomain} AND deleted_at IS NULL
     </select>
 
     <select id="selectList" resultMap="BaseResultMap">
-        SELECT * FROM shops
+        SELECT <include refid="Base_Column_List"/>
+        FROM shops
         <where>
+            deleted_at IS NULL
             <if test="platform != null and platform != ''">
                 AND platform = #{platform}
             </if>
@@ -60,6 +79,7 @@
     <select id="count" resultType="java.lang.Long">
         SELECT COUNT(*) FROM shops
         <where>
+            deleted_at IS NULL
             <if test="platform != null and platform != ''">
                 AND platform = #{platform}
             </if>
@@ -91,9 +111,10 @@
         WHERE id = #{id}
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM shops WHERE id = #{id}
-    </delete>
+    <!-- 软删除店铺 -->
+    <update id="deleteById">
+        UPDATE shops SET deleted_at = NOW() WHERE id = #{id}
+    </update>
 
     <select id="countOrdersByShopId" resultType="java.lang.Long">
         SELECT COUNT(*) FROM orders WHERE shop_id = #{shopId}

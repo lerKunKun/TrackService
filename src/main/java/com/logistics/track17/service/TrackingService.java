@@ -414,38 +414,48 @@ public class TrackingService {
         return getById(id);
     }
 
+    /**
+     * 删除运单（软删除）
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        log.info("Deleting tracking number: {}", id);
+        log.info("Soft deleting tracking number: {}", id);
 
         TrackingNumber trackingNumber = trackingNumberMapper.selectById(id);
         if (trackingNumber == null) {
             throw BusinessException.of(404, "运单不存在");
         }
 
-        // 删除关联的物流事件
-        trackingEventMapper.deleteByTrackingId(id);
-
-        // 删除运单
+        // 软删除：设置 deleted_at 时间戳
         trackingNumberMapper.deleteById(id);
 
-        log.info("Tracking number deleted successfully: {}", id);
+        // 清除缓存
+        String cacheKey = TRACKING_CACHE_PREFIX + id;
+        redisTemplate.delete(cacheKey);
+        log.debug("Cache invalidated for tracking: {}", id);
+
+        log.info("Tracking number soft deleted successfully: {}", id);
     }
 
     /**
-     * 批量删除运单
+     * 批量删除运单（软删除）
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteBatch(List<Long> ids) {
-        log.info("Batch deleting tracking numbers: {}", ids.size());
+        log.info("Batch soft deleting tracking numbers: {}", ids.size());
 
-        // 性能优化：使用批量删除代替循环
+        // 批量软删除运单
         if (!ids.isEmpty()) {
-            trackingEventMapper.deleteByTrackingIds(ids);
+            trackingNumberMapper.deleteBatch(ids);
+
+            // 清除缓存
+            for (Long id : ids) {
+                String cacheKey = TRACKING_CACHE_PREFIX + id;
+                redisTemplate.delete(cacheKey);
+            }
         }
 
-        trackingNumberMapper.deleteBatch(ids);
-
-        log.info("Batch delete completed: {}", ids.size());
+        log.info("Batch soft delete completed: {}", ids.size());
     }
 
     /**

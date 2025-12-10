@@ -156,11 +156,11 @@ public class ShopService {
     }
 
     /**
-     * 删除店铺
+     * 删除店铺（软删除）
      */
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        log.info("Deleting shop: {}", id);
+        log.info("Soft deleting shop: {}", id);
 
         Shop shop = shopMapper.selectById(id);
         if (shop == null) {
@@ -173,8 +173,9 @@ public class ShopService {
             throw BusinessException.of("该店铺下有 " + orderCount + " 个订单，无法删除");
         }
 
+        // 软删除：设置 deleted_at 时间戳
         shopMapper.deleteById(id);
-        log.info("Shop deleted successfully: {}", id);
+        log.info("Shop soft deleted successfully: {}", id);
     }
 
     /**

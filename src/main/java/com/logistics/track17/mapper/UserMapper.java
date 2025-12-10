@@ -61,13 +61,18 @@ public interface UserMapper {
      * 更新最后登录信息
      */
     int updateLastLogin(@Param("id") Long id,
-                       @Param("lastLoginTime") LocalDateTime lastLoginTime,
-                       @Param("lastLoginIp") String lastLoginIp);
+            @Param("lastLoginTime") LocalDateTime lastLoginTime,
+            @Param("lastLoginIp") String lastLoginIp);
 
     /**
      * 更新用户状态
      */
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    /**
+     * 根据钉钉unionId查询用户
+     */
+    User selectByDingUnionId(@Param("unionId") String unionId);
 
     /**
      * 删除用户

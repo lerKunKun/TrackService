@@ -20,6 +20,12 @@
         <result column="created_at" property="createdAt"/>
     </resultMap>
 
+    <!-- 基础列表（用于事件查询） -->
+    <sql id="Base_Column_List">
+        id, tracking_id, event_time, event_description, event_location,
+        provider_name, stage, created_at
+    </sql>
+
     <insert id="insert" parameterType="com.logistics.track17.entity.TrackingEvent" useGeneratedKeys="true"
             keyProperty="id">
         INSERT INTO tracking_events (
@@ -46,7 +52,8 @@
     </insert>
 
     <select id="selectByTrackingId" resultMap="BaseResultMap">
-        SELECT * FROM tracking_events
+        SELECT <include refid="Base_Column_List"/>
+        FROM tracking_events
         WHERE tracking_id = #{trackingId}
         ORDER BY event_time DESC
     </select>

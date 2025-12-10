@@ -36,11 +36,13 @@ CREATE TABLE `users` (
   `last_login_ip` VARCHAR(50) COMMENT '最后登录IP',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间（软删除）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`),
   UNIQUE KEY `uk_email` (`email`),
   KEY `idx_status` (`status`),
-  KEY `idx_created_at` (`created_at`)
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_deleted_at` (`deleted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 -- =====================================================
@@ -60,10 +62,12 @@ CREATE TABLE `shops` (
   `last_sync_time` DATETIME COMMENT '最后同步时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间（软删除）',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_platform` (`platform`),
   KEY `idx_is_active` (`is_active`),
+  KEY `idx_deleted_at` (`deleted_at`),
   CONSTRAINT `fk_shops_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='店铺表';
 
@@ -129,12 +133,14 @@ CREATE TABLE `tracking_numbers` (
   `last_sync_time` DATETIME COMMENT '最后同步时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间（软删除）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_tracking_number` (`tracking_number`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_parcel_id` (`parcel_id`),
   KEY `idx_carrier_code` (`carrier_code`),
   KEY `idx_package_status` (`package_status`),
+  KEY `idx_deleted_at` (`deleted_at`),
   CONSTRAINT `fk_tracking_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_tracking_parcel` FOREIGN KEY (`parcel_id`) REFERENCES `parcels` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='运单表';

@@ -19,8 +19,8 @@
     >
       <!-- Logo 区域 -->
       <div class="sider-logo">
-        <RocketOutlined class="logo-icon" />
-        <span v-if="!collapsed" class="logo-text">BIOU中台</span>
+        <img src="../assets/logo.png" alt="比欧网络" class="logo-image" />
+        <span v-if="!collapsed" class="logo-text">比欧网络</span>
       </div>
 
       <!-- 菜单 -->
@@ -45,6 +45,10 @@
         <a-menu-item key="users">
           <TeamOutlined />
           <span>用户管理</span>
+        </a-menu-item>
+        <a-menu-item key="allowed-corp-ids">
+          <SafetyOutlined />
+          <span>企业CorpID管理</span>
         </a-menu-item>
       </a-menu>
     </a-layout-sider>
@@ -73,7 +77,7 @@
               @click="collapsed = true"
             />
             <div class="page-title">
-              <span class="logo-text">比欧智慧中台</span>
+              <span class="logo-text">比欧中台</span>
             </div>
           </div>
 
@@ -110,6 +114,7 @@ import {
   ShopOutlined,
   CarOutlined,
   TeamOutlined,
+  SafetyOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons-vue'
@@ -151,6 +156,8 @@ watch(
       selectedKeys.value = ['tracking']
     } else if (path.includes('users')) {
       selectedKeys.value = ['users']
+    } else if (path.includes('allowed-corp-ids')) {
+      selectedKeys.value = ['allowed-corp-ids']
     }
   },
   { immediate: true }
@@ -196,21 +203,22 @@ const handleLogout = () => {
   height: 64px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: left;
   gap: 12px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0 16px;
+  color: #000;
+  background: #ffffff;
+  padding: 10px 10px;
   transition: all 0.2s;
 }
 
-.sider-logo .logo-icon {
-  font-size: 24px;
-  color: #1890ff;
+.sider-logo .logo-image {
+  height: 66px;
+  width: auto;
+  object-fit: contain;
 }
 
 .sider-logo .logo-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   white-space: nowrap;
 }

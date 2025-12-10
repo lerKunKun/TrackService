@@ -1096,6 +1096,77 @@ onMounted(() => {
   border-radius: 4px;
 }
 
+/* 移动端列表卡片样式（仅外部列表） */
+.mobile-list .mobile-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+}
+
+.mobile-list .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.mobile-list .header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-list .tracking-number {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-all;
+  display: block;
+}
+
+.mobile-list .card-body {
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mobile-list .info-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.mobile-list .info-row:last-child {
+  margin-bottom: 0;
+}
+
+.mobile-list .info-row .label {
+  color: #8c8c8c;
+  min-width: 70px;
+  flex-shrink: 0;
+}
+
+.mobile-list .info-row .value {
+  color: #262626;
+  flex: 1;
+}
+
+.mobile-list .card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mobile-list .mobile-pagination {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
 
 /* 物流轨迹样式 */
 .timeline-container {

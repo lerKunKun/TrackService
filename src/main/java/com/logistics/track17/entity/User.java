@@ -72,4 +72,29 @@ public class User {
      * 更新时间
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 钉钉unionId（跨企业唯一标识）
+     */
+    private String dingUnionId;
+
+    /**
+     * 钉钉userId（企业内唯一标识）
+     */
+    private String dingUserId;
+
+    /**
+     * 企业CorpId
+     */
+    private String corpId;
+
+    /**
+     * 登录来源：PASSWORD, DINGTALK
+     */
+    private String loginSource;
+
+    /**
+     * 软删除时间戳
+     */
+    private LocalDateTime deletedAt;
 }

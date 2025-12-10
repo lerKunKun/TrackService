@@ -14,20 +14,21 @@ public class Shop {
     private String shopName;
     private String platform;
     private String storeUrl;
-    private String shopDomain;           // Shopify店铺域名 (xxx.myshopify.com)
-    private String timezone;             // 店铺时区
+    private String shopDomain; // Shopify店铺域名 (xxx.myshopify.com)
+    private String timezone; // 店铺时区
     private String apiKey;
     private String apiSecret;
     private String accessToken;
-    private String tokenType;            // Token类型：offline(永久), online(24小时)
-    private String connectionStatus;     // 连接状态：active(正常), invalid(失效), pending(待授权)
+    private String tokenType; // Token类型：offline(永久), online(24小时)
+    private String connectionStatus; // 连接状态：active(正常), invalid(失效), pending(待授权)
     private LocalDateTime lastValidatedAt; // 最后验证时间
     private String webhookSecret;
-    private String oauthState;           // OAuth state nonce (安全验证)
-    private String oauthScope;           // OAuth授权的scope
-    private LocalDateTime tokenExpiresAt;  // Token过期时间（online token使用）
-    private Boolean isActive;            // 是否激活
-    private LocalDateTime lastSyncTime;  // 最后同步时间
+    private String oauthState; // OAuth state nonce (安全验证)
+    private String oauthScope; // OAuth授权的scope
+    private LocalDateTime tokenExpiresAt; // Token过期时间（online token使用）
+    private Boolean isActive; // 是否激活
+    private LocalDateTime lastSyncTime; // 最后同步时间
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt; // 删除时间（软删除）
 }

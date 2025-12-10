@@ -176,7 +176,45 @@ public class UserService {
     }
 
     /**
-     * 删除用户
+     * 钉钉登录或注册用户
+     */
+    @Transactional
+    public User loginOrRegisterWithDingTalk(DingTalkUserInfo dingTalkUserInfo, String corpId) {
+        log.info("DingTalk login/register for unionId: {}", dingTalkUserInfo.getUnionId());
+
+        // 1. 根据unionId查找用户
+        User user = userMapper.selectByDingUnionId(dingTalkUserInfo.getUnionId());
+
+        if (user != null) {
+            // 用户已存在，更新登录信息
+            log.info("Existing DingTalk user found: {}", user.getUsername());
+            userMapper.updateLastLogin(user.getId(), LocalDateTime.now(), null);
+            return user;
+        }
+
+        // 2. 用户不存在，创建新用户
+        user = new User();
+        user.setDingUnionId(dingTalkUserInfo.getUnionId());
+        user.setCorpId(corpId);
+        user.setUsername(dingTalkUserInfo.getNick() + "_" + System.currentTimeMillis());
+        user.setRealName(dingTalkUserInfo.getNick());
+        user.setEmail(dingTalkUserInfo.getEmail());
+        user.setPhone(dingTalkUserInfo.getMobile());
+        user.setAvatar(dingTalkUserInfo.getAvatarUrl());
+        user.setLoginSource("DINGTALK");
+        user.setRole("USER"); // 默认普通用户
+        user.setStatus(1); // 默认启用
+        // 随机密码，钉钉用户不需要密码登录
+        user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+
+        userMapper.insert(user);
+        log.info("Created new user from DingTalk: {}", user.getUsername());
+
+        return user;
+    }
+
+    /**
+     * 删除用户（软删除）
      */
     @Transactional
     public void deleteUser(Long id) {
@@ -190,9 +228,10 @@ public class UserService {
             throw BusinessException.of(400, "不允许删除管理员账号");
         }
 
+        // 软删除：设置 deleted_at 时间戳
         int result = userMapper.deleteById(id);
         if (result > 0) {
-            log.info("Deleted user: {}", id);
+            log.info("Soft deleted user: {}", id);
         } else {
             throw BusinessException.of(500, "删除用户失败");
         }

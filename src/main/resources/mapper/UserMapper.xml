@@ -17,39 +17,53 @@
         <result column="last_login_ip" property="lastLoginIp" jdbcType="VARCHAR"/>
         <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
         <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted_at" property="deletedAt" jdbcType="TIMESTAMP"/>
+        <result column="ding_union_id" property="dingUnionId" jdbcType="VARCHAR"/>
+        <result column="ding_user_id" property="dingUserId" jdbcType="VARCHAR"/>
+        <result column="corp_id" property="corpId" jdbcType="VARCHAR"/>
+        <result column="login_source" property="loginSource" jdbcType="VARCHAR"/>
     </resultMap>
 
     <!-- 基础列 -->
     <sql id="Base_Column_List">
         id, username, password, email, phone, real_name, role, status, avatar,
-        last_login_time, last_login_ip, created_at, updated_at
+        last_login_time, last_login_ip, created_at, updated_at, deleted_at,
+        ding_union_id, ding_user_id, corp_id, login_source
     </sql>
 
     <!-- 根据ID查询用户 -->
     <select id="selectById" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE id = #{id}
+        WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
     <!-- 根据用户名查询用户 -->
     <select id="selectByUsername" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE username = #{username}
+        WHERE username = #{username} AND deleted_at IS NULL
     </select>
 
     <!-- 根据邮箱查询用户 -->
     <select id="selectByEmail" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE email = #{email}
+        WHERE email = #{email} AND deleted_at IS NULL
+    </select>
+
+    <!-- 根据钉钉unionId查询用户 -->
+    <select id="selectByDingUnionId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE ding_union_id = #{unionId} AND deleted_at IS NULL
     </select>
 
     <!-- 查询所有用户列表 -->
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
+        WHERE deleted_at IS NULL
         ORDER BY created_at DESC
     </select>
 
@@ -57,13 +71,14 @@
     <select id="selectByPage" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
+        WHERE deleted_at IS NULL
         ORDER BY created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
 
     <!-- 统计用户总数 -->
     <select id="count" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM users
+        SELECT COUNT(*) FROM users WHERE deleted_at IS NULL
     </select>
 
     <!-- 插入用户 -->
@@ -111,9 +126,9 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 删除用户 -->
-    <delete id="deleteById">
-        DELETE FROM users WHERE id = #{id}
-    </delete>
+    <!-- 软删除用户 -->
+    <update id="deleteById">
+        UPDATE users SET deleted_at = NOW() WHERE id = #{id}
+    </update>
 
 </mapper>

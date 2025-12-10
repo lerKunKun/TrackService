@@ -20,20 +20,30 @@
         <result column="updated_at" property="updatedAt"/>
     </resultMap>
 
+    <!-- 基础列表 -->
+    <sql id="Base_Column_List">
+        id, carrier_id, carrier_code, carrier_name, carrier_name_cn,
+        country_iso, url, is_active, sort_order, created_at, updated_at
+    </sql>
+
     <select id="selectByCarrierId" resultMap="BaseResultMap">
-        SELECT * FROM carriers WHERE carrier_id = #{carrierId}
+        SELECT <include refid="Base_Column_List"/>
+        FROM carriers WHERE carrier_id = #{carrierId}
     </select>
 
     <select id="selectByCarrierCode" resultMap="BaseResultMap">
-        SELECT * FROM carriers WHERE carrier_code = #{carrierCode}
+        SELECT <include refid="Base_Column_List"/>
+        FROM carriers WHERE carrier_code = #{carrierCode}
     </select>
 
     <select id="selectAllActive" resultMap="BaseResultMap">
-        SELECT * FROM carriers WHERE is_active = 1 ORDER BY sort_order, carrier_name
+        SELECT <include refid="Base_Column_List"/>
+        FROM carriers WHERE is_active = 1 ORDER BY sort_order, carrier_name
     </select>
 
     <select id="selectAll" resultMap="BaseResultMap">
-        SELECT * FROM carriers ORDER BY sort_order, carrier_name
+        SELECT <include refid="Base_Column_List"/>
+        FROM carriers ORDER BY sort_order, carrier_name
     </select>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.Carrier" useGeneratedKeys="true" keyProperty="id">
