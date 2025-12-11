@@ -33,18 +33,10 @@ public class ShopController {
     }
 
     /**
-     * 创建店铺
-     */
-    @PostMapping
-    public Result<ShopResponse> create(@Validated @RequestBody ShopRequest request) {
-        ShopResponse response = shopService.create(request);
-        return Result.success("店铺创建成功", response);
-    }
-
-    /**
      * 获取店铺列表
      */
     @GetMapping
+
     public Result<PageResult<ShopResponse>> getList(
             @RequestParam(required = false) String platform,
             @RequestParam(required = false, defaultValue = "1") Integer page,
@@ -63,19 +55,10 @@ public class ShopController {
     }
 
     /**
-     * 更新店铺
-     */
-    @PutMapping("/{id}")
-    public Result<ShopResponse> update(@PathVariable Long id,
-                                       @Validated @RequestBody ShopRequest request) {
-        ShopResponse response = shopService.update(id, request);
-        return Result.success("店铺更新成功", response);
-    }
-
-    /**
      * 删除店铺
      */
     @DeleteMapping("/{id}")
+
     public Result<Void> delete(@PathVariable Long id) {
         shopService.delete(id);
         return Result.success("店铺删除成功", null);
@@ -160,5 +143,43 @@ public class ShopController {
         result.put("deletedCount", deletedCount);
 
         return Result.success("Webhooks删除成功", result);
+    }
+
+    /**
+     * 获取商店详细信息（实时从Shopify获取）
+     */
+    @GetMapping("/{id}/info")
+    public Result<Map<String, Object>> getShopInfo(@PathVariable Long id) {
+        log.info("Getting detailed shop info for: {}", id);
+
+        ShopResponse shopResponse = shopService.getById(id);
+        Shop shop = shopService.getByShopDomain(shopResponse.getShopDomain());
+
+        if (shop == null || shop.getAccessToken() == null) {
+            throw BusinessException.of("店铺未授权");
+        }
+
+        if (!"shopify".equalsIgnoreCase(shop.getPlatform())) {
+            throw BusinessException.of("只支持Shopify店铺");
+        }
+
+        // 实时从Shopify获取最新信息
+        Map<String, Object> shopInfo = shopService.refreshShopInfo(id).getShopInfoDetails();
+        if (shopInfo == null) {
+            shopInfo = new HashMap<>();
+            shopInfo.put("message", "商店信息暂无详细数据");
+        }
+
+        return Result.success("获取商店信息成功", shopInfo);
+    }
+
+    /**
+     * 刷新商店信息
+     */
+    @PostMapping("/{id}/refresh-info")
+    public Result<ShopResponse> refreshShopInfo(@PathVariable Long id) {
+        log.info("Refreshing shop info for: {}", id);
+        ShopResponse response = shopService.refreshShopInfo(id);
+        return Result.success("商店信息已刷新", response);
     }
 }

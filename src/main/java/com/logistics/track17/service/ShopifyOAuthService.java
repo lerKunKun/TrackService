@@ -314,13 +314,134 @@ public class ShopifyOAuthService {
     }
 
     /**
-     * 获取店铺信息（用于验证连接状态）
+     * 获取店铺信息（优先使用GraphQL，失败时fallback到REST）
      *
      * @param shopDomain  店铺域名
      * @param accessToken 访问令牌
      * @return 店铺信息
      */
     public Map<String, Object> getShopInfo(String shopDomain, String accessToken) {
+        try {
+            return getShopInfoGraphQL(shopDomain, accessToken);
+        } catch (Exception e) {
+            log.warn("GraphQL query failed for shop: {}, falling back to REST API", shopDomain, e);
+            return getShopInfoREST(shopDomain, accessToken);
+        }
+    }
+
+    /**
+     * 使用GraphQL API获取店铺详细信息
+     *
+     * @param shopDomain  店铺域名
+     * @param accessToken 访问令牌
+     * @return 店铺详细信息
+     */
+    public Map<String, Object> getShopInfoGraphQL(String shopDomain, String accessToken) {
+        log.info("Fetching shop info via GraphQL for: {}", shopDomain);
+
+        try {
+            String graphqlUrl = String.format("https://%s/admin/api/2024-10/graphql.json", shopDomain);
+
+            // GraphQL查询（已经过MCP工具验证）
+            String query = "query GetShopInfo {" +
+                    "  shop {" +
+                    "    id" +
+                    "    name" +
+                    "    email" +
+                    "    contactEmail" +
+                    "    myshopifyDomain" +
+                    "    primaryDomain {" +
+                    "      url" +
+                    "      host" +
+                    "    }" +
+                    "    plan {" +
+                    "      displayName" +
+                    "      shopifyPlus" +
+                    "    }" +
+                    "    currencyCode" +
+                    "    ianaTimezone" +
+                    "    createdAt" +
+                    "  }" +
+                    "}";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Shopify-Access-Token", accessToken);
+
+            // 构建GraphQL请求
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("query", query);
+
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(requestBody, headers);
+
+            // 调用Shopify GraphQL API
+            ResponseEntity<String> response = restTemplate.exchange(
+                    graphqlUrl,
+                    HttpMethod.POST,
+                    request,
+                    String.class);
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                JsonNode responseJson = objectMapper.readTree(response.getBody());
+
+                // 检查GraphQL错误
+                if (responseJson.has("errors")) {
+                    log.error("GraphQL errors: {}", responseJson.get("errors").toString());
+                    throw BusinessException
+                            .of("GraphQL查询失败: " + responseJson.get("errors").get(0).get("message").asText());
+                }
+
+                JsonNode shopData = responseJson.path("data").path("shop");
+                if (shopData.isMissingNode()) {
+                    throw BusinessException.of("未能获取商店信息");
+                }
+
+                // 解析GraphQL响应
+                Map<String, Object> shopInfo = new HashMap<>();
+                shopInfo.put("id", shopData.get("id").asText());
+                shopInfo.put("name", shopData.get("name").asText());
+                shopInfo.put("email", shopData.get("email").asText());
+                shopInfo.put("contactEmail", shopData.get("contactEmail").asText());
+                shopInfo.put("myshopifyDomain", shopData.get("myshopifyDomain").asText());
+                shopInfo.put("currencyCode", shopData.get("currencyCode").asText());
+                shopInfo.put("ianaTimezone", shopData.get("ianaTimezone").asText());
+                shopInfo.put("createdAt", shopData.get("createdAt").asText());
+
+                // 解析primaryDomain
+                JsonNode primaryDomain = shopData.path("primaryDomain");
+                if (!primaryDomain.isMissingNode()) {
+                    shopInfo.put("primaryDomainUrl", primaryDomain.get("url").asText());
+                    shopInfo.put("primaryDomainHost", primaryDomain.get("host").asText());
+                }
+
+                // 解析plan
+                JsonNode plan = shopData.path("plan");
+                if (!plan.isMissingNode()) {
+                    shopInfo.put("planDisplayName", plan.get("displayName").asText());
+                    shopInfo.put("shopifyPlus", plan.get("shopifyPlus").asBoolean());
+                }
+
+                log.info("Successfully fetched shop info via GraphQL for: {}", shopDomain);
+                return shopInfo;
+            } else {
+                log.error("Failed to fetch shop info via GraphQL: {}", response.getStatusCode());
+                throw BusinessException.of("获取店铺信息GraphQL失败");
+            }
+
+        } catch (Exception e) {
+            log.error("Error fetching shop info via GraphQL", e);
+            throw BusinessException.of("获取店铺信息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 使用REST API获取店铺信息（fallback方法）
+     *
+     * @param shopDomain  店铺域名
+     * @param accessToken 访问令牌
+     * @return 店铺信息
+     */
+    private Map<String, Object> getShopInfoREST(String shopDomain, String accessToken) {
         log.info("Fetching shop info for: {}", shopDomain);
 
         try {

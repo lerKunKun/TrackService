@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.OrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.Order">
+        <id column="id" property="id"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="shopify_order_id" property="shopifyOrderId"/>
+        <result column="order_number" property="orderNumber"/>
+        <result column="order_name" property="orderName"/>
+        <result column="customer_email" property="customerEmail"/>
+        <result column="customer_name" property="customerName"/>
+        <result column="customer_phone" property="customerPhone"/>
+        <result column="total_price" property="totalPrice"/>
+        <result column="currency" property="currency"/>
+        <result column="financial_status" property="financialStatus"/>
+        <result column="fulfillment_status" property="fulfillmentStatus"/>
+        <result column="shipping_address_name" property="shippingAddressName"/>
+        <result column="shipping_address_address1" property="shippingAddressAddress1"/>
+        <result column="shipping_address_city" property="shippingAddressCity"/>
+        <result column="shipping_address_province" property="shippingAddressProvince"/>
+        <result column="shipping_address_country" property="shippingAddressCountry"/>
+        <result column="shipping_address_zip" property="shippingAddressZip"/>
+        <result column="shipping_address_phone" property="shippingAddressPhone"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="synced_at" property="syncedAt"/>
+        <result column="raw_data" property="rawData"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, shop_id, shopify_order_id, order_number, order_name,
+        customer_email, customer_name, customer_phone,
+        total_price, currency, financial_status, fulfillment_status,
+        shipping_address_name, shipping_address_address1, shipping_address_city,
+        shipping_address_province, shipping_address_country, shipping_address_zip,
+        shipping_address_phone, created_at, updated_at, synced_at, raw_data
+    </sql>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.Order" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO orders (
+            shop_id, shopify_order_id, order_number, order_name,
+            customer_email, customer_name, customer_phone,
+            total_price, currency, financial_status, fulfillment_status,
+            shipping_address_name, shipping_address_address1, shipping_address_city,
+            shipping_address_province, shipping_address_country, shipping_address_zip,
+            shipping_address_phone, created_at, updated_at, synced_at, raw_data
+        ) VALUES (
+            #{shopId}, #{shopifyOrderId}, #{orderNumber}, #{orderName},
+            #{customerEmail}, #{customerName}, #{customerPhone},
+            #{totalPrice}, #{currency}, #{financialStatus}, #{fulfillmentStatus},
+            #{shippingAddressName}, #{shippingAddressAddress1}, #{shippingAddressCity},
+            #{shippingAddressProvince}, #{shippingAddressCountry}, #{shippingAddressZip},
+            #{shippingAddressPhone}, #{createdAt}, #{updatedAt}, #{syncedAt}, #{rawData}
+        )
+        ON DUPLICATE KEY UPDATE
+            order_name = VALUES(order_name),
+            customer_email = VALUES(customer_email),
+            customer_name = VALUES(customer_name),
+            total_price = VALUES(total_price),
+            financial_status = VALUES(financial_status),
+            fulfillment_status = VALUES(fulfillment_status),
+            updated_at = VALUES(updated_at),
+            synced_at = VALUES(synced_at),
+            raw_data = VALUES(raw_data)
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectByShopifyOrderId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE shop_id = #{shopId} AND shopify_order_id = #{shopifyOrderId}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM orders
+        WHERE 1=1
+        <if test="shopId != null">
+            AND shop_id = #{shopId}
+        </if>
+        ORDER BY created_at DESC
+        <if test="offset != null and limit != null">
+            LIMIT #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM orders
+        WHERE 1=1
+        <if test="shopId != null">
+            AND shop_id = #{shopId}
+        </if>
+    </select>
+
+    <update id="update" parameterType="com.logistics.track17.entity.Order">
+        UPDATE orders
+        <set>
+            <if test="orderName != null">order_name = #{orderName},</if>
+            <if test="financialStatus != null">financial_status = #{financialStatus},</if>
+            <if test="fulfillmentStatus != null">fulfillment_status = #{fulfillmentStatus},</if>
+            <if test="updatedAt != null">updated_at = #{updatedAt},</if>
+            <if test="syncedAt != null">synced_at = #{syncedAt},</if>
+            <if test="rawData != null">raw_data = #{rawData},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>

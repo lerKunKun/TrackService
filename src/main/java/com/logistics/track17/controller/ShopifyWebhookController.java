@@ -2,7 +2,9 @@ package com.logistics.track17.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.logistics.track17.entity.Order;
 import com.logistics.track17.entity.Shop;
+import com.logistics.track17.service.OrderService;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyWebhookService;
 import lombok.extern.slf4j.Slf4j;
@@ -24,14 +26,17 @@ public class ShopifyWebhookController {
 
     private final ShopifyWebhookService webhookService;
     private final ShopService shopService;
+    private final OrderService orderService;
     private final ObjectMapper objectMapper;
 
     @Autowired
     public ShopifyWebhookController(ShopifyWebhookService webhookService,
-                                     ShopService shopService,
-                                     ObjectMapper objectMapper) {
+            ShopService shopService,
+            OrderService orderService,
+            ObjectMapper objectMapper) {
         this.webhookService = webhookService;
         this.shopService = shopService;
+        this.orderService = orderService;
         this.objectMapper = objectMapper;
     }
 
@@ -167,18 +172,11 @@ public class ShopifyWebhookController {
                 return ResponseEntity.ok().build();
             }
 
-            // 提取订单信息
-            String orderNumber = orderData.has("order_number") ?
-                    orderData.get("order_number").asText() : "unknown";
-            Long orderId = orderData.has("id") ?
-                    orderData.get("id").asLong() : null;
+            // 保存订单（委托给OrderService）
+            Order order = orderService.saveOrderFromWebhook(shop, orderData);
 
-            log.info("New order created: {} (ID: {}) for shop: {}", orderNumber, orderId, shopDomain);
-
-            // TODO: 实现订单同步逻辑
-            // 1. 检查订单是否已存在
-            // 2. 创建或更新订单记录
-            // 3. 同步物流信息(如果订单已发货)
+            log.info("Order synced successfully: {} (ID: {}) for shop: {}",
+                    order.getOrderNumber(), order.getId(), shopDomain);
 
             // 更新店铺最后同步时间
             shop.setLastSyncTime(LocalDateTime.now());
@@ -188,7 +186,8 @@ public class ShopifyWebhookController {
 
         } catch (Exception e) {
             log.error("Error processing orders/create webhook for: {}", shopDomain, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 返回200避免Shopify重试，错误已记录
+            return ResponseEntity.ok().build();
         }
     }
 
@@ -223,12 +222,11 @@ public class ShopifyWebhookController {
             }
 
             // 提取订单信息
-            String orderNumber = orderData.has("order_number") ?
-                    orderData.get("order_number").asText() : "unknown";
-            Long orderId = orderData.has("id") ?
-                    orderData.get("id").asLong() : null;
-            String fulfillmentStatus = orderData.has("fulfillment_status") ?
-                    orderData.get("fulfillment_status").asText() : null;
+            String orderNumber = orderData.has("order_number") ? orderData.get("order_number").asText() : "unknown";
+            Long orderId = orderData.has("id") ? orderData.get("id").asLong() : null;
+            String fulfillmentStatus = orderData.has("fulfillment_status")
+                    ? orderData.get("fulfillment_status").asText()
+                    : null;
 
             log.info("Order updated: {} (ID: {}, Status: {}) for shop: {}",
                     orderNumber, orderId, fulfillmentStatus, shopDomain);
@@ -244,8 +242,9 @@ public class ShopifyWebhookController {
                 for (JsonNode fulfillment : fulfillments) {
                     if (fulfillment.has("tracking_number")) {
                         String trackingNumber = fulfillment.get("tracking_number").asText();
-                        String trackingCompany = fulfillment.has("tracking_company") ?
-                                fulfillment.get("tracking_company").asText() : null;
+                        String trackingCompany = fulfillment.has("tracking_company")
+                                ? fulfillment.get("tracking_company").asText()
+                                : null;
 
                         log.info("Tracking info found - Number: {}, Company: {}",
                                 trackingNumber, trackingCompany);

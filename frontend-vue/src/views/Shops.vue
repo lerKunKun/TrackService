@@ -5,11 +5,7 @@
       <div class="toolbar">
         <h2>店铺列表</h2>
         <a-space>
-          <a-button type="primary" @click="showModal">
-            <PlusOutlined />
-            添加店铺
-          </a-button>
-          <a-button type="primary" ghost @click="showOAuthModal">
+          <a-button type="primary" @click="showOAuthModal">
             <ShopOutlined />
             Shopify OAuth授权
           </a-button>
@@ -36,19 +32,33 @@
 
         <!-- 操作列 -->
         <template #action="{ record }">
-          <a-space>
-            <a-button type="link" size="small" @click="handleEdit(record)">
-              编辑
-            </a-button>
+          <a-space :size="4">
+            <a-tooltip title="查看详情">
+              <a-button type="link" size="small" @click="handleViewDetails(record)">
+                <EyeOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.platform === 'shopify'" title="刷新店铺信息">
+              <a-button type="link" size="small" @click="handleRefreshShopInfo(record.id)">
+                <ReloadOutlined />
+              </a-button>
+            </a-tooltip>
+            <a-tooltip v-if="record.platform === 'shopify'" title="注册Webhooks">
+              <a-button type="link" size="small" @click="handleRegisterWebhooks(record.id)">
+                <ApiOutlined />
+              </a-button>
+            </a-tooltip>
             <a-popconfirm
               title="确定要删除该店铺吗？"
               ok-text="确定"
               cancel-text="取消"
               @confirm="handleDelete(record.id)"
             >
-              <a-button type="link" danger size="small">
-                删除
-              </a-button>
+              <a-tooltip title="删除店铺">
+                <a-button type="link" danger size="small">
+                  <DeleteOutlined />
+                </a-button>
+              </a-tooltip>
             </a-popconfirm>
           </a-space>
         </template>
@@ -81,8 +91,24 @@
                 </div>
               </div>
               <div class="card-actions">
-                <a-button type="link" size="small" @click="handleEdit(item)">
-                  编辑
+                <a-button type="link" size="small" @click="handleViewDetails(item)">
+                  查看
+                </a-button>
+                <a-button 
+                  v-if="item.platform === 'shopify'" 
+                  type="link" 
+                  size="small" 
+                  @click="handleRefreshShopInfo(item.id)"
+                >
+                  刷新
+                </a-button>
+                <a-button 
+                  v-if="item.platform === 'shopify'" 
+                  type="link" 
+                  size="small" 
+                  @click="handleRegisterWebhooks(item.id)"
+                >
+                  注册Webhooks
                 </a-button>
                 <a-popconfirm
                   title="确定要删除该店铺吗？"
@@ -111,65 +137,6 @@
       </div>
     </div>
 
-    <!-- 添加/编辑店铺弹窗 -->
-    <a-modal
-      v-model:open="modalVisible"
-      :title="modalTitle"
-      width="600px"
-      :confirm-loading="confirmLoading"
-      @ok="handleSubmit"
-      @cancel="handleCancel"
-    >
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="rules"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 18 }"
-      >
-        <a-form-item label="店铺名称" name="shopName">
-          <a-input v-model:value="formState.shopName" placeholder="请输入店铺名称" />
-        </a-form-item>
-
-        <a-form-item label="平台类型" name="platform">
-          <a-select v-model:value="formState.platform" placeholder="请选择平台类型">
-            <a-select-option value="shopify">Shopify</a-select-option>
-            <a-select-option value="shopline">Shopline</a-select-option>
-            <a-select-option value="tiktokshop">TikTok Shop</a-select-option>
-          </a-select>
-        </a-form-item>
-
-        <a-form-item label="店铺URL" name="storeUrl">
-          <a-input
-            v-model:value="formState.storeUrl"
-            placeholder="https://yourstore.myshopify.com"
-          />
-        </a-form-item>
-
-        <a-form-item label="API Key" name="apiKey">
-          <a-input v-model:value="formState.apiKey" placeholder="请输入API Key" />
-        </a-form-item>
-
-        <a-form-item label="API Secret" name="apiSecret">
-          <a-input-password
-            v-model:value="formState.apiSecret"
-            placeholder="请输入API Secret"
-          />
-        </a-form-item>
-
-        <a-form-item label="Access Token" name="accessToken">
-          <a-input-password
-            v-model:value="formState.accessToken"
-            placeholder="请输入Access Token"
-          />
-        </a-form-item>
-
-        <a-form-item label="时区" name="timezone">
-          <a-input v-model:value="formState.timezone" placeholder="UTC" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
     <!-- Shopify OAuth授权弹窗 -->
     <a-modal
       v-model:open="oauthModalVisible"
@@ -194,13 +161,73 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 商店详情弹窗 -->
+    <a-modal
+      v-model:open="detailModalVisible"
+      title="商店详细信息"
+      width="700px"
+      :footer="null"
+    >
+      <a-spin :spinning="detailLoading">
+        <a-descriptions v-if="shopDetails" :column="2" bordered size="small">
+          <a-descriptions-item label="店铺名称">
+            {{ shopDetails.shopName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="平台">
+            <a-tag :color="getPlatformColor(shopDetails.platform)">
+              {{ shopDetails.platform?.toUpperCase() }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="货币">
+            {{ shopDetails.currency || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="计划">
+            {{ shopDetails.planDisplayName || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="Shopify Plus">
+            <a-tag :color="shopDetails.isShopifyPlus ? 'green' : 'default'">
+              {{ shopDetails.isShopifyPlus ? '是' : '否' }}
+            </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="联系邮箱">
+            {{ shopDetails.contactEmail || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="店主邮箱">
+            {{ shopDetails.ownerEmail || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="主域名">
+            {{ shopDetails.primaryDomain || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="时区">
+            {{ shopDetails.ianaTimezone || shopDetails.timezone || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="店铺URL" :span="2">
+            {{ shopDetails.storeUrl || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="创建时间">
+            {{ formatDate(shopDetails.createdAt) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="更新时间">
+            {{ formatDate(shopDetails.updatedAt) }}
+          </a-descriptions-item>
+        </a-descriptions>
+      </a-spin>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
-import { PlusOutlined, ShopOutlined } from '@ant-design/icons-vue'
+import { 
+  PlusOutlined, 
+  ShopOutlined, 
+  EyeOutlined, 
+  ReloadOutlined, 
+  ApiOutlined, 
+  DeleteOutlined 
+} from '@ant-design/icons-vue'
 import { shopApi } from '@/api/shop'
 import dayjs from 'dayjs'
 
@@ -213,13 +240,30 @@ const columns = [
   {
     title: '店铺名称',
     dataIndex: 'shopName',
-    width: 200
+    width: 180
   },
   {
     title: '平台',
     dataIndex: 'platform',
-    width: 120,
+    width: 100,
     slots: { customRender: 'platform' }
+  },
+  {
+    title: '货币',
+    dataIndex: 'currency',
+    width: 80
+  },
+  {
+    title: '计划',
+    dataIndex: 'planDisplayName',
+    width: 120,
+    ellipsis: true
+  },
+  {
+    title: '联系邮箱',
+    dataIndex: 'contactEmail',
+    width: 180,
+    ellipsis: true
   },
   {
     title: '店铺URL',
@@ -229,19 +273,21 @@ const columns = [
   {
     title: '创建时间',
     dataIndex: 'createdAt',
-    width: 180,
+    width: 160,
     slots: { customRender: 'createdAt' }
   },
   {
     title: '操作',
     key: 'action',
-    width: 150,
+    width: 200,
+    fixed: 'right',
     slots: { customRender: 'action' }
   }
 ]
 
 const loading = ref(false)
 const tableData = ref([])
+
 const pagination = reactive({
   current: 1,
   pageSize: 20,
@@ -253,33 +299,6 @@ const pagination = reactive({
 const useBreakpoint = Grid.useBreakpoint
 const screens = useBreakpoint()
 const isMobile = computed(() => !screens.value.md)
-
-const modalVisible = ref(false)
-const confirmLoading = ref(false)
-const formRef = ref()
-const editingId = ref(null)
-
-const formState = reactive({
-  shopName: '',
-  platform: undefined,
-  storeUrl: '',
-  apiKey: '',
-  apiSecret: '',
-  accessToken: '',
-  timezone: 'UTC'
-})
-
-const rules = {
-  shopName: [{ required: true, message: '请输入店铺名称', trigger: 'blur' }],
-  platform: [{ required: true, message: '请选择平台类型', trigger: 'change' }],
-  apiKey: [{ required: true, message: '请输入API Key', trigger: 'blur' }],
-  apiSecret: [{ required: true, message: '请输入API Secret', trigger: 'blur' }],
-  accessToken: [{ required: true, message: '请输入Access Token', trigger: 'blur' }]
-}
-
-const modalTitle = computed(() => {
-  return editingId.value ? '编辑店铺' : '添加店铺'
-})
 
 // 获取店铺列表
 const fetchShops = async () => {
@@ -305,57 +324,6 @@ const handleTableChange = (pag) => {
   fetchShops()
 }
 
-// 显示弹窗
-const showModal = () => {
-  editingId.value = null
-  resetForm()
-  modalVisible.value = true
-}
-
-// 编辑
-const handleEdit = (record) => {
-  editingId.value = record.id
-  Object.assign(formState, {
-    shopName: record.shopName,
-    platform: record.platform,
-    storeUrl: record.storeUrl,
-    apiKey: '',
-    apiSecret: '',
-    accessToken: '',
-    timezone: record.timezone || 'UTC'
-  })
-  modalVisible.value = true
-}
-
-// 提交表单
-const handleSubmit = async () => {
-  try {
-    await formRef.value.validate()
-    confirmLoading.value = true
-
-    if (editingId.value) {
-      await shopApi.update(editingId.value, formState)
-      message.success('更新成功')
-    } else {
-      await shopApi.create(formState)
-      message.success('创建成功')
-    }
-
-    modalVisible.value = false
-    fetchShops()
-  } catch (error) {
-    console.error('提交失败:', error)
-  } finally {
-    confirmLoading.value = false
-  }
-}
-
-// 取消
-const handleCancel = () => {
-  modalVisible.value = false
-  resetForm()
-}
-
 // 删除
 const handleDelete = async (id) => {
   try {
@@ -365,20 +333,6 @@ const handleDelete = async (id) => {
   } catch (error) {
     console.error('删除失败:', error)
   }
-}
-
-// 重置表单
-const resetForm = () => {
-  formRef.value?.resetFields()
-  Object.assign(formState, {
-    shopName: '',
-    platform: undefined,
-    storeUrl: '',
-    apiKey: '',
-    apiSecret: '',
-    accessToken: '',
-    timezone: 'UTC'
-  })
 }
 
 // 获取平台颜色
@@ -431,6 +385,50 @@ const handleOAuthSubmit = () => {
 const handleOAuthCancel = () => {
   oauthModalVisible.value = false
   shopifyDomain.value = ''
+}
+
+// 商店详情相关
+const detailModalVisible = ref(false)
+const detailLoading = ref(false)
+const shopDetails = ref(null)
+
+// 查看商店详情
+const handleViewDetails = async (record) => {
+  shopDetails.value = record
+  detailModalVisible.value = true
+}
+
+// 刷新商店信息
+const handleRefreshShopInfo = async (shopId) => {
+  try {
+    loading.value = true
+    const response = await shopApi.refreshShopInfo(shopId)
+    message.success('商店信息已刷新')
+    await fetchShops()  // 重新加载列表
+  } catch (error) {
+    console.error('刷新商店信息失败:', error)
+    message.error('刷新失败，请重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 注册Webhooks
+const handleRegisterWebhooks = async (shopId) => {
+  try {
+    loading.value = true
+    const response = await shopApi.registerWebhooks(shopId)
+    if (response.code === 200) {
+      message.success('Webhooks注册成功！')
+    } else {
+      message.warning(response.message || 'Webhooks注册完成，但部分可能失败')
+    }
+  } catch (error) {
+    console.error('注册Webhooks失败:', error)
+    message.error(error.message || '注册Webhooks失败，请重试')
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {

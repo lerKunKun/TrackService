@@ -77,6 +77,7 @@ public class Track17Service {
                 log.debug("17Track register response [{}]: {}", response.code(), responseBody);
 
                 if (!response.isSuccessful()) {
+
                     throw BusinessException.of("17Track API请求失败，HTTP状态码: " + response.code());
                 }
 

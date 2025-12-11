@@ -38,6 +38,10 @@
           <ShopOutlined />
           <span>店铺管理</span>
         </a-menu-item>
+        <a-menu-item key="orders">
+          <ShoppingOutlined />
+          <span>订单管理</span>
+        </a-menu-item>
         <a-menu-item key="tracking">
           <CarOutlined />
           <span>运单管理</span>
@@ -112,6 +116,7 @@ import {
   LogoutOutlined,
   DashboardOutlined,
   ShopOutlined,
+  ShoppingOutlined,
   CarOutlined,
   TeamOutlined,
   SafetyOutlined,
@@ -152,6 +157,8 @@ watch(
       selectedKeys.value = ['dashboard']
     } else if (path.includes('shops')) {
       selectedKeys.value = ['shops']
+    } else if (path.includes('orders')) {
+      selectedKeys.value = ['orders']
     } else if (path.includes('tracking')) {
       selectedKeys.value = ['tracking']
     } else if (path.includes('users')) {
@@ -200,19 +207,19 @@ const handleLogout = () => {
 
 /* Logo 区域 */
 .sider-logo {
-  height: 64px;
+  height: 66px;
   display: flex;
   align-items: center;
   justify-content: left;
   gap: 12px;
   color: #000;
-  background: #ffffff;
-  padding: 10px 10px;
+  background: rgb(255, 255, 255);
+  padding: 19px 19px;
   transition: all 0.2s;
 }
 
 .sider-logo .logo-image {
-  height: 66px;
+  height: 48px;
   width: auto;
   object-fit: contain;
 }

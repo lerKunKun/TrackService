@@ -52,7 +52,7 @@ public class DingTalkConfig {
     private String userInfoUrl;
 
     /**
-     * 生成钉钉登录URL
+     * 生成钉钉登录URL (OAuth 2.0)
      *
      * @param state CSRF防护token
      * @return 钉钉登录URL
@@ -60,12 +60,15 @@ public class DingTalkConfig {
     public String getLoginUrl(String state) {
         try {
             String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.toString());
+            // OAuth 2.0 参数：使用client_id替代appid，scope=openid，添加iframe=true支持嵌入式登录
             return qrConnectUrl +
-                    "?appid=" + appKey +
+                    "?client_id=" + appKey +
                     "&response_type=code" +
-                    "&scope=snsapi_login" +
+                    "&scope=openid" +
                     "&state=" + state +
-                    "&redirect_uri=" + encodedRedirectUri;
+                    "&redirect_uri=" + encodedRedirectUri +
+                    "&prompt=consent" +
+                    "&iframe=true"; // 关键：支持iframe嵌入式登录
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException("Failed to encode redirect URI", e);
         }

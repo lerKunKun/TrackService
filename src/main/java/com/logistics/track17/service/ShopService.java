@@ -1,7 +1,6 @@
 package com.logistics.track17.service;
 
 import com.logistics.track17.dto.PageResult;
-import com.logistics.track17.dto.ShopRequest;
 import com.logistics.track17.dto.ShopResponse;
 import com.logistics.track17.entity.Shop;
 import com.logistics.track17.exception.BusinessException;
@@ -28,34 +27,6 @@ public class ShopService {
     public ShopService(ShopMapper shopMapper, ShopifyOAuthService shopifyOAuthService) {
         this.shopMapper = shopMapper;
         this.shopifyOAuthService = shopifyOAuthService;
-    }
-
-    /**
-     * 创建店铺
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public ShopResponse create(ShopRequest request) {
-        log.info("Creating shop: {}", request.getShopName());
-
-        // 验证平台类型
-        if (!isValidPlatform(request.getPlatform())) {
-            throw BusinessException.of("不支持的平台类型: " + request.getPlatform());
-        }
-
-        // TODO: 验证API配置有效性（调用平台API测试）
-
-        Shop shop = new Shop();
-        BeanUtils.copyProperties(request, shop);
-
-        // 设置默认时区
-        if (StringUtils.isBlank(shop.getTimezone())) {
-            shop.setTimezone("UTC");
-        }
-
-        shopMapper.insert(shop);
-
-        log.info("Shop created successfully with ID: {}", shop.getId());
-        return convertToResponse(shop);
     }
 
     /**
@@ -129,33 +100,6 @@ public class ShopService {
     }
 
     /**
-     * 更新店铺
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public ShopResponse update(Long id, ShopRequest request) {
-        log.info("Updating shop: {}", id);
-
-        Shop existingShop = shopMapper.selectById(id);
-        if (existingShop == null) {
-            throw BusinessException.of(404, "店铺不存在");
-        }
-
-        // 验证平台类型
-        if (request.getPlatform() != null && !isValidPlatform(request.getPlatform())) {
-            throw BusinessException.of("不支持的平台类型: " + request.getPlatform());
-        }
-
-        Shop shop = new Shop();
-        BeanUtils.copyProperties(request, shop);
-        shop.setId(id);
-
-        shopMapper.update(shop);
-
-        log.info("Shop updated successfully: {}", id);
-        return getById(id);
-    }
-
-    /**
      * 删除店铺（软删除）
      */
     @Transactional(rollbackFor = Exception.class)
@@ -197,6 +141,20 @@ public class ShopService {
         // 隐藏敏感信息，只显示前4位
         if (StringUtils.isNotBlank(shop.getApiKey())) {
             response.setApiKey(maskSecret(shop.getApiKey()));
+        }
+
+        // 如果有shopInfoJson，解析为Map
+        if (StringUtils.isNotBlank(shop.getShopInfoJson())) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                java.util.Map<String, Object> details = mapper.readValue(
+                        shop.getShopInfoJson(),
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {
+                        });
+                response.setShopInfoDetails(details);
+            } catch (Exception e) {
+                log.warn("Failed to parse shop info JSON for shop: {}", shop.getId(), e);
+            }
         }
 
         return response;
@@ -298,5 +256,88 @@ public class ShopService {
 
         log.info("Completed validation for {} shops", results.size());
         return results;
+    }
+
+    /**
+     * 刷新Shopify商店信息
+     *
+     * @param shopId 商店ID
+     * @return 更新后的商店信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public ShopResponse refreshShopInfo(Long shopId) {
+        log.info("Refreshing shop info for: {}", shopId);
+
+        Shop shop = shopMapper.selectById(shopId);
+        if (shop == null) {
+            throw BusinessException.of(404, "店铺不存在");
+        }
+
+        if (!"shopify".equalsIgnoreCase(shop.getPlatform())) {
+            throw BusinessException.of("只支持Shopify店铺刷新");
+        }
+
+        if (StringUtils.isBlank(shop.getAccessToken()) || StringUtils.isBlank(shop.getShopDomain())) {
+            throw BusinessException.of("店铺未授权或缺少店铺域名");
+        }
+
+        // 调用Shopify API获取最新信息
+        java.util.Map<String, Object> shopInfo;
+        try {
+            shopInfo = shopifyOAuthService.getShopInfo(shop.getShopDomain(), shop.getAccessToken());
+        } catch (Exception e) {
+            log.error("Failed to fetch shop info from Shopify", e);
+            shop.setConnectionStatus("invalid");
+            shopMapper.update(shop);
+            throw BusinessException.of("获取商店信息失败: " + e.getMessage());
+        }
+
+        // 更新Shop实体
+        updateShopFromInfo(shop, shopInfo);
+        shop.setConnectionStatus("active");
+        shop.setLastValidatedAt(java.time.LocalDateTime.now());
+        shopMapper.update(shop);
+
+        log.info("Successfully refreshed shop info for: {}", shopId);
+        return convertToResponse(shop);
+    }
+
+    /**
+     * 从Shopify返回的信息更新Shop实体
+     */
+    private void updateShopFromInfo(Shop shop, java.util.Map<String, Object> shopInfo) {
+        if (shopInfo.get("name") != null) {
+            shop.setShopName((String) shopInfo.get("name"));
+        }
+        if (shopInfo.get("contactEmail") != null) {
+            shop.setContactEmail((String) shopInfo.get("contactEmail"));
+        }
+        if (shopInfo.get("email") != null) {
+            shop.setOwnerEmail((String) shopInfo.get("email"));
+        }
+        if (shopInfo.get("currencyCode") != null) {
+            shop.setCurrency((String) shopInfo.get("currencyCode"));
+        }
+        if (shopInfo.get("planDisplayName") != null) {
+            shop.setPlanDisplayName((String) shopInfo.get("planDisplayName"));
+        }
+        if (shopInfo.get("shopifyPlus") != null) {
+            shop.setIsShopifyPlus((Boolean) shopInfo.get("shopifyPlus"));
+        }
+        if (shopInfo.get("ianaTimezone") != null) {
+            shop.setIanaTimezone((String) shopInfo.get("ianaTimezone"));
+            shop.setTimezone((String) shopInfo.get("ianaTimezone")); // 同时更新timezone字段
+        }
+        if (shopInfo.get("primaryDomainUrl") != null) {
+            shop.setPrimaryDomain((String) shopInfo.get("primaryDomainUrl"));
+        }
+
+        // 保存完整的JSON数据
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            shop.setShopInfoJson(mapper.writeValueAsString(shopInfo));
+        } catch (Exception e) {
+            log.warn("Failed to serialize shop info to JSON", e);
+        }
     }
 }

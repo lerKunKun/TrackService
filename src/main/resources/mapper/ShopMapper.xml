@@ -21,6 +21,17 @@
         <result column="oauth_state" property="oauthState"/>
         <result column="oauth_scope" property="oauthScope"/>
         <result column="token_expires_at" property="tokenExpiresAt"/>
+        <!-- Shopify商店详细信息字段 -->
+        <result column="contact_email" property="contactEmail"/>
+        <result column="owner_email" property="ownerEmail"/>
+        <result column="currency" property="currency"/>
+        <result column="plan_name" property="planName"/>
+        <result column="plan_display_name" property="planDisplayName"/>
+        <result column="is_shopify_plus" property="isShopifyPlus"/>
+        <result column="primary_domain" property="primaryDomain"/>
+        <result column="shop_owner" property="shopOwner"/>
+        <result column="iana_timezone" property="ianaTimezone"/>
+        <result column="shop_info_json" property="shopInfoJson"/>
         <result column="is_active" property="isActive"/>
         <result column="last_sync_time" property="lastSyncTime"/>
         <result column="created_at" property="createdAt"/>
@@ -31,6 +42,7 @@
     <!-- 基础列表（用于列表查询，不包含敏感信息） -->
     <sql id="Base_Column_List">
         id, user_id, shop_name, platform, shop_domain, timezone,
+        currency, plan_display_name, contact_email,
         connection_status, is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>
 
@@ -39,16 +51,25 @@
         id, user_id, shop_name, platform, shop_url, shop_domain, timezone,
         api_key, api_secret, access_token, token_type, connection_status,
         last_validated_at, webhook_secret, oauth_state, oauth_scope,
-        token_expires_at, is_active, last_sync_time, created_at, updated_at, deleted_at
+        token_expires_at,
+        contact_email, owner_email, currency, plan_name, plan_display_name,
+        is_shopify_plus, primary_domain, shop_owner, iana_timezone, shop_info_json,
+        is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.Shop" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO shops (user_id, shop_name, platform, shop_url, shop_domain, timezone,
                            api_key, api_secret, access_token, token_type, connection_status, last_validated_at,
-                           webhook_secret, oauth_state, oauth_scope, token_expires_at, is_active, last_sync_time)
+                           webhook_secret, oauth_state, oauth_scope, token_expires_at,
+                           contact_email, owner_email, currency, plan_name, plan_display_name,
+                           is_shopify_plus, primary_domain, shop_owner, iana_timezone, shop_info_json,
+                           is_active, last_sync_time)
         VALUES (#{userId}, #{shopName}, #{platform}, #{storeUrl}, #{shopDomain}, #{timezone},
                 #{apiKey}, #{apiSecret}, #{accessToken}, #{tokenType}, #{connectionStatus}, #{lastValidatedAt},
-                #{webhookSecret}, #{oauthState}, #{oauthScope}, #{tokenExpiresAt}, #{isActive}, #{lastSyncTime})
+                #{webhookSecret}, #{oauthState}, #{oauthScope}, #{tokenExpiresAt},
+                #{contactEmail}, #{ownerEmail}, #{currency}, #{planName}, #{planDisplayName},
+                #{isShopifyPlus}, #{primaryDomain}, #{shopOwner}, #{ianaTimezone}, #{shopInfoJson},
+                #{isActive}, #{lastSyncTime})
     </insert>
 
     <select id="selectById" resultMap="BaseResultMap">
@@ -107,6 +128,16 @@
             <if test="tokenExpiresAt != null">token_expires_at = #{tokenExpiresAt},</if>
             <if test="isActive != null">is_active = #{isActive},</if>
             <if test="lastSyncTime != null">last_sync_time = #{lastSyncTime},</if>
+            <if test="contactEmail != null">contact_email = #{contactEmail},</if>
+            <if test="ownerEmail != null">owner_email = #{ownerEmail},</if>
+            <if test="currency != null">currency = #{currency},</if>
+            <if test="planName != null">plan_name = #{planName},</if>
+            <if test="planDisplayName != null">plan_display_name = #{planDisplayName},</if>
+            <if test="isShopifyPlus != null">is_shopify_plus = #{isShopifyPlus},</if>
+            <if test="primaryDomain != null">primary_domain = #{primaryDomain},</if>
+            <if test="shopOwner != null">shop_owner = #{shopOwner},</if>
+            <if test="ianaTimezone != null">iana_timezone = #{ianaTimezone},</if>
+            <if test="shopInfoJson != null">shop_info_json = #{shopInfoJson},</if>
         </set>
         WHERE id = #{id}
     </update>

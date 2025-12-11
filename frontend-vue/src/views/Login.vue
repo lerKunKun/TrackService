@@ -184,9 +184,9 @@ const renderQRCodeWithSDK = (loginUrl) => {
     return
   }
   
-  // 解析loginUrl获取参数
+  // 解析loginUrl获取参数（OAuth 2.0）
   const url = new URL(loginUrl)
-  const appid = url.searchParams.get('appid')
+  const appid = url.searchParams.get('client_id')  // OAuth 2.0 使用 client_id
   const redirectUri = url.searchParams.get('redirect_uri')
   const state = url.searchParams.get('state')
   
@@ -209,11 +209,49 @@ const renderQRCodeWithSDK = (loginUrl) => {
           state: state,
           prompt: 'consent'
         },
-        (loginResult) => {
-          console.log('DingTalk login success:', loginResult)
+        async (loginResult) => {
+          console.log('✅ DingTalk login success callback:', loginResult)
+          
+          try {
+            const authCode = loginResult.authCode
+            if (!authCode) {
+              throw new Error('未获取到授权码')
+            }
+            
+            console.log('🔑 Got authCode:', authCode)
+            
+            // 调用后端登录接口
+            const response = await fetch('/api/v1/auth/dingtalk/callback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: authCode })
+            })
+            
+            const result = await response.json()
+            console.log('📥 Backend response:', result)
+            
+            if (result.code === 200) {
+              // 保存用户信息和token
+              await userStore.setToken(result.data.token)
+              await userStore.setUserInfo({
+                username: result.data.username,
+                realName: result.data.realName
+              })
+              
+              message.success('登录成功！')
+              router.push('/')
+            } else {
+              throw new Error(result.message || '登录失败')
+            }
+          } catch (error) {
+            console.error('❌ Login processing error:', error)
+            message.error('钉钉登录失败: ' + error.message)
+            qrcodeError.value = error.message
+          }
         },
         (errorMsg) => {
-          console.error('DingTalk login error:', errorMsg)
+          console.error('❌ DingTalk login error callback:', errorMsg)
+          message.error('二维码加载失败')
           qrcodeError.value = `登录失败: ${errorMsg}`
         }
       )
