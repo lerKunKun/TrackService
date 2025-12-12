@@ -5,8 +5,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BIOU中台</title>
-  <!-- DingTalk Login SDK -->
-  <script src="https://g.alicdn.com/dingding/h5-dingtalk-login/0.21.0/ddlogin.js"></script>
+
+  <!-- Performance Optimizations: DNS Prefetch & Preconnect -->
+  <link rel="dns-prefetch" href="https://g.alicdn.com">
+  <link rel="preconnect" href="https://g.alicdn.com" crossorigin>
+
+  <!-- Permissions Policy: Disable unnecessary sensor features to eliminate console warnings -->
+  <meta http-equiv="Permissions-Policy" content="accelerometer=(), gyroscope=(), magnetometer=()">
+
+  <!-- DingTalk Login SDK: Preload with high priority for faster loading -->
+  <link rel="preload" href="https://g.alicdn.com/dingding/h5-dingtalk-login/0.21.0/ddlogin.js" as="script"
+    crossorigin="anonymous">
+  <script src="https://g.alicdn.com/dingding/h5-dingtalk-login/0.21.0/ddlogin.js" crossorigin="anonymous"></script>
 
 </head>
 

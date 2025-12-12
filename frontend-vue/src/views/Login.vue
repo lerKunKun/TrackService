@@ -120,13 +120,26 @@ const loading = ref(false)
 // 钉钉二维码相关状态
 const qrcodeLoading = ref(false)
 const qrcodeError = ref('')
+const sdkRetryCount = ref(0)
+const MAX_SDK_RETRY = 20 // 最多重试20次，每次100ms = 2秒
+const autoRefreshTimer = ref(null) // 自动刷新定时器
+const QR_EXPIRY_TIME = 5 * 60 * 1000 // 二维码5分钟过期
 
 // 监听登录方式切换
-watch(loginType, (newType) => {
+watch(loginType, (newType, oldType) => {
   if (newType === 'dingtalk') {
     // 切换到钉钉登录时加载二维码
     loadDingTalkQRCode()
+  } else if (oldType === 'dingtalk') {
+    // 切换离开钉钉登录时，清除自动刷新定时器
+    clearAutoRefresh()
   }
+})
+
+// 组件卸载时清理定时器
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  clearAutoRefresh()
 })
 
 // 账号密码登录
@@ -148,32 +161,92 @@ const loadDingTalkQRCode = async () => {
   try {
     qrcodeLoading.value = true
     qrcodeError.value = ''
+    sdkRetryCount.value = 0
     
-    // 1. 获取钉钉登录URL
-    const response = await fetch('/api/v1/auth/dingtalk/login-url')
-    const result = await response.json()
+    // 清除之前的自动刷新定时器
+    clearAutoRefresh()
     
-    if (!response.ok || result.code !== 200) {
-      throw new Error(result.message || '获取登录链接失败')
-    }
+    // 并行执行：获取登录URL 和 等待SDK就绪
+    const [loginUrl] = await Promise.all([
+      fetchLoginUrl(),
+      waitForSDKReady()
+    ])
     
-    const loginUrl = result.data
-    console.log('Got login URL:', loginUrl)
-    
-    // 2. 设置loading为false以渲染容器DOM
+    // DOM准备
     qrcodeLoading.value = false
-    
-    // 3. 等待DOM更新完成后再调用SDK
     await nextTick()
     
-    // 4. 使用DingTalk SDK渲染二维码
+    // 渲染二维码
     renderQRCodeWithSDK(loginUrl)
+    
+    // 设置自动刷新定时器（5分钟后）
+    setupAutoRefresh()
     
   } catch (error) {
     qrcodeError.value = error.message
     qrcodeLoading.value = false
     console.error('Load QR code error:', error)
   }
+}
+
+// 获取登录URL
+const fetchLoginUrl = async () => {
+  const response = await fetch('/api/v1/auth/dingtalk/login-url')
+  const result = await response.json()
+  
+  if (!response.ok || result.code !== 200) {
+    throw new Error(result.message || '获取登录链接失败')
+  }
+  
+  return result.data
+}
+
+// 设置自动刷新定时器
+const setupAutoRefresh = () => {
+  autoRefreshTimer.value = setTimeout(() => {
+    // 二维码过期，自动刷新
+    loadDingTalkQRCode()
+  }, QR_EXPIRY_TIME)
+}
+
+// 清除自动刷新定时器
+const clearAutoRefresh = () => {
+  if (autoRefreshTimer.value) {
+    clearTimeout(autoRefreshTimer.value)
+    autoRefreshTimer.value = null
+  }
+}
+
+// 等待DingTalk SDK加载完成
+const waitForSDKReady = () => {
+  return new Promise((resolve, reject) => {
+    // 如果SDK已经加载完成，直接返回
+    if (window.DTFrameLogin) {
+      resolve()
+      return
+    }
+    
+    // 设置超时（10秒）
+    const timeout = setTimeout(() => {
+      reject(new Error('DingTalk SDK加载超时，请刷新页面重试'))
+    }, 10000)
+    
+    // 轮询检查SDK是否加载完成
+    const checkSDK = () => {
+      if (window.DTFrameLogin) {
+        clearTimeout(timeout)
+        resolve()
+      } else if (sdkRetryCount.value < MAX_SDK_RETRY) {
+        sdkRetryCount.value++
+        setTimeout(checkSDK, 100) // 每100ms检查一次
+      } else {
+        clearTimeout(timeout)
+        reject(new Error('DingTalk SDK加载失败，请刷新页面重试'))
+      }
+    }
+    
+    checkSDK()
+  })
 }
 
 // 使用DingTalk SDK渲染二维码
@@ -189,8 +262,6 @@ const renderQRCodeWithSDK = (loginUrl) => {
   const appid = url.searchParams.get('client_id')  // OAuth 2.0 使用 client_id
   const redirectUri = url.searchParams.get('redirect_uri')
   const state = url.searchParams.get('state')
-  
-  console.log('Rendering QR code with params:', { appid, redirectUri, state })
   
   // 使用DingTalk官方SDK渲染二维码
   if (window.DTFrameLogin) {
@@ -210,15 +281,11 @@ const renderQRCodeWithSDK = (loginUrl) => {
           prompt: 'consent'
         },
         async (loginResult) => {
-          console.log('✅ DingTalk login success callback:', loginResult)
-          
           try {
             const authCode = loginResult.authCode
             if (!authCode) {
               throw new Error('未获取到授权码')
             }
-            
-            console.log('🔑 Got authCode:', authCode)
             
             // 调用后端登录接口
             const response = await fetch('/api/v1/auth/dingtalk/callback', {
@@ -228,7 +295,6 @@ const renderQRCodeWithSDK = (loginUrl) => {
             })
             
             const result = await response.json()
-            console.log('📥 Backend response:', result)
             
             if (result.code === 200) {
               // 保存用户信息和token
