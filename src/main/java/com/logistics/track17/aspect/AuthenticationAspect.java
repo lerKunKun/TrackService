@@ -38,7 +38,13 @@ public class AuthenticationAspect {
     private Boolean aopEnabled;
 
     // 排除路径列表（不需要鉴权的路径）
-    private static final String[] EXCLUDE_PATHS = { "/api/v1/auth/", "/public/", "/health" };
+    private static final String[] EXCLUDE_PATHS = {
+            "/api/v1/auth/",
+            "/api/v1/oauth/", // OAuth授权和回调路径
+            "/api/v1/webhooks/", // Shopify Webhooks路径
+            "/public/",
+            "/health"
+    };
 
     public AuthenticationAspect(JwtUtil jwtUtil, UserService userService) {
         this.jwtUtil = jwtUtil;

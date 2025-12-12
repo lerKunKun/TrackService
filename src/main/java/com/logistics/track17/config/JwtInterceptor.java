@@ -36,6 +36,11 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 放行 Shopify Webhooks
+        if (path.startsWith("/api/v1/webhooks/shopify")) {
+            return true;
+        }
+
         String authHeader = request.getHeader("Authorization");
         if (StringUtils.isBlank(authHeader) || !authHeader.startsWith("Bearer ")) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

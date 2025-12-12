@@ -9,6 +9,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +36,13 @@ public class ShopifyWebhookService {
     public ShopifyWebhookService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    public void init() {
+        log.info("=== Shopify Webhook Service Initialized ===");
+        log.info("Webhook Base URL: {}", webhookBaseUrl);
+        log.info("API Secret configured: {}", shopifyApiSecret != null && !shopifyApiSecret.isEmpty());
     }
 
     /**
@@ -103,9 +112,18 @@ public class ShopifyWebhookService {
             // 先检查是否已存在
             List<Map<String, Object>> existingWebhooks = getWebhooks(shopDomain, accessToken);
             for (Map<String, Object> webhook : existingWebhooks) {
-                if (topic.equals(webhook.get("topic")) && address.equals(webhook.get("address"))) {
-                    log.info("Webhook already exists: {} for shop: {}", topic, shopDomain);
-                    return true;
+                if (topic.equals(webhook.get("topic"))) {
+                    String existingAddress = (String) webhook.get("address");
+                    if (address.equals(existingAddress)) {
+                        log.info("Webhook already exists with same URL: {} for shop: {}", topic, shopDomain);
+                        return true;
+                    } else {
+                        // 同topic但不同address，删除旧的
+                        Long webhookId = (Long) webhook.get("id");
+                        log.info("Deleting old webhook {} (topic: {}, old URL: {}) to register new URL: {}",
+                                webhookId, topic, existingAddress, address);
+                        deleteWebhook(shopDomain, accessToken, webhookId);
+                    }
                 }
             }
 
@@ -130,8 +148,7 @@ public class ShopifyWebhookService {
             ResponseEntity<String> response = restTemplate.postForEntity(
                     webhookUrl,
                     request,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.CREATED || response.getStatusCode() == HttpStatus.OK) {
                 log.info("Successfully registered webhook: {} for shop: {}", topic, shopDomain);
@@ -168,8 +185,7 @@ public class ShopifyWebhookService {
                     webhookUrl,
                     HttpMethod.GET,
                     request,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 JsonNode responseJson = objectMapper.readTree(response.getBody());
@@ -200,7 +216,8 @@ public class ShopifyWebhookService {
 
     /**
      * 验证webhook请求签名
-     * 参考: https://shopify.dev/docs/apps/build/webhooks/subscribe/https#step-5-verify-the-webhook
+     * 参考:
+     * https://shopify.dev/docs/apps/build/webhooks/subscribe/https#step-5-verify-the-webhook
      *
      * @param requestBody webhook请求体(原始字符串)
      * @param hmacHeader  X-Shopify-Hmac-SHA256头
@@ -217,8 +234,7 @@ public class ShopifyWebhookService {
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKeySpec = new SecretKeySpec(
                     shopifyApiSecret.getBytes(StandardCharsets.UTF_8),
-                    "HmacSHA256"
-            );
+                    "HmacSHA256");
             mac.init(secretKeySpec);
 
             byte[] hash = mac.doFinal(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -261,8 +277,7 @@ public class ShopifyWebhookService {
                     webhookUrl,
                     HttpMethod.DELETE,
                     request,
-                    String.class
-            );
+                    String.class);
 
             boolean success = response.getStatusCode() == HttpStatus.OK ||
                     response.getStatusCode() == HttpStatus.NO_CONTENT;

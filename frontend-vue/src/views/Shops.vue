@@ -417,11 +417,20 @@ const handleRefreshShopInfo = async (shopId) => {
 const handleRegisterWebhooks = async (shopId) => {
   try {
     loading.value = true
-    const response = await shopApi.registerWebhooks(shopId)
-    if (response.code === 200) {
-      message.success('Webhooks注册成功！')
+    // 注意：data已经是后端返回的data字段（由Axios拦截器提取）
+    const data = await shopApi.registerWebhooks(shopId)
+    
+    if (!data || data.totalSuccess === undefined) {
+      throw new Error('响应数据格式异常')
+    }
+    
+    const { totalSuccess, totalFailed } = data
+    if (totalFailed === 0) {
+      message.success(`Webhooks注册成功！`)
+    } else if (totalSuccess === 0) {
+      message.error(`Webhooks注册失败！${totalFailed}个注册失败`)
     } else {
-      message.warning(response.message || 'Webhooks注册完成，但部分可能失败')
+      message.warning(`Webhooks部分注册成功：${totalSuccess}个成功，${totalFailed}个失败`)
     }
   } catch (error) {
     console.error('注册Webhooks失败:', error)

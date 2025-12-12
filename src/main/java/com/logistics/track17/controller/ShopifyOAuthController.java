@@ -166,6 +166,32 @@ public class ShopifyOAuthController {
                 existingShop.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
                 existingShop.setTokenExpiresAt(null); // Offline token 永不过期
                 existingShop.setIsActive(true);
+
+                // 更新完整的店铺详细信息
+                if (shopInfo.get("currency") != null) {
+                    existingShop.setCurrency((String) shopInfo.get("currency"));
+                }
+                if (shopInfo.get("plan_name") != null) {
+                    existingShop.setPlanName((String) shopInfo.get("plan_name"));
+                }
+                if (shopInfo.get("plan_display_name") != null) {
+                    existingShop.setPlanDisplayName((String) shopInfo.get("plan_display_name"));
+                }
+                existingShop.setIsShopifyPlus((Boolean) shopInfo.getOrDefault("shopify_plus", false));
+                if (shopInfo.get("primary_domain") != null) {
+                    existingShop.setPrimaryDomain((String) shopInfo.get("primary_domain"));
+                }
+                if (shopInfo.get("shop_owner") != null) {
+                    existingShop.setShopOwner((String) shopInfo.get("shop_owner"));
+                }
+                if (shopInfo.get("email") != null) {
+                    existingShop.setContactEmail((String) shopInfo.get("email"));
+                    existingShop.setOwnerEmail((String) shopInfo.get("email"));
+                }
+                if (shopInfo.get("iana_timezone") != null) {
+                    existingShop.setIanaTimezone((String) shopInfo.get("iana_timezone"));
+                }
+
                 shopService.update(existingShop);
 
                 log.info("Updated existing shop: {} with offline token", shop);
@@ -186,6 +212,18 @@ public class ShopifyOAuthController {
                 newShop.setOauthState(state);
                 newShop.setTokenExpiresAt(null); // Offline token 永不过期
                 newShop.setIsActive(true);
+
+                // 添加完整的店铺详细信息
+                newShop.setCurrency((String) shopInfo.get("currency"));
+                newShop.setPlanName((String) shopInfo.get("plan_name"));
+                newShop.setPlanDisplayName((String) shopInfo.get("plan_display_name"));
+                newShop.setIsShopifyPlus((Boolean) shopInfo.getOrDefault("shopify_plus", false));
+                newShop.setPrimaryDomain((String) shopInfo.get("primary_domain"));
+                newShop.setShopOwner((String) shopInfo.get("shop_owner"));
+                newShop.setContactEmail((String) shopInfo.get("email"));
+                newShop.setOwnerEmail((String) shopInfo.get("email"));
+                newShop.setIanaTimezone((String) shopInfo.get("iana_timezone"));
+
                 shopService.create(newShop);
 
                 log.info("Created new shop: {} with offline token", shop);

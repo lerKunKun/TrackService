@@ -283,11 +283,12 @@ const fetchOrders = async () => {
       pageSize: pagination.pageSize
     }
     
-    const res = await orderApi.getList(params)
+    const data = await orderApi.getList(params)
     
-    if (res.code === 200 && res.data) {
-      tableData.value = res.data.list || []
-      pagination.total = res.data.total || 0
+    // 注意：data已经是后端返回的data字段（由Axios拦截器提取）
+    if (data && data.list) {
+      tableData.value = data.list || []
+      pagination.total = data.total || 0
     }
   } catch (error) {
     console.error('获取订单列表失败:', error)
@@ -300,9 +301,10 @@ const fetchOrders = async () => {
 // 获取店铺列表
 const fetchShops = async () => {
   try {
-    const res = await shopApi.getList({ page: 1, pageSize: 100 })
-    if (res.code === 200 && res.data) {
-      shops.value = res.data.list || []
+    const data = await shopApi.getList({ page: 1, pageSize: 100 })
+    // 注意：data已经是后端返回的data字段（由Axios拦截器提取）
+    if (data && data.list) {
+      shops.value = data.list || []
     }
   } catch (error) {
     console.error('获取店铺列表失败:', error)
@@ -325,9 +327,9 @@ const handleFilterChange = () => {
 // 查看详情
 const handleViewDetails = async (record) => {
   try {
-    const res = await orderApi.getDetail(record.id)
-    if (res.code === 200 && res.data) {
-      currentOrder.value = res.data
+    const data = await orderApi.getDetail(record.id)  
+    if (data) {
+      currentOrder.value = data
       detailVisible.value = true
     }
   } catch (error) {
