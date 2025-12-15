@@ -86,9 +86,22 @@
           </div>
 
           <div class="user-info">
-            <a-space>
-              <UserOutlined />
-              <span>{{ userStore.displayName }}</span>
+            <a-space :size="12">
+              <a-tooltip title="个人主页">
+                <a-avatar 
+                  :src="userAvatar" 
+                  :size="36"
+                  @click="goToProfile"
+                  class="user-avatar"
+                >
+                  <template #icon>
+                    <UserOutlined />
+                  </template>
+                </a-avatar>
+              </a-tooltip>
+              <span class="username-text" @click="goToProfile">
+                {{ userStore.displayName }}
+              </span>
               <a-button type="link" @click="handleLogout" danger>
                 <LogoutOutlined />
                 退出登录
@@ -185,6 +198,22 @@ const handleLogout = () => {
       router.push('/login')
     }
   })
+}
+
+// 计算用户头像
+const userAvatar = computed(() => {
+  // 如果有头像则使用，否则使用默认头像
+  if (userStore.avatar) {
+    return userStore.avatar
+  }
+  // 使用默认头像
+  return new URL('../assets/default-avatar.png', import.meta.url).href
+})
+
+// 导航到个人主页
+const goToProfile = () => {
+  console.log('Navigating to profile...')
+  router.push({ name: 'Profile' })
 }
 </script>
 
@@ -309,6 +338,25 @@ const handleLogout = () => {
 
 .user-info :deep(.ant-btn-link:hover) {
   color: #ff4d4f;
+}
+
+.user-avatar {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.username-text {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.username-text:hover {
+  color: #1890ff;
 }
 
 /* 主内容区 */

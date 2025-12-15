@@ -196,7 +196,34 @@ public class UserService {
         user = new User();
         user.setDingUnionId(dingTalkUserInfo.getUnionId());
         user.setCorpId(corpId);
-        user.setUsername(dingTalkUserInfo.getNick() + "_" + System.currentTimeMillis());
+
+        // 生成唯一的用户名
+        String username = generateUniqueUsername(dingTalkUserInfo);
+
+        // 检查username是否已被占用
+        User existingUserWithSameName = userMapper.selectByUsername(username);
+        if (existingUserWithSameName != null) {
+            // username已存在，检查是否是同一个钉钉用户
+            if (dingTalkUserInfo.getUnionId().equals(existingUserWithSameName.getDingUnionId())) {
+                // 并发情况：另一个请求已经创建了这个用户
+                log.info("Concurrent registration detected, returning existing user: {}",
+                        existingUserWithSameName.getUsername());
+                return existingUserWithSameName;
+            } else {
+                // 不同的钉钉用户，username冲突，添加手机号后缀
+                String phoneSuffix = "";
+                if (dingTalkUserInfo.getMobile() != null && dingTalkUserInfo.getMobile().length() >= 4) {
+                    phoneSuffix = dingTalkUserInfo.getMobile().substring(dingTalkUserInfo.getMobile().length() - 4);
+                } else {
+                    // 如果没有手机号，使用随机数
+                    phoneSuffix = String.valueOf((int) (Math.random() * 10000));
+                }
+                username = dingTalkUserInfo.getNick() + "_" + phoneSuffix;
+                log.warn("Username conflict, generated new username with suffix: {}", username);
+            }
+        }
+
+        user.setUsername(username);
         user.setRealName(dingTalkUserInfo.getNick());
         user.setEmail(dingTalkUserInfo.getEmail());
         user.setPhone(dingTalkUserInfo.getMobile());
@@ -204,13 +231,24 @@ public class UserService {
         user.setLoginSource("DINGTALK");
         user.setRole("USER"); // 默认普通用户
         user.setStatus(1); // 默认启用
-        // 随机密码，钉钉用户不需要密码登录
+        // 随机密码,钉钉用户不需要密码登录
         user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
 
-        userMapper.insert(user);
-        log.info("Created new user from DingTalk: {}", user.getUsername());
-
-        return user;
+        try {
+            userMapper.insert(user);
+            log.info("Created new user from DingTalk: {}", user.getUsername());
+            return user;
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 极端并发情况：在检查和插入之间，另一个请求创建了相同username
+            log.warn("Duplicate key after check, attempting final unionId lookup");
+            User finalCheck = userMapper.selectByDingUnionId(dingTalkUserInfo.getUnionId());
+            if (finalCheck != null) {
+                log.info("Found user by unionId on final check: {}", finalCheck.getUsername());
+                return finalCheck;
+            }
+            // 如果还是找不到，抛出原始异常
+            throw e;
+        }
     }
 
     /**
@@ -263,6 +301,31 @@ public class UserService {
      */
     public Long getUserCount() {
         return userMapper.count();
+    }
+
+    /**
+     * 生成唯一的用户名（钉钉用户）
+     * 优先使用昵称，如果昵称已存在则使用 昵称_手机号后4位
+     */
+    private String generateUniqueUsername(DingTalkUserInfo dingTalkUserInfo) {
+        String baseUsername = dingTalkUserInfo.getNick();
+
+        // 检查昵称是否已存在
+        User existingUser = userMapper.selectByUsername(baseUsername);
+        if (existingUser == null) {
+            return baseUsername;
+        }
+
+        // 昵称已存在，使用手机号后4位或随机数作为后缀
+        String suffix = "";
+        if (dingTalkUserInfo.getMobile() != null && dingTalkUserInfo.getMobile().length() >= 4) {
+            suffix = dingTalkUserInfo.getMobile().substring(dingTalkUserInfo.getMobile().length() - 4);
+        } else {
+            // 最后的fallback：使用随机数
+            suffix = String.valueOf((int) (Math.random() * 10000));
+        }
+
+        return baseUsername + "_" + suffix;
     }
 
     /**

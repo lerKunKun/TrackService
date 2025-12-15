@@ -16,6 +16,11 @@ export const userApi = {
     return request.get(`/users/${id}`)
   },
 
+  // 获取当前登录用户信息
+  getCurrentUser() {
+    return request.get('/auth/current')
+  },
+
   // 创建用户
   create(data) {
     return request.post('/users', data)

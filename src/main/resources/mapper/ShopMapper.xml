@@ -41,7 +41,7 @@
 
     <!-- 基础列表（用于列表查询，不包含敏感信息） -->
     <sql id="Base_Column_List">
-        id, user_id, shop_name, platform, shop_domain, timezone,
+        id, user_id, shop_name, platform, shop_url, shop_domain, primary_domain, timezone,
         currency, plan_display_name, contact_email,
         connection_status, is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>

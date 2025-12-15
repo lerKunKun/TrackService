@@ -74,7 +74,8 @@ public class AuthController {
         String loginIp = getClientIp(httpRequest);
         userService.updateLastLogin(user.getId(), loginIp);
 
-        LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), expiration);
+        LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
+                expiration);
 
         log.info("User {} logged in successfully from IP: {}", user.getUsername(), loginIp);
         return Result.success("登录成功", response);
@@ -99,7 +100,19 @@ public class AuthController {
      * 获取当前用户信息
      */
     @GetMapping("/current")
-    public Result<UserDTO> getCurrentUser(@RequestAttribute("username") String username) {
+    public Result<UserDTO> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        // 从Authorization header中提取token
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw BusinessException.of(401, "未授权");
+        }
+
+        String token = authHeader.substring(7);
+        String username = jwtUtil.getUsernameFromToken(token);
+
+        if (username == null) {
+            throw BusinessException.of(401, "无效的token");
+        }
+
         User user = userService.getUserByUsername(username);
         if (user == null) {
             throw BusinessException.of(404, "用户不存在");
@@ -220,7 +233,8 @@ public class AuthController {
             String loginIp = getClientIp(httpRequest);
             userService.updateLastLogin(user.getId(), loginIp);
 
-            LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), expiration);
+            LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
+                    expiration);
 
             log.info("User {} logged in via DingTalk from IP: {}", user.getUsername(), loginIp);
             return Result.success("登录成功", response);

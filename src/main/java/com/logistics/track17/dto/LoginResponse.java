@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 public class LoginResponse {
     private String token;
     private String username;
-    private String realName;   // 真实姓名（用于显示）
-    private Long expiresIn;    // 过期时间（毫秒）
+    private String realName; // 真实姓名（用于显示）
+    private String avatar; // 用户头像URL
+    private Long expiresIn; // 过期时间（毫秒）
 }

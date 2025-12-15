@@ -124,6 +124,7 @@ const sdkRetryCount = ref(0)
 const MAX_SDK_RETRY = 20 // 最多重试20次，每次100ms = 2秒
 const autoRefreshTimer = ref(null) // 自动刷新定时器
 const QR_EXPIRY_TIME = 5 * 60 * 1000 // 二维码5分钟过期
+const isProcessingLogin = ref(false) // 防止重复提交登录请求
 
 // 监听登录方式切换
 watch(loginType, (newType, oldType) => {
@@ -165,6 +166,9 @@ const loadDingTalkQRCode = async () => {
     
     // 清除之前的自动刷新定时器
     clearAutoRefresh()
+    
+    // 重置登录处理标志
+    isProcessingLogin.value = false
     
     // 并行执行：获取登录URL 和 等待SDK就绪
     const [loginUrl] = await Promise.all([
@@ -281,6 +285,16 @@ const renderQRCodeWithSDK = (loginUrl) => {
           prompt: 'consent'
         },
         async (loginResult) => {
+          // 防止重复提交 - 使用更严格的检查
+          if (isProcessingLogin.value === true || isProcessingLogin.value === 'success') {
+            console.log('⚠️ Login already in progress, ignoring duplicate callback. Current state:', isProcessingLogin.value)
+            return
+          }
+          
+          // 立即设置为true，防止并发请求
+          isProcessingLogin.value = true
+          console.log('🔒 Login lock acquired')
+          
           try {
             const authCode = loginResult.authCode
             if (!authCode) {
@@ -297,11 +311,15 @@ const renderQRCodeWithSDK = (loginUrl) => {
             const result = await response.json()
             
             if (result.code === 200) {
+              // 标记登录成功，后续错误不再显示
+              isProcessingLogin.value = 'success'
+              
               // 保存用户信息和token
               await userStore.setToken(result.data.token)
               await userStore.setUserInfo({
                 username: result.data.username,
-                realName: result.data.realName
+                realName: result.data.realName,
+                avatar: result.data.avatar
               })
               
               message.success('登录成功！')
@@ -310,9 +328,22 @@ const renderQRCodeWithSDK = (loginUrl) => {
               throw new Error(result.message || '登录失败')
             }
           } catch (error) {
+            // 如果已经登录成功，忽略后续的错误（来自重复请求）
+            if (isProcessingLogin.value === 'success') {
+              console.log('⚠️ Ignoring error after successful login:', error.message)
+              return
+            }
+            
             console.error('❌ Login processing error:', error)
             message.error('钉钉登录失败: ' + error.message)
             qrcodeError.value = error.message
+          } finally {
+            // 延迟重置，避免快速重复点击
+            setTimeout(() => {
+              if (isProcessingLogin.value !== 'success') {
+                isProcessingLogin.value = false
+              }
+            }, 1000)
           }
         },
         (errorMsg) => {

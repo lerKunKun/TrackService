@@ -55,6 +55,12 @@ const routes = [
         name: 'AllowedCorpIds',
         component: () => import('@/views/AllowedCorpIds.vue'),
         meta: { title: '企业CorpID管理', requiresAdmin: true }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人主页' }
       }
     ]
   }

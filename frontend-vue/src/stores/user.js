@@ -17,6 +17,7 @@ export const useUserStore = defineStore('user', () => {
   const username = ref(getStorageItem('username'))
   // 兼容旧数据：如果没有displayName，使用username作为降级
   const displayName = ref(getStorageItem('displayName') || getStorageItem('username'))
+  const avatar = ref(getStorageItem('avatar') || '')
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -43,10 +44,12 @@ export const useUserStore = defineStore('user', () => {
     username.value = data.username
     // 优先使用真实姓名，如果没有则使用用户名
     displayName.value = data.realName || data.username
+    avatar.value = data.avatar || ''
 
     setStorageItem('token', data.token)
     setStorageItem('username', data.username)
     setStorageItem('displayName', data.realName || data.username)
+    setStorageItem('avatar', data.avatar || '')
 
     return data
   }
@@ -55,9 +58,11 @@ export const useUserStore = defineStore('user', () => {
     token.value = ''
     username.value = ''
     displayName.value = ''
+    avatar.value = ''
     removeStorageItem('token')
     removeStorageItem('username')
     removeStorageItem('displayName')
+    removeStorageItem('avatar')
   }
 
   const setToken = (newToken) => {
@@ -68,14 +73,17 @@ export const useUserStore = defineStore('user', () => {
   const setUserInfo = (userInfo) => {
     username.value = userInfo.username
     displayName.value = userInfo.realName || userInfo.username
+    avatar.value = userInfo.avatar || ''
     setStorageItem('username', userInfo.username)
     setStorageItem('displayName', userInfo.realName || userInfo.username)
+    setStorageItem('avatar', userInfo.avatar || '')
   }
 
   return {
     token,
     username,
     displayName,
+    avatar,
     isLoggedIn,
     login,
     logout,

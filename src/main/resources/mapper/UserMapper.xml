@@ -84,9 +84,11 @@
     <!-- 插入用户 -->
     <insert id="insert" parameterType="com.logistics.track17.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (
-            username, password, email, phone, real_name, role, status, avatar
+            username, password, email, phone, real_name, role, status, avatar,
+            ding_union_id, ding_user_id, corp_id, login_source
         ) VALUES (
-            #{username}, #{password}, #{email}, #{phone}, #{realName}, #{role}, #{status}, #{avatar}
+            #{username}, #{password}, #{email}, #{phone}, #{realName}, #{role}, #{status}, #{avatar},
+            #{dingUnionId}, #{dingUserId}, #{corpId}, #{loginSource}
         )
     </insert>
 
