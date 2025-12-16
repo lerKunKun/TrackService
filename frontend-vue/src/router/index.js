@@ -61,6 +61,12 @@ const routes = [
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
         meta: { title: '个人主页' }
+      },
+      {
+        path: 'dingtalk-sync',
+        name: 'DingtalkSync',
+        component: () => import('@/views/DingtalkSync.vue'),
+        meta: { title: '钉钉组织同步', requiresAdmin: true }
       }
     ]
   }

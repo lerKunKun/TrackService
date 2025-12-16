@@ -54,6 +54,10 @@
           <SafetyOutlined />
           <span>企业CorpID管理</span>
         </a-menu-item>
+        <a-menu-item key="dingtalk-sync">
+          <SyncOutlined />
+          <span>钉钉组织同步</span>
+        </a-menu-item>
       </a-menu>
     </a-layout-sider>
 
@@ -133,6 +137,7 @@ import {
   CarOutlined,
   TeamOutlined,
   SafetyOutlined,
+  SyncOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons-vue'
@@ -178,6 +183,8 @@ watch(
       selectedKeys.value = ['users']
     } else if (path.includes('allowed-corp-ids')) {
       selectedKeys.value = ['allowed-corp-ids']
+    } else if (path.includes('dingtalk-sync')) {
+      selectedKeys.value = ['dingtalk-sync']
     }
   },
   { immediate: true }

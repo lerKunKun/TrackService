@@ -49,6 +49,11 @@ public class User {
     private Integer status;
 
     /**
+     * 是否启用自动同步：0-禁用同步，1-启用同步
+     */
+    private Integer syncEnabled;
+
+    /**
      * 头像URL
      */
     private String avatar;
@@ -82,6 +87,16 @@ public class User {
      * 钉钉userId（企业内唯一标识）
      */
     private String dingUserId;
+
+    /**
+     * 工号
+     */
+    private String jobNumber;
+
+    /**
+     * 职位
+     */
+    private String title;
 
     /**
      * 企业CorpId

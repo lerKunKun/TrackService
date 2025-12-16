@@ -75,6 +75,11 @@ public interface UserMapper {
     User selectByDingUnionId(@Param("unionId") String unionId);
 
     /**
+     * 根据钉钉userId查询用户
+     */
+    User selectByDingUserId(@Param("dingUserId") String dingUserId);
+
+    /**
      * 删除用户
      */
     int deleteById(@Param("id") Long id);

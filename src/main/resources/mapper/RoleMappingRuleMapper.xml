@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.RoleMappingRuleMapper">
+
+    <!-- ResultMap -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.RoleMappingRule">
+        <id column="id" property="id"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="dingtalk_dept_id" property="dingtalkDeptId"/>
+        <result column="dingtalk_title" property="dingtalkTitle"/>
+        <result column="system_role_id" property="systemRoleId"/>
+        <result column="priority" property="priority"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 查询所有映射规则 -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM role_mapping_rules
+        ORDER BY priority DESC, id DESC
+    </select>
+
+    <!-- 查询所有启用的映射规则 -->
+    <select id="selectAllEnabled" resultMap="BaseResultMap">
+        SELECT * FROM role_mapping_rules
+        WHERE status = 1
+        ORDER BY priority DESC, id DESC
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM role_mapping_rules
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据规则类型查询 -->
+    <select id="selectByRuleType" resultMap="BaseResultMap">
+        SELECT * FROM role_mapping_rules
+        WHERE rule_type = #{ruleType}
+        AND status = 1
+        ORDER BY priority DESC
+    </select>
+
+    <!-- 插入映射规则 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO role_mapping_rules (
+            rule_name,
+            rule_type,
+            dingtalk_dept_id,
+            dingtalk_title,
+            system_role_id,
+            priority,
+            status
+        ) VALUES (
+            #{ruleName},
+            #{ruleType},
+            #{dingtalkDeptId},
+            #{dingtalkTitle},
+            #{systemRoleId},
+            #{priority},
+            #{status}
+        )
+    </insert>
+
+    <!-- 更新映射规则 -->
+    <update id="update">
+        UPDATE role_mapping_rules
+        <set>
+            <if test="ruleName != null">rule_name = #{ruleName},</if>
+            <if test="ruleType != null">rule_type = #{ruleType},</if>
+            <if test="dingtalkDeptId != null">dingtalk_dept_id = #{dingtalkDeptId},</if>
+            <if test="dingtalkTitle != null">dingtalk_title = #{dingtalkTitle},</if>
+            <if test="systemRoleId != null">system_role_id = #{systemRoleId},</if>
+            <if test="priority != null">priority = #{priority},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除映射规则 -->
+    <delete id="deleteById">
+        DELETE FROM role_mapping_rules
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 更新规则状态 -->
+    <update id="updateStatus">
+        UPDATE role_mapping_rules
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

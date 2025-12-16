@@ -59,6 +59,13 @@
         WHERE ding_union_id = #{unionId} AND deleted_at IS NULL
     </select>
 
+    <!-- 根据钉钉userId查询用户 -->
+    <select id="selectByDingUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE ding_userid = #{dingUserId} AND deleted_at IS NULL
+    </select>
+
     <!-- 查询所有用户列表 -->
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>

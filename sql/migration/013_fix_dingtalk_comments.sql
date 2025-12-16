@@ -1,0 +1,48 @@
+-- 修复钉钉同步表的注释乱码
+-- 确保使用 UTF-8 编码执行此脚本
+
+-- 修复 users 表字段注释
+ALTER TABLE `users` 
+  MODIFY COLUMN `ding_userid` VARCHAR(100) NULL COMMENT '钉钉userId（企业内唯一标识）',
+  MODIFY COLUMN `job_number` VARCHAR(50) NULL COMMENT '工号',
+  MODIFY COLUMN `title` VARCHAR(100) NULL COMMENT '职位',
+  MODIFY COLUMN `sync_enabled` TINYINT(1) NULL DEFAULT 1 COMMENT '是否启用自动同步：0-禁用，1-启用';
+
+-- 修复 dingtalk_dept_mapping 表注释
+ALTER TABLE `dingtalk_dept_mapping` COMMENT = '钉钉部门映射表';
+ALTER TABLE `dingtalk_dept_mapping`
+  MODIFY COLUMN `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  MODIFY COLUMN `dingtalk_dept_id` BIGINT NOT NULL COMMENT '钉钉部门ID',
+  MODIFY COLUMN `system_dept_id` BIGINT NOT NULL COMMENT '系统部门ID',
+  MODIFY COLUMN `dingtalk_dept_name` VARCHAR(200) NULL COMMENT '钉钉部门名称',
+  MODIFY COLUMN `created_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 role_mapping_rules 表注释
+ALTER TABLE `role_mapping_rules` COMMENT = '角色映射规则表';
+ALTER TABLE `role_mapping_rules`
+  MODIFY COLUMN `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  MODIFY COLUMN `rule_name` VARCHAR(100) NOT NULL COMMENT '规则名称',
+  MODIFY COLUMN `rule_type` VARCHAR(50) NOT NULL COMMENT '规则类型：DEPT-按部门，TITLE-按职位，DEPT_TITLE-部门+职位',
+  MODIFY COLUMN `dingtalk_dept_id` BIGINT NULL COMMENT '钉钉部门ID（rule_type为DEPT或DEPT_TITLE时必填）',
+  MODIFY COLUMN `dingtalk_title` VARCHAR(100) NULL COMMENT '钉钉职位名称（rule_type为TITLE或DEPT_TITLE时必填）',
+  MODIFY COLUMN `system_role_id` BIGINT NOT NULL COMMENT '系统角色ID',
+  MODIFY COLUMN `priority` INT NULL DEFAULT 0 COMMENT '优先级（数字越大优先级越高）',
+  MODIFY COLUMN `status` TINYINT(1) NULL DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+  MODIFY COLUMN `created_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  MODIFY COLUMN `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- 修复 dingtalk_sync_logs 表注释
+ALTER TABLE `dingtalk_sync_logs` COMMENT = '钉钉同步日志表';
+ALTER TABLE `dingtalk_sync_logs`
+  MODIFY COLUMN `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  MODIFY COLUMN `sync_type` VARCHAR(50) NOT NULL COMMENT '同步类型：FULL-全量，DEPT-部门，USER-用户，ROLE-角色映射',
+  MODIFY COLUMN `sync_mode` VARCHAR(50) NOT NULL COMMENT '同步模式：MANUAL-手动，AUTO-自动',
+  MODIFY COLUMN `status` VARCHAR(50) NOT NULL COMMENT '状态：RUNNING-进行中，SUCCESS-成功，FAILED-失败',
+  MODIFY COLUMN `total_count` INT NULL DEFAULT 0 COMMENT '总数',
+  MODIFY COLUMN `success_count` INT NULL DEFAULT 0 COMMENT '成功数',
+  MODIFY COLUMN `failed_count` INT NULL DEFAULT 0 COMMENT '失败数',
+  MODIFY COLUMN `error_message` TEXT NULL COMMENT '错误信息',
+  MODIFY COLUMN `started_at` DATETIME NULL COMMENT '开始时间',
+  MODIFY COLUMN `completed_at` DATETIME NULL COMMENT '完成时间',
+  MODIFY COLUMN `created_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';

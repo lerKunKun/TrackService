@@ -42,6 +42,7 @@ public class AuthenticationAspect {
             "/api/v1/auth/",
             "/api/v1/oauth/", // OAuth授权和回调路径
             "/api/v1/webhooks/", // Shopify Webhooks路径
+            "/api/v1/dingtalk/sync/", // 钉钉同步接口
             "/public/",
             "/health"
     };
@@ -63,10 +64,11 @@ public class AuthenticationAspect {
 
         // 1. 获取请求路径
         String path = request.getRequestURI();
+        log.info("AOP拦截请求路径: {}", path);
 
         // 2. 检查是否是排除路径
         if (isExcludedPath(path)) {
-            log.debug("Excluded path accessed: {}", path);
+            log.info("白名单路径，直接放行: {}", path);
             return joinPoint.proceed();
         }
 
