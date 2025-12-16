@@ -37,6 +37,9 @@ public class DingtalkSyncService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private RoleService roleService;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
@@ -177,8 +180,18 @@ public class DingtalkSyncService {
      * 同步单个用户
      */
     private void syncSingleUser(DingtalkUserDTO dingUser) {
-        // 1. 查找用户（通过钉钉userid）
-        User existingUser = userMapper.selectByDingUserId(dingUser.getUserid());
+        // 1. 优先通过unionId查找用户（与扫码登录保持一致）
+        User existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
+
+        // 2. 如果通过unionId找不到，尝试通过dingUserId查找（兼容旧数据）
+        if (existingUser == null && dingUser.getUserid() != null) {
+            existingUser = userMapper.selectByDingUserId(dingUser.getUserid());
+            // 如果找到了，更新unionId
+            if (existingUser != null && existingUser.getDingUnionId() == null) {
+                existingUser.setDingUnionId(dingUser.getUnionid());
+                log.info("为用户 {} 补充unionId: {}", existingUser.getUsername(), dingUser.getUnionid());
+            }
+        }
 
         if (existingUser == null) {
             // 新建用户
@@ -200,17 +213,33 @@ public class DingtalkSyncService {
             newUser.setRole("USER"); // 默认角色
             newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
 
-            userMapper.insert(newUser);
-            log.debug("创建新用户: {} (钉钉ID: {}), 状态: {}",
-                    dingUser.getName(),
-                    dingUser.getUserid(),
-                    newUser.getStatus() == 1 ? "启用" : "禁用");
+            try {
+                userMapper.insert(newUser);
+                log.debug("创建新用户: {} (钉钉ID: {}), 状态: {}",
+                        dingUser.getName(),
+                        dingUser.getUserid(),
+                        newUser.getStatus() == 1 ? "启用" : "禁用");
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 可能是并发创建或username冲突，尝试再次查找
+                log.warn("用户创建失败，可能已存在: {}", dingUser.getName());
+                existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
+                if (existingUser != null) {
+                    log.info("找到已存在用户: {}", existingUser.getUsername());
+                    // 继续执行更新逻辑
+                } else {
+                    throw e; // 如果还是找不到，抛出异常
+                }
+            }
 
-        } else {
+        }
+
+        if (existingUser != null) {
             // 更新用户信息
             Integer oldStatus = existingUser.getStatus();
             Integer newStatus = dingUser.getActive() != null && dingUser.getActive() ? 1 : 0;
 
+            existingUser.setDingUserId(dingUser.getUserid()); // 更新dingUserId
+            existingUser.setDingUnionId(dingUser.getUnionid()); // 确保unionId存在
             existingUser.setRealName(dingUser.getName());
             existingUser.setPhone(dingUser.getMobile());
             existingUser.setEmail(dingUser.getEmail());
@@ -267,9 +296,9 @@ public class DingtalkSyncService {
                 List<Long> matchedRoleIds = matchRolesForUser(user, rules);
 
                 if (!matchedRoleIds.isEmpty()) {
-                    // TODO: 这里需要调用 UserService.assignRolesToUser()
-                    // 暂时只记录日志
-                    log.debug("用户 {} 匹配到 {} 个角色", user.getUsername(), matchedRoleIds.size());
+                    // 使用RoleService为用户分配角色
+                    roleService.assignRolesToUser(user.getId(), matchedRoleIds);
+                    log.info("为用户 {} 分配 {} 个角色", user.getUsername(), matchedRoleIds.size());
                     assignedCount++;
                 }
             } catch (Exception e) {

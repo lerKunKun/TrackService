@@ -51,6 +51,24 @@ const routes = [
         meta: { title: '用户管理' }
       },
       {
+        path: 'roles',
+        name: 'Roles',
+        component: () => import('@/views/system/Roles.vue'),
+        meta: { title: '角色管理', requiresAdmin: true }
+      },
+      {
+        path: 'menus',
+        name: 'Menus',
+        component: () => import('@/views/system/Menus.vue'),
+        meta: { title: '菜单管理', requiresAdmin: true }
+      },
+      {
+        path: 'permissions',
+        name: 'Permissions',
+        component: () => import('@/views/system/Permissions.vue'),
+        meta: { title: '权限管理', requiresAdmin: true }
+      },
+      {
         path: 'allowed-corp-ids',
         name: 'AllowedCorpIds',
         component: () => import('@/views/AllowedCorpIds.vue'),

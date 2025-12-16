@@ -25,8 +25,8 @@ public class StatsService {
     private final UserMapper userMapper;
 
     public StatsService(TrackingNumberMapper trackingNumberMapper,
-                        ShopMapper shopMapper,
-                        UserMapper userMapper) {
+            ShopMapper shopMapper,
+            UserMapper userMapper) {
         this.trackingNumberMapper = trackingNumberMapper;
         this.shopMapper = shopMapper;
         this.userMapper = userMapper;

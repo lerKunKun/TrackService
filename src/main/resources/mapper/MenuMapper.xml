@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.MenuMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.Menu">
+        <id column="id" property="id"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="menu_name" property="menuName"/>
+        <result column="menu_code" property="menuCode"/>
+        <result column="menu_type" property="menuType"/>
+        <result column="path" property="path"/>
+        <result column="component" property="component"/>
+        <result column="icon" property="icon"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="visible" property="visible"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        id, parent_id, menu_name, menu_code, menu_type, path, component, 
+        icon, sort_order, visible, status, created_at, updated_at
+    </sql>
+
+    <!-- 查询所有菜单 -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM menus
+        ORDER BY parent_id, sort_order
+    </select>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM menus
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据父ID查询子菜单 -->
+    <select id="selectByParentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM menus
+        WHERE parent_id = #{parentId}
+        ORDER BY sort_order
+    </select>
+
+    <!-- 根据角色ID查询菜单 -->
+    <select id="selectByRoleId" resultMap="BaseResultMap">
+        SELECT m.*
+        FROM menus m
+        INNER JOIN role_menus rm ON m.id = rm.menu_id
+        WHERE rm.role_id = #{roleId}
+          AND m.status = 1
+        ORDER BY m.parent_id, m.sort_order
+    </select>
+
+    <!-- 根据用户ID查询菜单 -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT DISTINCT m.*
+        FROM menus m
+        INNER JOIN role_menus rm ON m.id = rm.menu_id
+        INNER JOIN user_roles ur ON rm.role_id = ur.role_id
+        WHERE ur.user_id = #{userId}
+          AND m.status = 1
+          AND m.visible = 1
+        ORDER BY m.parent_id, m.sort_order
+    </select>
+
+    <!-- 根据菜单编码查询 -->
+    <select id="selectByMenuCode" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM menus
+        WHERE menu_code = #{menuCode}
+    </select>
+
+    <!-- 插入菜单 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.Menu" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO menus (
+            parent_id, menu_name, menu_code, menu_type, path, component,
+            icon, sort_order, visible, status
+        ) VALUES (
+            #{parentId}, #{menuName}, #{menuCode}, #{menuType}, #{path}, #{component},
+            #{icon}, #{sortOrder}, #{visible}, #{status}
+        )
+    </insert>
+
+    <!-- 更新菜单 -->
+    <update id="update" parameterType="com.logistics.track17.entity.Menu">
+        UPDATE menus
+        SET parent_id = #{parentId},
+            menu_name = #{menuName},
+            menu_code = #{menuCode},
+            menu_type = #{menuType},
+            path = #{path},
+            component = #{component},
+            icon = #{icon},
+            sort_order = #{sortOrder},
+            visible = #{visible},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除菜单 -->
+    <delete id="deleteById">
+        DELETE FROM menus WHERE id = #{id}
+    </delete>
+
+</mapper>

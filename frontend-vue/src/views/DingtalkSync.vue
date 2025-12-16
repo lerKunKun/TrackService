@@ -116,6 +116,7 @@ import {
   TeamOutlined 
 } from '@ant-design/icons-vue';
 import request from '@/utils/request';
+import { formatDateTime } from '@/utils/datetime';
 
 const loading = ref({
   full: false,
@@ -135,8 +136,20 @@ const columns = [
   { title: '成功', dataIndex: 'successCount', key: 'successCount', width: 80 },
   { title: '失败', dataIndex: 'failedCount', key: 'failedCount', width: 80 },
   { title: '错误信息', dataIndex: 'errorMessage', key: 'errorMessage', ellipsis: true },
-  { title: '开始时间', dataIndex: 'startedAt', key: 'startedAt', width: 180 },
-  { title: '完成时间', dataIndex: 'completedAt', key: 'completedAt', width: 180 }
+  { 
+    title: '开始时间', 
+    dataIndex: 'startedAt', 
+    key: 'startedAt', 
+    width: 180,
+    customRender: ({ text }) => formatDateTime(text)
+  },
+  { 
+    title: '完成时间', 
+    dataIndex: 'completedAt', 
+    key: 'completedAt', 
+    width: 180,
+    customRender: ({ text }) => formatDateTime(text)
+  }
 ];
 
 const anyLoading = computed(() => {
@@ -203,7 +216,7 @@ const loadLogs = async () => {
   loading.value.logs = true;
   try {
     const response = await request.get('/dingtalk/sync/logs?limit=20');
-    logs.value = response.data || [];
+    logs.value = response || [];
   } catch (error) {
     message.error('加载日志失败');
   } finally {

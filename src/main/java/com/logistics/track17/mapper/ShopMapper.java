@@ -29,8 +29,8 @@ public interface ShopMapper {
      * 查询店铺列表
      */
     List<Shop> selectList(@Param("platform") String platform,
-                          @Param("offset") Integer offset,
-                          @Param("pageSize") Integer pageSize);
+            @Param("offset") Integer offset,
+            @Param("pageSize") Integer pageSize);
 
     /**
      * 统计店铺数量

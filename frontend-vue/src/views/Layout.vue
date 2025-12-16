@@ -26,6 +26,7 @@
       <!-- 菜单 -->
       <a-menu
         v-model:selectedKeys="selectedKeys"
+        v-model:openKeys="openKeys"
         mode="inline"
         theme="dark"
         @click="handleMenuClick"
@@ -46,18 +47,38 @@
           <CarOutlined />
           <span>运单管理</span>
         </a-menu-item>
-        <a-menu-item key="users">
-          <TeamOutlined />
-          <span>用户管理</span>
-        </a-menu-item>
-        <a-menu-item key="allowed-corp-ids">
-          <SafetyOutlined />
-          <span>企业CorpID管理</span>
-        </a-menu-item>
-        <a-menu-item key="dingtalk-sync">
-          <SyncOutlined />
-          <span>钉钉组织同步</span>
-        </a-menu-item>
+        
+        <!-- 系统管理子菜单 -->
+        <a-sub-menu key="system">
+          <template #icon>
+            <SettingOutlined />
+          </template>
+          <template #title>系统管理</template>
+          <a-menu-item key="users">
+            <TeamOutlined />
+            <span>用户管理</span>
+          </a-menu-item>
+          <a-menu-item key="roles">
+            <UserSwitchOutlined />
+            <span>角色管理</span>
+          </a-menu-item>
+          <a-menu-item key="menus">
+            <MenuOutlined />
+            <span>菜单管理</span>
+          </a-menu-item>
+          <a-menu-item key="permissions">
+            <SafetyOutlined />
+            <span>权限管理</span>
+          </a-menu-item>
+          <a-menu-item key="allowed-corp-ids">
+            <IdcardOutlined />
+            <span>企业CorpID管理</span>
+          </a-menu-item>
+          <a-menu-item key="dingtalk-sync">
+            <SyncOutlined />
+            <span>钉钉组织同步</span>
+          </a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
 
@@ -139,7 +160,11 @@ import {
   SafetyOutlined,
   SyncOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  SettingOutlined,
+  UserSwitchOutlined,
+  MenuOutlined,
+  IdcardOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 
@@ -152,6 +177,7 @@ const screens = useBreakpoint()
 const isMobile = computed(() => !screens.value.md)
 const collapsed = ref(false)
 const selectedKeys = ref(['dashboard'])
+const openKeys = ref([])
 
 // 移动端自动收起侧边栏
 watch(isMobile, (val) => {
@@ -181,10 +207,22 @@ watch(
       selectedKeys.value = ['tracking']
     } else if (path.includes('users')) {
       selectedKeys.value = ['users']
+      openKeys.value = ['system']
+    } else if (path.includes('roles')) {
+      selectedKeys.value = ['roles']
+      openKeys.value = ['system']
+    } else if (path.includes('menus')) {
+      selectedKeys.value = ['menus']
+      openKeys.value = ['system']
+    } else if (path.includes('permissions')) {
+      selectedKeys.value = ['permissions']
+      openKeys.value = ['system']
     } else if (path.includes('allowed-corp-ids')) {
       selectedKeys.value = ['allowed-corp-ids']
+      openKeys.value = ['system']
     } else if (path.includes('dingtalk-sync')) {
       selectedKeys.value = ['dingtalk-sync']
+      openKeys.value = ['system']
     }
   },
   { immediate: true }

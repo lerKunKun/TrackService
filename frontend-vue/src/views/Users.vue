@@ -95,7 +95,7 @@
                 </div>
                 <div class="info-row">
                   <span class="label">创建时间:</span>
-                  <span class="value">{{ item.createdAt }}</span>
+                  <span class="value">{{ formatDateTime(item.createdAt) }}</span>
                 </div>
               </div>
               <div class="card-actions">
@@ -216,6 +216,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { userApi } from '@/api/user'
+import { formatDateTime } from '@/utils/datetime'
 
 // 表格列定义
 const columns = [
@@ -226,7 +227,13 @@ const columns = [
   { title: '真实姓名', dataIndex: 'realName', key: 'realName' },
   { title: '角色', dataIndex: 'role', key: 'role', width: 100 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { 
+    title: '创建时间', 
+    dataIndex: 'createdAt', 
+    key: 'createdAt', 
+    width: 180,
+    customRender: ({ text }) => formatDateTime(text)
+  },
   { title: '操作', key: 'action', width: 200 }
 ]
 
