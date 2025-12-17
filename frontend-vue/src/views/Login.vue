@@ -319,7 +319,8 @@ const renderQRCodeWithSDK = (loginUrl) => {
               await userStore.setUserInfo({
                 username: result.data.username,
                 realName: result.data.realName,
-                avatar: result.data.avatar
+                avatar: result.data.avatar,
+                permissions: result.data.permissions
               })
               
               message.success('登录成功！')

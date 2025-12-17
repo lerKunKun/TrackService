@@ -1,7 +1,9 @@
 package com.logistics.track17.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 菜单实体类
@@ -72,4 +74,11 @@ public class Menu {
      * 更新时间
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 子菜单列表（树形结构，不持久化到数据库）
+     * 只有当children不为空时才在JSON中显示
+     */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<Menu> children;
 }

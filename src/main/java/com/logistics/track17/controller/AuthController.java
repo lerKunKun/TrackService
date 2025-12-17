@@ -8,6 +8,7 @@ import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.UserService;
 import com.logistics.track17.service.DingTalkService;
+import com.logistics.track17.service.PermissionService;
 import com.logistics.track17.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UserService userService;
     private final DingTalkService dingTalkService;
+    private final PermissionService permissionService;
     private final com.logistics.track17.config.DingTalkConfig dingTalkConfig;
 
     @Value("${jwt.expiration}")
@@ -34,10 +36,12 @@ public class AuthController {
 
     public AuthController(JwtUtil jwtUtil, UserService userService,
             DingTalkService dingTalkService,
+            PermissionService permissionService,
             com.logistics.track17.config.DingTalkConfig dingTalkConfig) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
         this.dingTalkService = dingTalkService;
+        this.permissionService = permissionService;
         this.dingTalkConfig = dingTalkConfig;
     }
 
@@ -70,12 +74,16 @@ public class AuthController {
         // 生成Token
         String token = jwtUtil.generateToken(user.getUsername());
 
+        // 获取用户权限
+        java.util.List<String> permissions = new java.util.ArrayList<>(
+                permissionService.getUserPermissionCodes(user.getId()));
+
         // 更新最后登录信息
         String loginIp = getClientIp(httpRequest);
         userService.updateLastLogin(user.getId(), loginIp);
 
         LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                expiration);
+                expiration, permissions);
 
         log.info("User {} logged in successfully from IP: {}", user.getUsername(), loginIp);
         return Result.success("登录成功", response);
@@ -229,12 +237,16 @@ public class AuthController {
             // 5. 生成JWT Token
             String token = jwtUtil.generateToken(user.getUsername());
 
-            // 6. 更新最后登录信息
+            // 6. 获取用户权限
+            java.util.List<String> permissions = new java.util.ArrayList<>(
+                    permissionService.getUserPermissionCodes(user.getId()));
+
+            // 7. 更新最后登录信息
             String loginIp = getClientIp(httpRequest);
             userService.updateLastLogin(user.getId(), loginIp);
 
             LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                    expiration);
+                    expiration, permissions);
 
             log.info("User {} logged in via DingTalk from IP: {}", user.getUsername(), loginIp);
             return Result.success("登录成功", response);

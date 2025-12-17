@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Permission;
 import com.logistics.track17.service.PermissionService;
@@ -25,6 +26,7 @@ public class PermissionController {
      * 获取所有权限
      */
     @GetMapping
+    @RequireAuth(permissions = "system:permission:view")
     public ResponseEntity<Result<List<Permission>>> getAllPermissions() {
         try {
             List<Permission> permissions = permissionService.getAllPermissions();
@@ -39,6 +41,7 @@ public class PermissionController {
      * 根据ID获取权限
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = "system:permission:view")
     public ResponseEntity<Result<Permission>> getPermissionById(@PathVariable Long id) {
         try {
             Permission permission = permissionService.getPermissionById(id);
@@ -56,6 +59,7 @@ public class PermissionController {
      * 创建权限
      */
     @PostMapping
+    @RequireAuth(permissions = "system:permission:create")
     public ResponseEntity<Result<Permission>> createPermission(@RequestBody Permission permission) {
         try {
             Permission created = permissionService.createPermission(permission);
@@ -70,6 +74,7 @@ public class PermissionController {
      * 更新权限
      */
     @PutMapping("/{id}")
+    @RequireAuth(permissions = "system:permission:update")
     public ResponseEntity<Result<Permission>> updatePermission(@PathVariable Long id,
             @RequestBody Permission permission) {
         try {
@@ -86,6 +91,7 @@ public class PermissionController {
      * 删除权限
      */
     @DeleteMapping("/{id}")
+    @RequireAuth(permissions = "system:permission:delete")
     public ResponseEntity<Result<Void>> deletePermission(@PathVariable Long id) {
         try {
             permissionService.deletePermission(id);

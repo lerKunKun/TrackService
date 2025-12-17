@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Menu;
 import com.logistics.track17.entity.Permission;
@@ -36,6 +37,7 @@ public class RoleController {
      * 获取所有角色
      */
     @GetMapping
+    @RequireAuth(permissions = "system:role:view")
     public ResponseEntity<Result<List<Role>>> getAllRoles() {
         try {
             List<Role> roles = roleService.getAllRoles();
@@ -50,6 +52,7 @@ public class RoleController {
      * 根据ID获取角色
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = "system:role:view")
     public ResponseEntity<Result<Role>> getRoleById(@PathVariable Long id) {
         try {
             Role role = roleService.getRoleById(id);
@@ -67,6 +70,7 @@ public class RoleController {
      * 创建角色
      */
     @PostMapping
+    @RequireAuth(permissions = "system:role:create")
     public ResponseEntity<Result<Role>> createRole(@RequestBody Role role) {
         try {
             Role created = roleService.createRole(role);
@@ -81,6 +85,7 @@ public class RoleController {
      * 更新角色
      */
     @PutMapping("/{id}")
+    @RequireAuth(permissions = "system:role:update")
     public ResponseEntity<Result<Role>> updateRole(@PathVariable Long id, @RequestBody Role role) {
         try {
             role.setId(id);
@@ -96,6 +101,7 @@ public class RoleController {
      * 删除角色
      */
     @DeleteMapping("/{id}")
+    @RequireAuth(permissions = "system:role:delete")
     public ResponseEntity<Result<Void>> deleteRole(@PathVariable Long id) {
         try {
             roleService.deleteRole(id);
@@ -110,6 +116,7 @@ public class RoleController {
      * 获取角色的菜单
      */
     @GetMapping("/{id}/menus")
+    @RequireAuth(permissions = "system:role:view")
     public ResponseEntity<Result<List<Menu>>> getRoleMenus(@PathVariable Long id) {
         try {
             List<Menu> menus = menuService.getMenusByRoleId(id);
@@ -124,6 +131,7 @@ public class RoleController {
      * 为角色分配菜单
      */
     @PostMapping("/{id}/menus")
+    @RequireAuth(permissions = "system:role:assign-menu")
     public ResponseEntity<Result<Void>> assignMenusToRole(@PathVariable Long id,
             @RequestBody AssignMenusRequest request) {
         try {
@@ -139,6 +147,7 @@ public class RoleController {
      * 获取角色的权限
      */
     @GetMapping("/{id}/permissions")
+    @RequireAuth(permissions = "system:role:view")
     public ResponseEntity<Result<List<Permission>>> getRolePermissions(@PathVariable Long id) {
         try {
             List<Permission> permissions = permissionService.getPermissionsByRoleId(id);
@@ -153,6 +162,7 @@ public class RoleController {
      * 为角色分配权限
      */
     @PostMapping("/{id}/permissions")
+    @RequireAuth(permissions = "system:role:assign-permission")
     public ResponseEntity<Result<Void>> assignPermissionsToRole(@PathVariable Long id,
             @RequestBody AssignPermissionsRequest request) {
         try {

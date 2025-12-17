@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * 登录响应
  */
@@ -16,4 +18,5 @@ public class LoginResponse {
     private String realName; // 真实姓名（用于显示）
     private String avatar; // 用户头像URL
     private Long expiresIn; // 过期时间（毫秒）
+    private List<String> permissions; // 用户权限列表
 }

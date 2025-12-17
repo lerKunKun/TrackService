@@ -164,9 +164,14 @@ const handleFullSync = async () => {
   loading.value.full = true;
   try {
     const response = await request.post('/dingtalk/sync/full');
-    message.success(response.message || '全量同步完成');
-    await loadLogs();
+    if (response.code === 200) {
+      message.success(response.message || '全量同步完成');
+      await loadLogs();
+    } else {
+      message.error(response.message || '同步失败');
+    }
   } catch (error) {
+    console.error('同步失败:', error);
     message.error(error.message || '同步失败');
   } finally {
     loading.value.full = false;
@@ -177,9 +182,14 @@ const handleDeptSync = async () => {
   loading.value.dept = true;
   try {
     const response = await request.post('/dingtalk/sync/departments');
-    message.success(response.message || '部门同步完成');
-    await loadLogs();
+    if (response.code === 200) {
+      message.success(response.message || '部门同步完成');
+      await loadLogs();
+    } else {
+      message.error(response.message || '部门同步失败');
+    }
   } catch (error) {
+    console.error('部门同步失败:', error);
     message.error(error.message || '部门同步失败');
   } finally {
     loading.value.dept = false;
@@ -190,9 +200,14 @@ const handleUserSync = async () => {
   loading.value.user = true;
   try {
     const response = await request.post('/dingtalk/sync/users');
-    message.success(response.message || '用户同步完成');
-    await loadLogs();
+    if (response.code === 200) {
+      message.success(response.message || '用户同步完成');
+      await loadLogs();
+    } else {
+      message.error(response.message || '用户同步失败');
+    }
   } catch (error) {
+    console.error('用户同步失败:', error);
     message.error(error.message || '用户同步失败');
   } finally {
     loading.value.user = false;
@@ -203,9 +218,14 @@ const handleRoleMapping = async () => {
   loading.value.role = true;
   try {
     const response = await request.post('/dingtalk/sync/roles');
-    message.success(response.message || '角色映射完成');
-    await loadLogs();
+    if (response.code === 200) {
+      message.success(response.message || '角色映射完成');
+      await loadLogs();
+    } else {
+      message.error(response.message || '角色映射失败');
+    }
   } catch (error) {
+    console.error('角色映射失败:', error);
     message.error(error.message || '角色映射失败');
   } finally {
     loading.value.role = false;
@@ -216,8 +236,13 @@ const loadLogs = async () => {
   loading.value.logs = true;
   try {
     const response = await request.get('/dingtalk/sync/logs?limit=20');
-    logs.value = response || [];
+    if (response.code === 200) {
+      logs.value = response.data || [];
+    } else {
+      message.error(response.message || '加载日志失败');
+    }
   } catch (error) {
+    console.error('加载日志失败:', error);
     message.error('加载日志失败');
   } finally {
     loading.value.logs = false;

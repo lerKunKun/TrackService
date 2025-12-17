@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Menu;
 import com.logistics.track17.service.MenuService;
@@ -25,6 +26,7 @@ public class MenuController {
      * 获取菜单树
      */
     @GetMapping("/tree")
+    @RequireAuth(permissions = "system:menu:view")
     public ResponseEntity<Result<List<Menu>>> getMenuTree() {
         try {
             List<Menu> menuTree = menuService.getMenuTree();
@@ -36,7 +38,7 @@ public class MenuController {
     }
 
     /**
-     * 获取当前用户的菜单树
+     * 获取当前用户的菜单树（无需额外权限，任何登录用户都可访问）
      */
     @GetMapping("/user")
     public ResponseEntity<Result<List<Menu>>> getUserMenuTree(@RequestAttribute("userId") Long userId) {
@@ -53,6 +55,7 @@ public class MenuController {
      * 获取所有菜单列表
      */
     @GetMapping
+    @RequireAuth(permissions = "system:menu:view")
     public ResponseEntity<Result<List<Menu>>> getAllMenus() {
         try {
             List<Menu> menus = menuService.getAllMenus();
@@ -67,6 +70,7 @@ public class MenuController {
      * 根据ID获取菜单
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = "system:menu:view")
     public ResponseEntity<Result<Menu>> getMenuById(@PathVariable Long id) {
         try {
             Menu menu = menuService.getMenuById(id);
@@ -84,6 +88,7 @@ public class MenuController {
      * 创建菜单
      */
     @PostMapping
+    @RequireAuth(permissions = "system:menu:create")
     public ResponseEntity<Result<Menu>> createMenu(@RequestBody Menu menu) {
         try {
             Menu created = menuService.createMenu(menu);
@@ -98,6 +103,7 @@ public class MenuController {
      * 更新菜单
      */
     @PutMapping("/{id}")
+    @RequireAuth(permissions = "system:menu:update")
     public ResponseEntity<Result<Menu>> updateMenu(@PathVariable Long id, @RequestBody Menu menu) {
         try {
             menu.setId(id);
@@ -113,6 +119,7 @@ public class MenuController {
      * 删除菜单
      */
     @DeleteMapping("/{id}")
+    @RequireAuth(permissions = "system:menu:delete")
     public ResponseEntity<Result<Void>> deleteMenu(@PathVariable Long id) {
         try {
             menuService.deleteMenu(id);

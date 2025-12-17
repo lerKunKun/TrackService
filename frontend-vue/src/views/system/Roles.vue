@@ -148,9 +148,13 @@ const loadRoles = async () => {
   loading.value = true
   try {
     const response = await request.get('/roles')
-    roles.value = response || []
+    if (response.code === 200) {
+      roles.value = response.data || []
+    } else {
+      message.error(response.message || '加载角色列表失败')
+    }
   } catch (error) {
-    message.error('加载角色列表失败: ' + (error.message || ''))
+    console.error('加载角色列表失败:', error)
   } finally {
     loading.value = false
   }
@@ -170,12 +174,23 @@ const editRole = (role) => {
 
 const handleSubmit = async () => {
   try {
+    let response
     if (formData.value.id) {
-      await request.put(`/roles/${formData.value.id}`, formData.value)
-      message.success('更新角色成功')
+      response = await request.put(`/roles/${formData.value.id}`, formData.value)
+      if (response.code === 200) {
+        message.success('更新角色成功')
+      } else {
+        message.error(response.message || '更新角色失败')
+        return
+      }
     } else {
-      await request.post('/roles', formData.value)
-      message.success('创建角色成功')
+      response = await request.post('/roles', formData.value)
+      if (response.code === 200) {
+        message.success('创建角色成功')
+      } else {
+        message.error(response.message || '创建角色失败')
+        return
+      }
     }
     modalVisible.value = false
     loadRoles()
@@ -186,9 +201,13 @@ const handleSubmit = async () => {
 
 const deleteRole = async (role) => {
   try {
-    await request.delete(`/roles/${role.id}`)
-    message.success('删除角色成功')
-    loadRoles()
+    const response = await request.delete(`/roles/${role.id}`)
+    if (response.code === 200) {
+      message.success('删除角色成功')
+      loadRoles()
+    } else {
+      message.error(response.message || '删除失败')
+    }
   } catch (error) {
     message.error(error.message || '删除失败')
   }
@@ -199,11 +218,15 @@ const assignMenus = async (role) => {
   try {
     // 加载菜单树
     const menuResponse = await request.get('/menus/tree')
-    menuTree.value = menuResponse || []
+    if (menuResponse.code === 200) {
+      menuTree.value = menuResponse.data || []
+    }
     
     // 加载角色已有的菜单
     const roleMenuResponse = await request.get(`/roles/${role.id}/menus`)
-    selectedMenuIds.value = (roleMenuResponse || []).map(m => m.id)
+    if (roleMenuResponse.code === 200) {
+      selectedMenuIds.value = (roleMenuResponse.data || []).map(m => m.id)
+    }
     
     menuModalVisible.value = true
   } catch (error) {
@@ -213,11 +236,15 @@ const assignMenus = async (role) => {
 
 const handleAssignMenus = async () => {
   try {
-    await request.post(`/roles/${currentRole.value.id}/menus`, {
+    const response = await request.post(`/roles/${currentRole.value.id}/menus`, {
       menuIds: selectedMenuIds.value
     })
-    message.success('分配菜单成功')
-    menuModalVisible.value = false
+    if (response.code === 200) {
+      message.success('分配菜单成功')
+      menuModalVisible.value = false
+    } else {
+      message.error(response.message || '分配菜单失败')
+    }
   } catch (error) {
     message.error(error.message || '分配菜单失败')
   }
@@ -228,11 +255,15 @@ const assignPermissions = async (role) => {
   try {
     // 加载所有权限
     const permResponse = await request.get('/permissions')
-    permissions.value = permResponse || []
+    if (permResponse.code === 200) {
+      permissions.value = permResponse.data || []
+    }
     
     // 加载角色已有的权限
     const rolePermResponse = await request.get(`/roles/${role.id}/permissions`)
-    selectedPermissionIds.value = (rolePermResponse || []).map(p => p.id)
+    if (rolePermResponse.code === 200) {
+      selectedPermissionIds.value = (rolePermResponse.data || []).map(p => p.id)
+    }
     
     permissionModalVisible.value = true
   } catch (error) {
@@ -242,11 +273,15 @@ const assignPermissions = async (role) => {
 
 const handleAssignPermissions = async () => {
   try {
-    await request.post(`/roles/${currentRole.value.id}/permissions`, {
+    const response = await request.post(`/roles/${currentRole.value.id}/permissions`, {
       permissionIds: selectedPermissionIds.value
     })
-    message.success('分配权限成功')
-    permissionModalVisible.value = false
+    if (response.code === 200) {
+      message.success('分配权限成功')
+      permissionModalVisible.value = false
+    } else {
+      message.error(response.message || '分配权限失败')
+    }
   } catch (error) {
     message.error(error.message || '分配权限失败')
   }

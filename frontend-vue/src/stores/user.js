@@ -18,6 +18,16 @@ export const useUserStore = defineStore('user', () => {
   // 兼容旧数据：如果没有displayName，使用username作为降级
   const displayName = ref(getStorageItem('displayName') || getStorageItem('username'))
   const avatar = ref(getStorageItem('avatar') || '')
+  // 权限列表：从localStorage读取并解析
+  const permissions = ref((() => {
+    try {
+      const stored = getStorageItem('permissions')
+      return stored ? JSON.parse(stored) : []
+    } catch (e) {
+      console.warn('Failed to parse permissions from localStorage:', e)
+      return []
+    }
+  })())
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -39,19 +49,25 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const login = async (credentials) => {
-    const data = await authApi.login(credentials)
+    const response = await authApi.login(credentials)
+    // API返回格式: { code: 200, message: "登录成功", data: { token, username, ... } }
+    const data = response.data
+
     token.value = data.token
     username.value = data.username
     // 优先使用真实姓名，如果没有则使用用户名
     displayName.value = data.realName || data.username
     avatar.value = data.avatar || ''
+    // 保存权限列表
+    permissions.value = data.permissions || []
 
     setStorageItem('token', data.token)
     setStorageItem('username', data.username)
     setStorageItem('displayName', data.realName || data.username)
     setStorageItem('avatar', data.avatar || '')
+    setStorageItem('permissions', JSON.stringify(data.permissions || []))
 
-    return data
+    return response
   }
 
   const logout = () => {
@@ -59,10 +75,12 @@ export const useUserStore = defineStore('user', () => {
     username.value = ''
     displayName.value = ''
     avatar.value = ''
+    permissions.value = []
     removeStorageItem('token')
     removeStorageItem('username')
     removeStorageItem('displayName')
     removeStorageItem('avatar')
+    removeStorageItem('permissions')
   }
 
   const setToken = (newToken) => {
@@ -74,6 +92,11 @@ export const useUserStore = defineStore('user', () => {
     username.value = userInfo.username
     displayName.value = userInfo.realName || userInfo.username
     avatar.value = userInfo.avatar || ''
+    // 如果userInfo包含permissions，也保存它
+    if (userInfo.permissions) {
+      permissions.value = userInfo.permissions
+      setStorageItem('permissions', JSON.stringify(userInfo.permissions))
+    }
     setStorageItem('username', userInfo.username)
     setStorageItem('displayName', userInfo.realName || userInfo.username)
     setStorageItem('avatar', userInfo.avatar || '')
@@ -84,6 +107,7 @@ export const useUserStore = defineStore('user', () => {
     username,
     displayName,
     avatar,
+    permissions,
     isLoggedIn,
     login,
     logout,

@@ -1,8 +1,12 @@
 package com.logistics.track17.aspect;
 
 import com.logistics.track17.annotation.RequireAuth;
+import com.logistics.track17.entity.Permission;
+import com.logistics.track17.entity.Role;
 import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
+import com.logistics.track17.service.PermissionService;
+import com.logistics.track17.service.RoleService;
 import com.logistics.track17.service.UserService;
 import com.logistics.track17.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +22,9 @@ import org.springframework.stereotype.Component;
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 认证切面 - AOP权限控制
@@ -30,6 +37,8 @@ public class AuthenticationAspect {
 
     private final JwtUtil jwtUtil;
     private final UserService userService;
+    private final PermissionService permissionService;
+    private final RoleService roleService;
 
     @Autowired
     private HttpServletRequest request;
@@ -47,9 +56,14 @@ public class AuthenticationAspect {
             "/health"
     };
 
-    public AuthenticationAspect(JwtUtil jwtUtil, UserService userService) {
+    public AuthenticationAspect(JwtUtil jwtUtil,
+            UserService userService,
+            PermissionService permissionService,
+            RoleService roleService) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
+        this.permissionService = permissionService;
+        this.roleService = roleService;
     }
 
     /**
@@ -85,31 +99,46 @@ public class AuthenticationAspect {
             throw new BusinessException(401, "Token无效或已过期");
         }
 
-        // 5. 获取用户名并设置到请求属性
+        // 5. 获取用户信息并设置到请求属性
         String username = jwtUtil.getUsernameFromToken(token);
+        User user = userService.getUserByUsername(username);
+
+        if (user == null) {
+            throw new BusinessException(401, "用户不存在");
+        }
+
+        // 设置用户信息到request属性（供Controller使用）
         request.setAttribute("username", username);
+        request.setAttribute("userId", user.getId());
 
         // 6. 检查方法级别的权限注解
         Method method = ((MethodSignature) joinPoint.getSignature()).getMethod();
         RequireAuth requireAuth = method.getAnnotation(RequireAuth.class);
 
         if (requireAuth != null) {
-            User user = userService.getUserByUsername(username);
-
-            if (user == null) {
-                throw new BusinessException(401, "用户不存在");
+            // 6.1 检查管理员权限（兼容旧代码）
+            if (requireAuth.admin()) {
+                if (!isAdminUser(user)) {
+                    log.warn("User {} attempted to access admin-only resource: {}", username, path);
+                    throw new BusinessException(403, "需要管理员权限");
+                }
             }
 
-            // 检查管理员权限
-            if (requireAuth.admin() && !"ADMIN".equals(user.getRole())) {
-                throw new BusinessException(403, "需要管理员权限");
-            }
-
-            // 检查角色权限
+            // 6.2 检查角色权限（兼容旧代码，基于user.role字段或user_roles表）
             if (requireAuth.roles().length > 0) {
-                boolean hasRole = Arrays.asList(requireAuth.roles()).contains(user.getRole());
-                if (!hasRole) {
-                    throw new BusinessException(403, "权限不足");
+                if (!hasAnyRole(user, requireAuth.roles())) {
+                    log.warn("User {} lacks required roles {} for resource: {}",
+                            username, Arrays.toString(requireAuth.roles()), path);
+                    throw new BusinessException(403, "权限不足：缺少所需角色");
+                }
+            }
+
+            // 6.3 检查权限码（推荐使用，基于RBAC的细粒度权限控制）
+            if (requireAuth.permissions().length > 0) {
+                if (!hasAnyPermission(user.getId(), requireAuth.permissions())) {
+                    log.warn("User {} lacks required permissions {} for resource: {}",
+                            username, Arrays.toString(requireAuth.permissions()), path);
+                    throw new BusinessException(403, "权限不足：缺少所需权限");
                 }
             }
         }
@@ -128,5 +157,65 @@ public class AuthenticationAspect {
             }
         }
         return false;
+    }
+
+    /**
+     * 检查用户是否是管理员
+     * 检查逻辑：
+     * 1. 检查user.role字段是否为ADMIN（向后兼容）
+     * 2. 检查user_roles表中是否有ADMIN或SUPER_ADMIN角色
+     */
+    private boolean isAdminUser(User user) {
+        // 兼容旧代码：检查user.role字段
+        if ("ADMIN".equals(user.getRole()) || "SUPER_ADMIN".equals(user.getRole())) {
+            return true;
+        }
+
+        // 新RBAC系统：检查user_roles表
+        List<Role> roles = roleService.getRolesByUserId(user.getId());
+        return roles.stream()
+                .map(Role::getRoleCode)
+                .anyMatch(code -> "ADMIN".equals(code) || "SUPER_ADMIN".equals(code));
+    }
+
+    /**
+     * 检查用户是否拥有任一指定角色
+     * 检查逻辑：
+     * 1. 检查user.role字段（向后兼容）
+     * 2. 检查user_roles表（RBAC系统）
+     */
+    private boolean hasAnyRole(User user, String[] requiredRoles) {
+        Set<String> requiredRoleSet = Arrays.stream(requiredRoles).collect(Collectors.toSet());
+
+        // 兼容旧代码：检查user.role字段
+        if (user.getRole() != null && requiredRoleSet.contains(user.getRole())) {
+            return true;
+        }
+
+        // 新RBAC系统：检查user_roles表
+        List<Role> userRoles = roleService.getRolesByUserId(user.getId());
+        return userRoles.stream()
+                .map(Role::getRoleCode)
+                .anyMatch(requiredRoleSet::contains);
+    }
+
+    /**
+     * 检查用户是否拥有任一指定权限
+     * 基于RBAC系统，查询user_roles -> role_permissions -> permissions
+     */
+    private boolean hasAnyPermission(Long userId, String[] requiredPermissions) {
+        if (requiredPermissions == null || requiredPermissions.length == 0) {
+            return true;
+        }
+
+        // 查询用户所有权限
+        List<Permission> userPermissions = permissionService.getPermissionsByUserId(userId);
+        Set<String> permissionCodes = userPermissions.stream()
+                .map(Permission::getPermissionCode)
+                .collect(Collectors.toSet());
+
+        // 检查是否拥有任一所需权限（OR逻辑）
+        return Arrays.stream(requiredPermissions)
+                .anyMatch(permissionCodes::contains);
     }
 }

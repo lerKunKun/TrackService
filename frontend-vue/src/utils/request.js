@@ -24,14 +24,9 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
-    const { code, data, message: msg } = response.data
-
-    if (code === 200) {
-      return data
-    } else {
-      message.error(msg || '请求失败')
-      return Promise.reject(new Error(msg || '请求失败'))
-    }
+    // 后端返回格式: { code: 0, data: {...}, message: "..." }
+    // code === 0 表示成功
+    return response.data
   },
   error => {
     if (error.response) {

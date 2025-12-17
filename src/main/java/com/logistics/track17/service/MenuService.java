@@ -105,10 +105,19 @@ public class MenuService {
     private List<Menu> buildMenuTree(List<Menu> allMenus, Long parentId) {
         return allMenus.stream()
                 .filter(menu -> parentId.equals(menu.getParentId()))
+                .sorted((m1, m2) -> {
+                    // 按sortOrder排序，null值视为0
+                    int order1 = m1.getSortOrder() != null ? m1.getSortOrder() : 0;
+                    int order2 = m2.getSortOrder() != null ? m2.getSortOrder() : 0;
+                    return Integer.compare(order1, order2);
+                })
                 .map(menu -> {
                     // 递归查找子菜单
                     List<Menu> children = buildMenuTree(allMenus, menu.getId());
-                    // 这里可以扩展Menu类添加children字段，暂时不实现
+                    // 设置子菜单列表
+                    if (!children.isEmpty()) {
+                        menu.setChildren(children);
+                    }
                     return menu;
                 })
                 .collect(Collectors.toList());
