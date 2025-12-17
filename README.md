@@ -12,7 +12,21 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 
 #### 用户认证与权限
 - ✅ **JWT 认证**：基于 JWT 的用户登录和权限验证
+- ✅ **钉钉扫码登录**：OAuth 2.0 授权，支持企业内部应用
+- ✅ **多登录方式**：账号密码 + 钉钉扫码双模式
 - ✅ **Token 验证**：请求拦截和 Token 有效性验证
+
+#### RBAC 权限管理
+- ✅ **角色管理**：创建、编辑、删除角色，支持细粒度权限分配
+- ✅ **权限管理**：37+ 系统权限，支持菜单/按钮/数据三种类型
+- ✅ **菜单管理**：动态菜单配置，基于角色的菜单可见性控制
+- ✅ **前端权限检查**：按钮级别的权限控制 (v-if hasPermission)
+
+#### 钉钉集成
+- ✅ **钦钉登录**：动态二维码扫码登录，QR码自动刷新
+- ✅ **企业白名单**：限制可登录的企业 CorpId
+- ✅ **用户同步**：从钉钉通讯录同步用户数据
+- ✅ **同步日志**：记录同步操作历史
 
 #### 店铺管理
 - ✅ **多平台支持**：支持 Shopify、Shopline、TikTok Shop 等平台
@@ -71,11 +85,9 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 ### 计划功能（后续版本）
 
 - 📦 CSV 批量导入运单
-- 🔄 自动同步 Shopify 订单（基于 Webhook 自动创建运单）
 - 📊 物流轨迹可视化展示（时间线组件）
 - 🔔 异常运单提醒（超时、退回等）
 - 🌐 更多平台集成（Shopline、TikTok Shop）
-- 🔐 多用户权限管理
 - 📱 移动端适配
 
 ## 🛠 技术栈
@@ -352,6 +364,37 @@ track-17-server/
 ### 承运商管理
 - `GET /api/v1/carriers` - 获取所有承运商列表
 
+### 角色管理
+- `GET /api/v1/roles` - 获取角色列表
+- `GET /api/v1/roles/{id}` - 获取角色详情
+- `POST /api/v1/roles` - 创建角色
+- `PUT /api/v1/roles/{id}` - 更新角色
+- `DELETE /api/v1/roles/{id}` - 删除角色
+- `PUT /api/v1/roles/{id}/permissions` - 分配角色权限
+- `PUT /api/v1/roles/{id}/menus` - 分配角色菜单
+
+### 权限管理
+- `GET /api/v1/permissions` - 获取权限列表
+- `POST /api/v1/permissions` - 创建权限
+- `PUT /api/v1/permissions/{id}` - 更新权限
+- `DELETE /api/v1/permissions/{id}` - 删除权限
+
+### 菜单管理
+- `GET /api/v1/menus` - 获取菜单列表
+- `GET /api/v1/menus/tree` - 获取菜单树
+- `POST /api/v1/menus` - 创建菜单
+- `PUT /api/v1/menus/{id}` - 更新菜单
+- `DELETE /api/v1/menus/{id}` - 删除菜单
+
+### 钉钉集成
+- `GET /api/v1/auth/dingtalk/login-url` - 获取钉钉登录二维码URL
+- `GET /api/v1/auth/dingtalk/callback` - 钉钉OAuth回调
+- `POST /api/v1/dingtalk/sync` - 同步钉钉用户
+- `GET /api/v1/dingtalk/sync/logs` - 获取同步日志
+- `GET /api/v1/allowed-corp-ids` - 获取企业白名单
+- `POST /api/v1/allowed-corp-ids` - 添加企业白名单
+- `DELETE /api/v1/allowed-corp-ids/{id}` - 删除企业白名单
+
 详细 API 文档请查看：
 - [API 文档](docs/API_DOCUMENTATION.md)
 - [店铺管理 API](docs/API_SHOP_MANAGEMENT.md)
@@ -566,7 +609,9 @@ Redis 用途：
 
 ### 已完成 ✅
 
-- **用户认证**：JWT 登录和权限验证
+- **用户认证**：JWT 登录、钉钉扫码登录
+- **RBAC 权限系统**：角色、权限、菜单管理
+- **钉钉集成**：登录、用户同步、企业白名单
 - **店铺管理**：CRUD 操作、分页查询、连接验证
 - **Shopify OAuth**：完整的授权流程、Token 管理
 - **Shopify Webhook**：订单履行事件接收、自动注册
@@ -575,26 +620,6 @@ Redis 用途：
 - **Redis 缓存**：OAuth state 管理、连接池优化
 - **数据统计看板**：首页统计数据、运单趋势、承运商分析
 - **用户管理**：用户 CRUD 操作、分页查询
-
-### 进行中 🚧
-
-- **前端店铺集成**：Shopify OAuth 流程前端页面
-- **Webhook 自动创建运单**：基于订单履行事件自动创建运单
-
-### 计划中 📋
-
-- **批量导入**：CSV 批量导入运单
-- **可视化展示**：物流轨迹时间线组件
-- **异常监控**：超时运单、退回包裹提醒
-- **数据统计**：运单状态分布、时效分析
-- **多平台支持**：Shopline、TikTok Shop 集成
-- **权限管理**：多用户、角色权限
-- **移动端**：响应式设计、移动端适配
-
-## 🤝 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
 ## 📄 许可证
 
 MIT License
@@ -645,6 +670,6 @@ MIT License
 
 ---
 
-**版本**: v1.1.0  
-**最后更新**: 2025-12-04
+**版本**: v1.2.0  
+**最后更新**: 2025-12-17
 

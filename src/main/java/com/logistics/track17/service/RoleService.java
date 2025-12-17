@@ -146,31 +146,4 @@ public class RoleService {
 
         log.info("为用户 {} 分配角色成功，角色数: {}", userId, roleIds.size());
     }
-
-    /**
-     * 检查用户是否拥有指定角色
-     * 
-     * @param userId   用户ID
-     * @param roleCode 角色编码
-     * @return 拥有该角色返回true
-     */
-    public boolean hasRole(Long userId, String roleCode) {
-        List<Role> roles = roleMapper.selectByUserId(userId);
-        return roles.stream()
-                .anyMatch(role -> roleCode.equals(role.getRoleCode()));
-    }
-
-    /**
-     * 检查用户是否是管理员
-     * 拥有ADMIN或SUPER_ADMIN角色即为管理员
-     * 
-     * @param userId 用户ID
-     * @return 是管理员返回true
-     */
-    public boolean isAdmin(Long userId) {
-        List<Role> roles = roleMapper.selectByUserId(userId);
-        return roles.stream()
-                .map(Role::getRoleCode)
-                .anyMatch(code -> "ADMIN".equals(code) || "SUPER_ADMIN".equals(code));
-    }
 }
