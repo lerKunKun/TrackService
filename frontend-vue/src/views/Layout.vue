@@ -110,6 +110,18 @@
             </div>
           </div>
 
+          <!-- 世界时钟 -->
+          <div class="world-clock" v-if="!isMobile">
+            <span class="clock-item">
+              <span class="clock-label">中国时间 :</span>
+              <span class="clock-time">{{ chinaTime }}</span>
+            </span>
+            <span class="clock-item">
+              <span class="clock-label">美国时间 :</span>
+              <span class="clock-time">{{ usTime }}</span>
+            </span>
+          </div>
+
           <div class="user-info">
             <a-space :size="12">
               <a-tooltip title="个人主页">
@@ -260,6 +272,40 @@ const goToProfile = () => {
   console.log('Navigating to profile...')
   router.push({ name: 'Profile' })
 }
+
+// 世界时钟
+const chinaTime = ref('')
+const usTime = ref('')
+
+const updateTime = () => {
+  const now = new Date()
+  
+  // 中国时区 (Asia/Shanghai, UTC+8)
+  const chinaFormatter = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  chinaTime.value = chinaFormatter.format(now)
+  
+  // 美国东部时区 (America/New_York, EST/EDT)
+  const usFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  usTime.value = usFormatter.format(now)
+}
+
+// 初始化时钟并每秒更新
+onMounted(() => {
+  updateTime()
+  setInterval(updateTime, 1000)
+})
 </script>
 
 <style scoped>
@@ -402,6 +448,32 @@ const goToProfile = () => {
 
 .username-text:hover {
   color: #1890ff;
+}
+
+/* 世界时钟样式 */
+.world-clock {
+  display: flex;
+  align-items: center;
+  gap: 200px;
+}
+
+.clock-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.clock-label {
+  font-size: 20px;
+  color: #000;
+  font-weight: 500;
+}
+
+.clock-time {
+  font-size: 20px;
+  font-weight: 600;
+  color: #000;
+  font-family: 'Courier New', monospace;
 }
 
 /* 主内容区 */
