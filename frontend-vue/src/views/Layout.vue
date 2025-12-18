@@ -23,7 +23,7 @@
         <span v-if="!collapsed" class="logo-text">比欧网络</span>
       </div>
 
-      <!-- 菜单 -->
+      <!-- 动态菜单（带fallback） -->
       <a-menu
         v-model:selectedKeys="selectedKeys"
         v-model:openKeys="openKeys"
@@ -31,54 +31,79 @@
         theme="dark"
         @click="handleMenuClick"
       >
-        <a-menu-item key="dashboard">
-          <DashboardOutlined />
-          <span>首页概览</span>
-        </a-menu-item>
-        <a-menu-item key="shops">
-          <ShopOutlined />
-          <span>店铺管理</span>
-        </a-menu-item>
-        <a-menu-item key="orders">
-          <ShoppingOutlined />
-          <span>订单管理</span>
-        </a-menu-item>
-        <a-menu-item key="tracking">
-          <CarOutlined />
-          <span>运单管理</span>
-        </a-menu-item>
-        
-        <!-- 系统管理子菜单 -->
-        <a-sub-menu key="system">
-          <template #icon>
-            <SettingOutlined />
+        <!-- 如果菜单加载成功且有数据，显示动态菜单 -->
+        <template v-if="menuTree.length > 0">
+          <template v-for="menu in menuTree" :key="menu.menuCode">
+            <!-- 一级菜单（无子菜单） -->
+            <a-menu-item v-if="!menu.children || menu.children.length === 0" :key="`${menu.menuCode}-item`">
+              <component :is="getIconComponent(menu.icon)" v-if="menu.icon" />
+              <span>{{ menu.menuName }}</span>
+            </a-menu-item>
+            
+            <!-- 一级菜单（有子菜单） -->
+            <a-sub-menu v-else :key="`${menu.menuCode}-submenu`">
+              <template #icon>
+                <component :is="getIconComponent(menu.icon)" v-if="menu.icon" />
+              </template>
+              <template #title>{{ menu.menuName }}</template>
+              <a-menu-item v-for="subMenu in menu.children" :key="subMenu.menuCode">
+                <component :is="getIconComponent(subMenu.icon)" v-if="subMenu.icon" />
+                <span>{{ subMenu.menuName }}</span>
+              </a-menu-item>
+            </a-sub-menu>
           </template>
-          <template #title>系统管理</template>
-          <a-menu-item key="users">
-            <TeamOutlined />
-            <span>用户管理</span>
+        </template>
+        
+        <!-- Fallback: 如果菜单加载失败或为空，显示硬编码菜单 -->
+        <template v-else>
+          <a-menu-item key="dashboard">
+            <DashboardOutlined />
+            <span>首页概览</span>
           </a-menu-item>
-          <a-menu-item key="roles">
-            <UserSwitchOutlined />
-            <span>角色管理</span>
+          <a-menu-item key="shops">
+            <ShopOutlined />
+            <span>店铺管理</span>
           </a-menu-item>
-          <a-menu-item key="menus">
-            <MenuOutlined />
-            <span>菜单管理</span>
+          <a-menu-item key="orders">
+            <ShoppingOutlined />
+            <span>订单管理</span>
           </a-menu-item>
-          <a-menu-item key="permissions">
-            <SafetyOutlined />
-            <span>权限管理</span>
+          <a-menu-item key="tracking">
+            <CarOutlined />
+            <span>运单管理</span>
           </a-menu-item>
-          <a-menu-item key="allowed-corp-ids">
-            <IdcardOutlined />
-            <span>企业CorpID管理</span>
-          </a-menu-item>
-          <a-menu-item key="dingtalk-sync">
-            <SyncOutlined />
-            <span>钉钉组织同步</span>
-          </a-menu-item>
-        </a-sub-menu>
+          
+          <a-sub-menu key="system">
+            <template #icon>
+              <SettingOutlined />
+            </template>
+            <template #title>系统管理</template>
+            <a-menu-item key="users">
+              <TeamOutlined />
+              <span>用户管理</span>
+            </a-menu-item>
+            <a-menu-item key="roles">
+              <UserSwitchOutlined />
+              <span>角色管理</span>
+            </a-menu-item>
+            <a-menu-item key="menus">
+              <MenuOutlined />
+              <span>菜单管理</span>
+            </a-menu-item>
+            <a-menu-item key="permissions">
+              <SafetyOutlined />
+              <span>权限管理</span>
+            </a-menu-item>
+            <a-menu-item key="allowed-corp-ids">
+              <IdcardOutlined />
+              <span>企业CorpID管理</span>
+            </a-menu-item>
+            <a-menu-item key="dingtalk-sync">
+              <SyncOutlined />
+              <span>钉钉组织同步</span>
+            </a-menu-item>
+          </a-sub-menu>
+        </template>
       </a-menu>
     </a-layout-sider>
 
@@ -117,7 +142,7 @@
               <span class="clock-time">{{ chinaTime }}</span>
             </span>
             <span class="clock-item">
-              <span class="clock-label">美国时间 :</span>
+              <span class="clock-label">美国东部时间 :</span>
               <span class="clock-time">{{ usTime }}</span>
             </span>
           </div>
@@ -159,7 +184,8 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Modal, Grid } from 'ant-design-vue'
+import { Modal, Grid, message } from 'ant-design-vue'
+import * as Icons from '@ant-design/icons-vue'
 import {
   RocketOutlined,
   UserOutlined,
@@ -179,6 +205,7 @@ import {
   IdcardOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { menuApi } from '@/api/menu'
 
 const router = useRouter()
 const route = useRoute()
@@ -190,6 +217,7 @@ const isMobile = computed(() => !screens.value.md)
 const collapsed = ref(false)
 const selectedKeys = ref(['dashboard'])
 const openKeys = ref([])
+const menuTree = ref([])
 
 // 移动端自动收起侧边栏
 watch(isMobile, (val) => {
@@ -241,6 +269,28 @@ watch(
 )
 
 const handleMenuClick = ({ key }) => {
+  // 如果是动态菜单，查找菜单path
+  if (menuTree.value.length > 0) {
+    const findMenuByCode = (menus, code) => {
+      for (const menu of menus) {
+        const cleanCode = code.replace(/-item$|-submenu$/, '')
+        if (menu.menuCode === cleanCode) {
+          return menu
+        }
+        if (menu.children && menu.children.length > 0) {
+          const found = findMenuByCode(menu.children, code)
+          if (found) return found
+        }
+      }
+      return null
+    }
+    const menu = findMenuByCode(menuTree.value, key)
+    if (menu && menu.path) {
+      router.push(menu.path)
+      return
+    }
+  }
+  // Fallback: 使用硬编码菜单的key路由
   router.push(`/${key}`)
 }
 
@@ -271,6 +321,61 @@ const userAvatar = computed(() => {
 const goToProfile = () => {
   console.log('Navigating to profile...')
   router.push({ name: 'Profile' })
+}
+
+// 加载用户菜单
+const loadUserMenu = async () => {
+  try {
+    console.log('开始加载用户菜单...')
+    const response = await menuApi.getUserMenuTree()
+    console.log('菜单API响应:', response)
+    
+    if (response.code === 200 && response.data) {
+      menuTree.value = response.data
+      console.log('菜单加载成功，数量:', menuTree.value.length)
+      // 更新路由选中状态
+      updateMenuKeysFromRoute()
+    } else {
+      console.warn('菜单加载失败，使用硬编码菜单:', response.message)
+      // 保持menuTree为空数组，触发fallback
+      menuTree.value = []
+    }
+  } catch (error) {
+    console.error('加载菜单异常，使用硬编码菜单fallback:', error)
+    // 发生错误时使用fallback
+    menuTree.value = []
+  }
+}
+
+// 动态获取图标组件
+const getIconComponent = (iconName) => {
+  if (!iconName) return null
+  return Icons[iconName] || null
+}
+
+// 根据路由更新菜单选中状态
+const updateMenuKeysFromRoute = () => {
+  const path = route.path
+  const findMenuByPath = (menus, targetPath) => {
+    for (const menu of menus) {
+      if (menu.path === targetPath) {
+        return menu
+      }
+      if (menu.children && menu.children.length > 0) {
+        const found = findMenuByPath(menu.children, targetPath)
+        if (found) {
+          openKeys.value = [menu.menuCode]
+          return found
+        }
+      }
+    }
+    return null
+  }
+  
+  const matchedMenu = findMenuByPath(menuTree.value, path)
+  if (matchedMenu) {
+    selectedKeys.value = [matchedMenu.menuCode]
+  }
 }
 
 // 世界时钟
@@ -305,6 +410,8 @@ const updateTime = () => {
 onMounted(() => {
   updateTime()
   setInterval(updateTime, 1000)
+  // 加载用户菜单（静默失败，使用fallback）
+  loadUserMenu()
 })
 </script>
 
