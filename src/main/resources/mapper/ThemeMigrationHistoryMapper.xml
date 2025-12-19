@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.ThemeMigrationHistoryMapper">
+    
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.ThemeMigrationHistory">
+        <id column="id" property="id"/>
+        <result column="theme_name" property="themeName"/>
+        <result column="from_version" property="fromVersion"/>
+        <result column="to_version" property="toVersion"/>
+        <result column="status" property="status"/>
+        <result column="templates_updated" property="templatesUpdated"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="executed_by" property="executedBy"/>
+        <result column="executed_at" property="executedAt"/>
+        <result column="completed_at" property="completedAt"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.logistics.track17.entity.ThemeMigrationHistory"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO theme_migration_history (
+            theme_name, from_version, to_version, status, executed_by
+        ) VALUES (
+            #{themeName}, #{fromVersion}, #{toVersion}, #{status}, #{executedBy}
+        )
+    </insert>
+    
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_history WHERE id = #{id}
+    </select>
+    
+    <select id="selectByThemeName" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_history 
+        WHERE theme_name = #{themeName}
+        ORDER BY executed_at DESC
+    </select>
+    
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_history 
+        WHERE status = #{status}
+        ORDER BY executed_at DESC
+    </select>
+    
+    <update id="updateStatus">
+        UPDATE theme_migration_history
+        SET status = #{status},
+            error_message = #{errorMessage}
+        WHERE id = #{id}
+    </update>
+    
+    <update id="updateCompletion">
+        UPDATE theme_migration_history
+        SET status = #{status},
+            templates_updated = #{templatesUpdated},
+            completed_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM theme_migration_history WHERE id = #{id}
+    </delete>
+    
+</mapper>

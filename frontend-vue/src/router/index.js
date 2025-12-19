@@ -45,31 +45,31 @@ const routes = [
         meta: { title: '运单管理' }
       },
       {
-        path: 'users',
+        path: 'system/users',
         name: 'Users',
         component: () => import('@/views/Users.vue'),
         meta: { title: '用户管理' }
       },
       {
-        path: 'roles',
+        path: 'system/roles',
         name: 'Roles',
         component: () => import('@/views/system/Roles.vue'),
         meta: { title: '角色管理', requiresAdmin: true }
       },
       {
-        path: 'menus',
+        path: 'system/menus',
         name: 'Menus',
         component: () => import('@/views/system/Menus.vue'),
         meta: { title: '菜单管理', requiresAdmin: true }
       },
       {
-        path: 'permissions',
+        path: 'system/permissions',
         name: 'Permissions',
         component: () => import('@/views/system/Permissions.vue'),
         meta: { title: '权限管理', requiresAdmin: true }
       },
       {
-        path: 'allowed-corp-ids',
+        path: 'system/allowed-corp-ids',
         name: 'AllowedCorpIds',
         component: () => import('@/views/AllowedCorpIds.vue'),
         meta: { title: '企业CorpID管理', requiresAdmin: true }
@@ -81,10 +81,22 @@ const routes = [
         meta: { title: '个人主页' }
       },
       {
-        path: 'dingtalk-sync',
+        path: 'system/dingtalk-sync',
         name: 'DingtalkSync',
         component: () => import('@/views/DingtalkSync.vue'),
         meta: { title: '钉钉组织同步', requiresAdmin: true }
+      },
+      {
+        path: 'theme/versions',
+        name: 'ThemeVersions',
+        component: () => import('@/views/theme/ThemeVersions.vue'),
+        meta: { title: '主题版本管理' }
+      },
+      {
+        path: 'theme/migration',
+        name: 'ThemeMigration',
+        component: () => import('@/views/theme/ThemeMigration.vue'),
+        meta: { title: '主题迁移' }
       }
     ]
   }

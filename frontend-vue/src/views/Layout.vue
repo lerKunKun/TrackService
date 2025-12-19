@@ -138,7 +138,7 @@
           <!-- 世界时钟 -->
           <div class="world-clock" v-if="!isMobile">
             <span class="clock-item">
-              <span class="clock-label">中国时间 :</span>
+              <span class="clock-label">中国北京时间 :</span>
               <span class="clock-time">{{ chinaTime }}</span>
             </span>
             <span class="clock-item">
@@ -219,10 +219,12 @@ const selectedKeys = ref(['dashboard'])
 const openKeys = ref([])
 const menuTree = ref([])
 
-// 移动端自动收起侧边栏
+// 移动端自动收起侧边栏，PC端默认展开
 watch(isMobile, (val) => {
   if (val) {
-    collapsed.value = true
+    collapsed.value = true  // 移动端收起
+  } else {
+    collapsed.value = false  // PC端展开
   }
 }, { immediate: true })
 
@@ -287,6 +289,7 @@ const handleMenuClick = ({ key }) => {
     const menu = findMenuByCode(menuTree.value, key)
     if (menu && menu.path) {
       router.push(menu.path)
+      // 不改变openKeys状态，让Vue自动管理
       return
     }
   }
@@ -364,7 +367,10 @@ const updateMenuKeysFromRoute = () => {
       if (menu.children && menu.children.length > 0) {
         const found = findMenuByPath(menu.children, targetPath)
         if (found) {
-          openKeys.value = [menu.menuCode]
+          // 只有当openKeys为空时才设置，避免覆盖用户的展开状态
+          if (openKeys.value.length === 0) {
+            openKeys.value = [menu.menuCode]
+          }
           return found
         }
       }

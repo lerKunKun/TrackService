@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.ThemeMigrationRuleMapper">
+
+    <!-- ResultMap -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.ThemeMigrationRule">
+        <id column="id" property="id"/>
+        <result column="theme_name" property="themeName"/>
+        <result column="from_version" property="fromVersion"/>
+        <result column="to_version" property="toVersion"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="section_name" property="sectionName"/>
+        <result column="rule_json" property="ruleJson"/>
+        <result column="confidence" property="confidence"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 插入 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.ThemeMigrationRule"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO theme_migration_rules (
+            theme_name, from_version, to_version, rule_type, section_name,
+            rule_json, confidence, created_by
+        ) VALUES (
+            #{themeName}, #{fromVersion}, #{toVersion}, #{ruleType}, #{sectionName},
+            #{ruleJson}, #{confidence}, #{createdBy}
+        )
+    </insert>
+
+    <!-- 批量插入 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO theme_migration_rules (
+            theme_name, from_version, to_version, rule_type, section_name,
+            rule_json, confidence, created_by
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.themeName}, #{item.fromVersion}, #{item.toVersion},
+                #{item.ruleType}, #{item.sectionName}, #{item.ruleJson},
+                #{item.confidence}, #{item.createdBy}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_rules WHERE id = #{id}
+    </select>
+
+    <!-- 根据版本查询所有规则 -->
+    <select id="selectByVersions" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_rules
+        WHERE theme_name = #{themeName}
+          AND from_version = #{fromVersion}
+          AND to_version = #{toVersion}
+        ORDER BY rule_type, section_name
+    </select>
+
+    <!-- 根据版本和类型查询 -->
+    <select id="selectByVersionsAndType" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_rules
+        WHERE theme_name = #{themeName}
+          AND from_version = #{fromVersion}
+          AND to_version = #{toVersion}
+          AND rule_type = #{ruleType}
+        ORDER BY section_name
+    </select>
+
+    <!-- 根据版本、类型和section查询 -->
+    <select id="selectByVersionsTypeAndSection" resultMap="BaseResultMap">
+        SELECT * FROM theme_migration_rules
+        WHERE theme_name = #{themeName}
+          AND from_version = #{fromVersion}
+          AND to_version = #{toVersion}
+          AND rule_type = #{ruleType}
+          AND section_name = #{sectionName}
+    </select>
+
+    <!-- 更新 -->
+    <update id="update" parameterType="com.logistics.track17.entity.ThemeMigrationRule">
+        UPDATE theme_migration_rules
+        SET rule_json = #{ruleJson},
+            confidence = #{confidence}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除指定版本的所有规则 -->
+    <delete id="deleteByVersions">
+        DELETE FROM theme_migration_rules
+        WHERE theme_name = #{themeName}
+          AND from_version = #{fromVersion}
+          AND to_version = #{toVersion}
+    </delete>
+
+    <!-- 根据ID删除 -->
+    <delete id="deleteById">
+        DELETE FROM theme_migration_rules WHERE id = #{id}
+    </delete>
+
+</mapper>

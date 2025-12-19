@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.ThemeExportMapper">
+    
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.ThemeExport">
+        <id column="id" property="id"/>
+        <result column="migration_id" property="migrationId"/>
+        <result column="export_zip_path" property="exportZipPath"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="exported_by" property="exportedBy"/>
+        <result column="exported_at" property="exportedAt"/>
+        <result column="downloaded_count" property="downloadedCount"/>
+        <result column="last_downloaded_at" property="lastDownloadedAt"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.logistics.track17.entity.ThemeExport"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO theme_exports (
+            migration_id, export_zip_path, file_name, file_size, exported_by
+        ) VALUES (
+            #{migrationId}, #{exportZipPath}, #{fileName}, #{fileSize}, #{exportedBy}
+        )
+    </insert>
+    
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM theme_exports WHERE id = #{id}
+    </select>
+    
+    <select id="selectByMigrationId" resultMap="BaseResultMap">
+        SELECT * FROM theme_exports 
+        WHERE migration_id = #{migrationId}
+        ORDER BY exported_at DESC
+        LIMIT 1
+    </select>
+    
+    <select id="selectHistory" resultMap="BaseResultMap">
+        SELECT e.* FROM theme_exports e
+        JOIN theme_migration_history h ON e.migration_id = h.id
+        WHERE h.theme_name = #{themeName}
+        ORDER BY e.exported_at DESC
+    </select>
+    
+    <update id="incrementDownloadCount">
+        UPDATE theme_exports
+        SET downloaded_count = downloaded_count + 1,
+            last_downloaded_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM theme_exports WHERE id = #{id}
+    </delete>
+    
+</mapper>

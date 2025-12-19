@@ -36,6 +36,6 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/auth/**", "/error" , "/api/v1/oauth/**");
+                .excludePathPatterns("/auth/**", "/error", "/api/v1/oauth/**");
     }
 }
