@@ -2,7 +2,7 @@ package com.logistics.track17.controller;
 
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.dto.MigrationResult;
-import com.logistics.track17.dto.MigrationRuleSuggestion;
+import com.logistics.track17.dto.ExecutableMigrationRules;
 import com.logistics.track17.dto.MigrationSession;
 import com.logistics.track17.service.UnifiedMigrationService;
 import lombok.extern.slf4j.Slf4j;
@@ -60,12 +60,12 @@ public class ThemeMigrationController {
 
     /**
      * 执行迁移
-     * 用户确认规则后调用
+     * 用户确认规则后调用（可选传入规则，不传则使用数据库中的规则）
      */
     @PostMapping("/execute")
     public Result executeMigration(
             @RequestParam("sessionId") Long sessionId,
-            @RequestBody MigrationRuleSuggestion confirmedRules,
+            @RequestBody(required = false) ExecutableMigrationRules confirmedRules,
             HttpServletRequest request) {
 
         try {

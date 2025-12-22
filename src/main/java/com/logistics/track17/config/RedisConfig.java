@@ -44,7 +44,7 @@ public class RedisConfig {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
 
-        // 🔑 关键修复：注册 JavaTimeModule 以支持 LocalDateTime 等 Java 8 时间类型
+        // 注册 JavaTimeModule 以支持 LocalDateTime 等 Java 8 时间类型
         objectMapper.registerModule(new JavaTimeModule());
         // 禁用将日期序列化为时间戳，使用 ISO-8601 格式
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -83,7 +83,7 @@ public class RedisConfig {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
 
-        // 🔑 关键修复：注册 JavaTimeModule 以支持 LocalDateTime 等 Java 8 时间类型
+        // 注册 JavaTimeModule 以支持 LocalDateTime 等 Java 8 时间类型
         objectMapper.registerModule(new JavaTimeModule());
         // 禁用将日期序列化为时间戳，使用 ISO-8601 格式
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

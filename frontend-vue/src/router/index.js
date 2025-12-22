@@ -90,12 +90,12 @@ const routes = [
         path: 'theme/versions',
         name: 'ThemeVersions',
         component: () => import('@/views/theme/ThemeVersions.vue'),
-        meta: { title: '主题版本管理' }
+        meta: { title: '主题版本管理', requiresAdmin: true }
       },
       {
         path: 'theme/migration',
         name: 'ThemeMigration',
-        component: () => import('@/views/theme/ThemeMigration.vue'),
+        component: () => import('@/views/theme/QuickMigration.vue'),
         meta: { title: '主题迁移' }
       }
     ]

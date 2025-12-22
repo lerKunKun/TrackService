@@ -33,7 +33,7 @@
 
     <!-- 批量插入 -->
     <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO theme_migration_rules (
+        INSERT IGNORE INTO theme_migration_rules (
             theme_name, from_version, to_version, rule_type, section_name,
             rule_json, confidence, created_by
         ) VALUES

@@ -78,7 +78,11 @@ public class DeepDiffAnalyzer {
         List<DefaultValueRule> defaultRules = analyzeDefaultValues(oldSchemas, newSchemas);
         log.info("Generated {} default value rules", defaultRules.size());
 
-        // 5. 保存规则到数据库
+        // 5. 删除旧规则（防止重复）
+        log.info("Deleting old rules for {} {} -> {}", themeName, fromVersion, toVersion);
+        ruleMapper.deleteByVersions(themeName, fromVersion, toVersion);
+
+        // 6. 保存规则到数据库
         saveRules(themeName, fromVersion, toVersion, "SECTION_RENAME", renameRules, createdBy);
         saveRules(themeName, fromVersion, toVersion, "FIELD_MAPPING", fieldRules, createdBy);
         saveRules(themeName, fromVersion, toVersion, "DEFAULT_VALUE", defaultRules, createdBy);

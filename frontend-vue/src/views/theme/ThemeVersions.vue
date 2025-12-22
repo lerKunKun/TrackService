@@ -58,11 +58,11 @@
                 <FundOutlined />
               </a-button>
             </a-tooltip>
-            <a-tooltip title="开始迁移">
-              <a-button type="link" size="small" @click="handleStartMigration(record)">
-                <SwapOutlined />
-              </a-button>
-            </a-tooltip>
+<!--            <a-tooltip title="开始迁移">-->
+<!--              <a-button type="link" size="small" @click="handleStartMigration(record)">-->
+<!--                <SwapOutlined />-->
+<!--              </a-button>-->
+<!--            </a-tooltip>-->
             <a-popconfirm
               title="确定要删除此版本吗？"
               ok-text="确定"
@@ -381,12 +381,12 @@ const handleSetCurrent = async (record) => {
 }
 
 // 开始迁移
-const handleStartMigration = (record) => {
-  router.push({
-    name: 'ThemeMigration',
-    query: { themeName: record.themeName, toVersion: record.version }
-  })
-}
+// const handleStartMigration = (record) => {
+//   router.push({
+//     name: 'ThemeMigration',
+//     query: { themeName: record.themeName, toVersion: record.version }
+//   })
+// }
 
 // 删除
 const handleDelete = async (id) => {

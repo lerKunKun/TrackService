@@ -1,11 +1,10 @@
 package com.logistics.track17.service;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.logistics.track17.dto.BatchUpdateResult;
-import com.logistics.track17.dto.MigrationRuleSuggestion;
+import com.logistics.track17.dto.ExecutableMigrationRules;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +31,14 @@ public class ProductTemplateUpdater {
     public BatchUpdateResult migrateTemplates(
             Path oldThemePath,
             Path newThemePath,
-            MigrationRuleSuggestion rules) throws Exception {
+            ExecutableMigrationRules rules) throws Exception {
         log.info("Starting template migration from old to new theme...");
 
         BatchUpdateResult result = BatchUpdateResult.builder()
                 .templatesUpdated(0)
-                .rulesApplied(rules.getSectionMappings().size())
+                .rulesApplied(rules.getSectionRenames().size() +
+                        rules.getFieldMappings().size() +
+                        rules.getDefaultValues().size())
                 .sectionsUpdated(0)
                 .templatesSkipped(0)
                 .build();
@@ -90,7 +91,7 @@ public class ProductTemplateUpdater {
     private boolean migrateSingleTemplate(
             Path oldTemplatePath,
             Path newTemplatePath,
-            MigrationRuleSuggestion rules) throws IOException {
+            ExecutableMigrationRules rules) throws IOException {
         log.debug("Migrating template: {}", oldTemplatePath.getFileName());
 
         // 从旧版本读取JSON
@@ -109,21 +110,41 @@ public class ProductTemplateUpdater {
 
         JsonObject sections = template.getAsJsonObject("sections");
 
-        // 遍历所有section实例，更新type引用
+        // 遍历所有section实例，应用迁移规则
         for (Map.Entry<String, JsonElement> entry : sections.entrySet()) {
             String sectionId = entry.getKey();
             JsonObject sectionData = entry.getValue().getAsJsonObject();
 
+            // 1. Section重命名：更新type字段
             if (sectionData.has("type")) {
                 String currentType = sectionData.get("type").getAsString();
-                String newType = rules.getMappedSectionType(currentType);
+                String newType = rules.getMappedSectionName(currentType);
 
-                if (newType != null && !newType.equals(currentType)) {
-                    // 更新section type
+                if (!newType.equals(currentType)) {
                     sectionData.addProperty("type", newType);
                     modified = true;
+                    log.debug("  Section {}: renamed type {} -> {}", sectionId, currentType, newType);
+                }
 
-                    log.debug("  Section {}: {} -> {}", sectionId, currentType, newType);
+                // 2. 字段映射：更新settings中的字段ID
+                if (sectionData.has("settings") && rules.hasFieldMappings(newType)) {
+                    JsonObject settings = sectionData.getAsJsonObject("settings");
+                    boolean settingsModified = applyFieldMappings(settings, newType, rules);
+                    if (settingsModified) {
+                        modified = true;
+                    }
+                }
+
+                // 3. 默认值：为新字段添加默认值
+                if (rules.hasDefaultValues(newType)) {
+                    if (!sectionData.has("settings")) {
+                        sectionData.add("settings", new JsonObject());
+                    }
+                    JsonObject settings = sectionData.getAsJsonObject("settings");
+                    boolean defaultsAdded = applyDefaultValues(settings, newType, rules);
+                    if (defaultsAdded) {
+                        modified = true;
+                    }
                 }
             }
         }
@@ -142,30 +163,82 @@ public class ProductTemplateUpdater {
     }
 
     /**
-     * 更新order字段（如果存在）
+     * 应用字段映射规则
      */
-    private void updateOrder(JsonObject template, MigrationRuleSuggestion rules) {
-        if (!template.has("order")) {
-            return;
+    private boolean applyFieldMappings(JsonObject settings, String sectionName, ExecutableMigrationRules rules) {
+        boolean modified = false;
+        Map<String, String> fieldMappings = rules.getFieldMappings().get(sectionName);
+
+        if (fieldMappings == null || fieldMappings.isEmpty()) {
+            return false;
         }
 
-        JsonArray order = template.getAsJsonArray("order");
+        // 需要重命名的字段
+        Map<String, JsonElement> fieldsToRename = new HashMap<>();
 
-        for (int i = 0; i < order.size(); i++) {
-            String sectionId = order.get(i).getAsString();
+        for (Map.Entry<String, String> mapping : fieldMappings.entrySet()) {
+            String oldFieldId = mapping.getKey();
+            String newFieldId = mapping.getValue();
 
-            // 检查sections中对应的type
-            if (template.has("sections")) {
-                JsonObject sections = template.getAsJsonObject("sections");
-                if (sections.has(sectionId)) {
-                    JsonObject sectionData = sections.getAsJsonObject(sectionId);
-                    if (sectionData.has("type")) {
-                        String type = sectionData.get("type").getAsString();
-                        // order字段只是section ID列表，不需要修改
-                        // 实际type已经在sections字段中更新了
-                    }
-                }
+            if (settings.has(oldFieldId)) {
+                // 保存旧字段的值
+                fieldsToRename.put(newFieldId, settings.get(oldFieldId));
+                // 移除旧字段
+                settings.remove(oldFieldId);
+                modified = true;
+                log.debug("    Mapped field: {} -> {}", oldFieldId, newFieldId);
             }
+        }
+
+        // 添加重命名后的字段
+        for (Map.Entry<String, JsonElement> entry : fieldsToRename.entrySet()) {
+            settings.add(entry.getKey(), entry.getValue());
+        }
+
+        return modified;
+    }
+
+    /**
+     * 应用默认值规则
+     */
+    private boolean applyDefaultValues(JsonObject settings, String sectionName, ExecutableMigrationRules rules) {
+        boolean modified = false;
+        Map<String, Object> defaultValues = rules.getDefaultValues().get(sectionName);
+
+        if (defaultValues == null || defaultValues.isEmpty()) {
+            return false;
+        }
+
+        for (Map.Entry<String, Object> entry : defaultValues.entrySet()) {
+            String fieldId = entry.getKey();
+            Object defaultValue = entry.getValue();
+
+            // 只为不存在的字段添加默认值
+            if (!settings.has(fieldId)) {
+                addJsonValue(settings, fieldId, defaultValue);
+                modified = true;
+                log.debug("    Added default value for {}: {}", fieldId, defaultValue);
+            }
+        }
+
+        return modified;
+    }
+
+    /**
+     * 添加JSON值（根据类型）
+     */
+    private void addJsonValue(JsonObject obj, String key, Object value) {
+        if (value == null) {
+            obj.add(key, null);
+        } else if (value instanceof String) {
+            obj.addProperty(key, (String) value);
+        } else if (value instanceof Number) {
+            obj.addProperty(key, (Number) value);
+        } else if (value instanceof Boolean) {
+            obj.addProperty(key, (Boolean) value);
+        } else {
+            // 复杂对象，转为JSON
+            obj.add(key, gson.toJsonTree(value));
         }
     }
 }

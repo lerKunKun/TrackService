@@ -96,5 +96,17 @@ export const themeApi = {
         return request.get(`${BASE_URL}/migration/download/${historyId}`, {
             responseType: 'blob'
         })
+    },
+
+    // ========== 一键迁移 ==========
+
+    /**
+     * 一键迁移（上传当前主题，自动分析并迁移）
+     */
+    quickMigration(formData) {
+        return request.post(`${BASE_URL}/quick-migration/execute`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000 // 60秒超时
+        })
     }
 }

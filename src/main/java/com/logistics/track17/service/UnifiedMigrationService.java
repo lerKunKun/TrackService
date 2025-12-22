@@ -30,10 +30,10 @@ public class UnifiedMigrationService {
     private ThemeVersionArchiveService archiveService;
 
     @Autowired
-    private ThemeGitDiffAnalyzer gitAnalyzer;
+    private DeepDiffAnalyzer deepDiffAnalyzer;
 
     @Autowired
-    private IntelligentRuleEngine ruleEngine;
+    private MigrationRuleLoader ruleLoader;
 
     @Autowired
     private ProductTemplateUpdater templateUpdater;
@@ -77,43 +77,67 @@ public class UnifiedMigrationService {
                     newZip, themeName, newVersion, uploadedBy);
         }
 
-        // 3. 下载两个版本的ZIP文件
+        // 3. 获取两个版本的ZIP文件路径
         Path oldZip = archiveService.getThemeFile(currentVersion.getZipFilePath());
         Path newZipPath = archiveService.getThemeFile(newVersionRecord.getZipFilePath());
 
-        // 4. 执行Git Diff分析
-        ThemeDiffResult diffResult = gitAnalyzer.analyze(oldZip, newZipPath);
+        // 4. 解压两个版本以便进行深度分析
+        Path oldThemeExtracted = extractTheme(oldZip);
+        Path newThemeExtracted = extractTheme(newZipPath);
 
-        // 5. 智能生成迁移规则
-        MigrationRuleSuggestion suggestedRules = ruleEngine.inferRules(diffResult);
+        try {
+            // 5. 执行深度Diff分析并保存规则到数据库
+            deepDiffAnalyzer.analyzeAndSaveRules(
+                    themeName,
+                    fromVersion,
+                    newVersion,
+                    oldThemeExtracted,
+                    newThemeExtracted,
+                    uploadedBy);
 
-        // 6. 创建迁移会话
-        MigrationSession session = MigrationSession.builder()
-                .id(sessionIdGenerator.getAndIncrement())
-                .themeName(themeName)
-                .fromVersion(fromVersion)
-                .toVersion(newVersion)
-                .diffResult(diffResult)
-                .suggestedRules(suggestedRules)
-                .newThemeZipPath(newVersionRecord.getZipFilePath())
-                .createdAt(LocalDateTime.now())
-                .status("PENDING")
-                .build();
+            // 6. 加载生成的规则
+            ExecutableMigrationRules rules = ruleLoader.loadRules(
+                    themeName, fromVersion, newVersion);
 
-        // 7. 保存session
-        sessionStore.put(session.getId(), session);
+            log.info("Loaded migration rules: {}", rules.getStatistics());
 
-        log.info("Migration session created: {}", session.getId());
+            // 7. 创建迁移会话
+            MigrationSession session = MigrationSession.builder()
+                    .id(sessionIdGenerator.getAndIncrement())
+                    .themeName(themeName)
+                    .fromVersion(fromVersion)
+                    .toVersion(newVersion)
+                    .diffResult(null) // 不再使用 ThemeDiffResult
+                    .suggestedRules(null) // 不再使用 MigrationRuleSuggestion
+                    .newThemeZipPath(newVersionRecord.getZipFilePath())
+                    .createdAt(LocalDateTime.now())
+                    .status("PENDING")
+                    .build();
 
-        return session;
+            // 8. 保存session
+            sessionStore.put(session.getId(), session);
+
+            log.info("Migration session created: {}", session.getId());
+
+            return session;
+
+        } finally {
+            // 清理临时目录
+            if (oldThemeExtracted != null) {
+                deleteDirectory(oldThemeExtracted);
+            }
+            if (newThemeExtracted != null) {
+                deleteDirectory(newThemeExtracted);
+            }
+        }
     }
 
     /**
      * 执行迁移
-     * 用户确认规则后调用
+     * 用户确认规则后调用（如果不传规则则使用数据库中的规则）
      */
     public MigrationResult executeMigration(Long sessionId,
-            MigrationRuleSuggestion confirmedRules,
+            ExecutableMigrationRules confirmedRules,
             String executedBy) throws Exception {
 
         log.info("Executing migration for session: {}", sessionId);
@@ -126,9 +150,19 @@ public class UnifiedMigrationService {
 
         // 2. 更新session状态
         session.setStatus("EXECUTING");
-        session.setSuggestedRules(confirmedRules); // 使用用户确认的规则
 
-        // 3. 创建历史记录
+        // 3. 加载规则（如果用户没有修改规则，则使用数据库中的规则）
+        ExecutableMigrationRules executableRules;
+        if (confirmedRules != null) {
+            executableRules = confirmedRules;
+        } else {
+            executableRules = ruleLoader.loadRules(
+                    session.getThemeName(),
+                    session.getFromVersion(),
+                    session.getToVersion());
+        }
+
+        // 4. 创建历史记录
         ThemeMigrationHistory history = new ThemeMigrationHistory();
         history.setThemeName(session.getThemeName());
         history.setFromVersion(session.getFromVersion());
@@ -163,7 +197,7 @@ public class UnifiedMigrationService {
             BatchUpdateResult updateResult = templateUpdater.migrateTemplates(
                     oldThemeExtracted, // 从旧版本读取
                     newThemeExtracted, // 写入新版本
-                    confirmedRules);
+                    executableRules); // 使用可执行规则
 
             // 8. 重新打包新版本为ZIP
             Path updatedZipPath = repackTheme(newThemeExtracted, session.getNewThemeZipPath());
