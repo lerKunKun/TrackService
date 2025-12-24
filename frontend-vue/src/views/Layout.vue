@@ -73,6 +73,25 @@
             <span>运单管理</span>
           </a-menu-item>
           
+          <a-sub-menu key="product">
+            <template #icon>
+              <AppstoreOutlined />
+            </template>
+            <template #title>产品管理</template>
+            <a-menu-item key="product-development">
+              <ExperimentOutlined />
+              <span>产品开发</span>
+            </a-menu-item>
+            <a-menu-item key="product-procurement">
+              <ShoppingCartOutlined />
+              <span>采购管理</span>
+            </a-menu-item>
+            <a-menu-item key="product-listing">
+              <FileTextOutlined />
+              <span>产品刊登</span>
+            </a-menu-item>
+          </a-sub-menu>
+          
           <a-sub-menu key="system">
             <template #icon>
               <SettingOutlined />
@@ -194,6 +213,10 @@ import {
   ShopOutlined,
   ShoppingOutlined,
   CarOutlined,
+  AppstoreOutlined,
+  ExperimentOutlined,
+  ShoppingCartOutlined,
+  FileTextOutlined,
   TeamOutlined,
   SafetyOutlined,
   SyncOutlined,
@@ -265,6 +288,15 @@ watch(
     } else if (path.includes('dingtalk-sync')) {
       selectedKeys.value = ['dingtalk-sync']
       openKeys.value = ['system']
+    } else if (path.includes('product/development')) {
+      selectedKeys.value = ['product-development']
+      openKeys.value = ['product']
+    } else if (path.includes('product/procurement')) {
+      selectedKeys.value = ['product-procurement']
+      openKeys.value = ['product']
+    } else if (path.includes('product/listing')) {
+      selectedKeys.value = ['product-listing']
+      openKeys.value = ['product']
     }
   },
   { immediate: true }
@@ -294,7 +326,16 @@ const handleMenuClick = ({ key }) => {
     }
   }
   // Fallback: 使用硬编码菜单的key路由
-  router.push(`/${key}`)
+  // 特殊处理product子菜单
+  if (key === 'product-development') {
+    router.push('/product/development')
+  } else if (key === 'product-procurement') {
+    router.push('/product/procurement')
+  } else if (key === 'product-listing') {
+    router.push('/product/listing')
+  } else {
+    router.push(`/${key}`)
+  }
 }
 
 const handleLogout = () => {

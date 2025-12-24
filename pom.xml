@@ -173,6 +173,13 @@
             <version>1.23.0</version>
         </dependency>
 
+        <!-- Commons CSV - CSV parsing -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+
         <!-- MinIO - Object storage -->
         <dependency>
             <groupId>io.minio</groupId>

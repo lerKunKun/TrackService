@@ -45,6 +45,24 @@ const routes = [
         meta: { title: '运单管理' }
       },
       {
+        path: 'product/development',
+        name: 'ProductDevelopment',
+        component: () => import('@/views/product/ProductDevelopment.vue'),
+        meta: { title: '产品开发' }
+      },
+      {
+        path: 'product/procurement',
+        name: 'ProductProcurement',
+        component: () => import('@/views/product/ComingSoon.vue'),
+        meta: { title: '采购管理' }
+      },
+      {
+        path: 'product/listing',
+        name: 'ProductListing',
+        component: () => import('@/views/product/ComingSoon.vue'),
+        meta: { title: '产品刊登' }
+      },
+      {
         path: 'system/users',
         name: 'Users',
         component: () => import('@/views/Users.vue'),

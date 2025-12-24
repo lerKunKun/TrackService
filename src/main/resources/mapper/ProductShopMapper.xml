@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ProductShopMapper">
+
+    <!-- Result Map -->
+    <resultMap id="ProductShopResultMap" type="com.logistics.track17.entity.ProductShop">
+        <id property="id" column="id"/>
+        <result property="productId" column="product_id"/>
+        <result property="shopId" column="shop_id"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 插入产品商店关联 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.ProductShop" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product_shops (product_id, shop_id)
+        VALUES (#{productId}, #{shopId})
+    </insert>
+
+    <!-- 批量插入关联关系 -->
+    <insert id="batchInsert">
+        INSERT INTO product_shops (product_id, shop_id)
+        VALUES
+        <foreach collection="shopIds" item="shopId" separator=",">
+            (#{productId}, #{shopId})
+        </foreach>
+    </insert>
+
+    <!-- 根据产品ID查询关联的所有商店ID -->
+    <select id="selectShopIdsByProductId" resultType="java.lang.Long">
+        SELECT shop_id FROM product_shops WHERE product_id = #{productId}
+    </select>
+
+    <!-- 根据商店ID查询关联的所有产品ID -->
+    <select id="selectProductIdsByShopId" resultType="java.lang.Long">
+        SELECT product_id FROM product_shops WHERE shop_id = #{shopId}
+    </select>
+
+    <!-- 删除产品的所有商店关联 -->
+    <delete id="deleteByProductId">
+        DELETE FROM product_shops WHERE product_id = #{productId}
+    </delete>
+
+    <!-- 删除商店的所有产品关联 -->
+    <delete id="deleteByShopId">
+        DELETE FROM product_shops WHERE shop_id = #{shopId}
+    </delete>
+
+    <!-- 删除指定的产品商店关联 -->
+    <delete id="deleteByProductIdAndShopId">
+        DELETE FROM product_shops WHERE product_id = #{productId} AND shop_id = #{shopId}
+    </delete>
+
+</mapper>

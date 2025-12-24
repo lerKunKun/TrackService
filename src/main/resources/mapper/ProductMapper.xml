@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ProductMapper">
+
+    <!-- Result Map -->
+    <resultMap id="ProductResultMap" type="com.logistics.track17.entity.Product">
+        <id property="id" column="id"/>
+        <result property="handle" column="handle"/>
+        <result property="title" column="title"/>
+        <result property="bodyHtml" column="body_html"/>
+        <result property="vendor" column="vendor"/>
+        <result property="tags" column="tags"/>
+        <result property="published" column="published"/>
+        <result property="productUrl" column="product_url"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 插入产品 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.Product" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO products (handle, title, body_html, vendor, tags, published, product_url)
+        VALUES (#{handle}, #{title}, #{bodyHtml}, #{vendor}, #{tags}, #{published}, #{productUrl})
+    </insert>
+
+    <!-- 批量插入产品 -->
+    <insert id="batchInsert">
+        INSERT INTO products (handle, title, body_html, vendor, tags, published, product_url)
+        VALUES
+        <foreach collection="products" item="item" separator=",">
+            (#{item.handle}, #{item.title}, #{item.bodyHtml}, #{item.vendor}, #{item.tags}, #{item.published}, #{item.productUrl})
+        </foreach>
+    </insert>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="ProductResultMap">
+        SELECT * FROM products WHERE id = #{id}
+    </select>
+
+    <!-- 根据handle查询 -->
+    <select id="selectByHandle" resultMap="ProductResultMap">
+        SELECT * FROM products WHERE handle = #{handle}
+    </select>
+
+    <!-- 更新产品 -->
+    <update id="update">
+        UPDATE products
+        <set>
+            <if test="handle != null">handle = #{handle},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="bodyHtml != null">body_html = #{bodyHtml},</if>
+            <if test="vendor != null">vendor = #{vendor},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            <if test="published != null">published = #{published},</if>
+            <if test="productUrl != null">product_url = #{productUrl},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除产品 -->
+    <delete id="deleteById">
+        DELETE FROM products WHERE id = #{id}
+    </delete>
+
+    <!-- 分页查询 -->
+    <select id="selectByPage" resultMap="ProductResultMap">
+        SELECT DISTINCT p.*
+        FROM products p
+        <if test="shopId != null">
+            LEFT JOIN product_shops ps ON p.id = ps.product_id
+        </if>
+        <where>
+            <if test="title != null and title != ''">
+                AND p.title LIKE CONCAT('%', #{title}, '%')
+            </if>
+            <if test="tags != null and tags != ''">
+                AND p.tags LIKE CONCAT('%', #{tags}, '%')
+            </if>
+            <if test="published != null">
+                AND p.published = #{published}
+            </if>
+            <if test="shopId != null">
+                AND ps.shop_id = #{shopId}
+            </if>
+        </where>
+        ORDER BY p.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计总数 -->
+    <select id="countByFilters" resultType="int">
+        SELECT COUNT(DISTINCT p.id)
+        FROM products p
+        <if test="shopId != null">
+            LEFT JOIN product_shops ps ON p.id = ps.product_id
+        </if>
+        <where>
+            <if test="title != null and title != ''">
+                AND p.title LIKE CONCAT('%', #{title}, '%')
+            </if>
+            <if test="tags != null and tags != ''">
+                AND p.tags LIKE CONCAT('%', #{tags}, '%')
+            </if>
+            <if test="published != null">
+                AND p.published = #{published}
+            </if>
+            <if test="shopId != null">
+                AND ps.shop_id = #{shopId}
+            </if>
+        </where>
+    </select>
+
+</mapper>
