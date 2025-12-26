@@ -157,11 +157,11 @@
           <!-- 世界时钟 -->
           <div class="world-clock" v-if="!isMobile">
             <span class="clock-item">
-              <span class="clock-label">中国北京时间 :</span>
+              <span class="clock-label">BeiJingTime :</span>
               <span class="clock-time">{{ chinaTime }}</span>
             </span>
             <span class="clock-item">
-              <span class="clock-label">美国东部时间 :</span>
+              <span class="clock-label">NewYorkTime :</span>
               <span class="clock-time">{{ usTime }}</span>
             </span>
           </div>
