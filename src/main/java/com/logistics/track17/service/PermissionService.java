@@ -4,6 +4,8 @@ import com.logistics.track17.entity.Permission;
 import com.logistics.track17.mapper.PermissionMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -42,14 +44,18 @@ public class PermissionService {
 
     /**
      * 根据用户ID获取权限
+     * 使用缓存提升性能
      */
+    @Cacheable(value = "user:permissions", key = "#userId")
     public List<Permission> getPermissionsByUserId(Long userId) {
         return permissionMapper.selectByUserId(userId);
     }
 
     /**
      * 创建权限
+     * 创建后清除所有用户的权限缓存（因为可能通过角色间接影响）
      */
+    @CacheEvict(value = "user:permissions", allEntries = true)
     public Permission createPermission(Permission permission) {
         // 检查权限编码是否已存在
         Permission existing = permissionMapper.selectByPermissionCode(permission.getPermissionCode());
@@ -64,7 +70,9 @@ public class PermissionService {
 
     /**
      * 更新权限
+     * 更新后清除所有用户的权限缓存
      */
+    @CacheEvict(value = "user:permissions", allEntries = true)
     public Permission updatePermission(Permission permission) {
         Permission existing = permissionMapper.selectById(permission.getId());
         if (existing == null) {
@@ -78,7 +86,9 @@ public class PermissionService {
 
     /**
      * 删除权限
+     * 删除后清除所有用户的权限缓存
      */
+    @CacheEvict(value = "user:permissions", allEntries = true)
     public void deletePermission(Long id) {
         permissionMapper.deleteById(id);
         log.info("删除权限成功: {}", id);
@@ -86,10 +96,13 @@ public class PermissionService {
 
     /**
      * 获取用户权限码集合（用于缓存）
+     * 返回用户所有权限码的 Set 集合，便于权限检查
+     * 缓存 30 分钟，key 格式：track17:user:permissions:codes:{userId}
      * 
      * @param userId 用户ID
      * @return 用户所有权限码的Set集合
      */
+    @Cacheable(value = "user:permissions:codes", key = "#userId")
     public Set<String> getUserPermissionCodes(Long userId) {
         List<Permission> permissions = permissionMapper.selectByUserId(userId);
         return permissions.stream()

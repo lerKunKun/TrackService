@@ -4,6 +4,8 @@ import com.logistics.track17.entity.Role;
 import com.logistics.track17.mapper.RoleMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +37,9 @@ public class RoleService {
 
     /**
      * 根据用户ID获取角色
+     * 使用缓存提升性能，缓存 30 分钟
      */
+    @Cacheable(value = "user:roles", key = "#userId")
     public List<Role> getRolesByUserId(Long userId) {
         return roleMapper.selectByUserId(userId);
     }
@@ -99,6 +103,7 @@ public class RoleService {
 
     /**
      * 为角色分配菜单
+     * 分配后不需要清除权限缓存（菜单和权限独立）
      */
     @Transactional
     public void assignMenusToRole(Long roleId, List<Long> menuIds) {
@@ -115,8 +120,10 @@ public class RoleService {
 
     /**
      * 为角色分配权限
+     * 分配后清除所有用户的权限缓存（因为角色权限变更会影响用户权限）
      */
     @Transactional
+    @CacheEvict(value = { "user:permissions", "user:permissions:codes" }, allEntries = true)
     public void assignPermissionsToRole(Long roleId, List<Long> permissionIds) {
         // 先删除旧的关联
         roleMapper.deletePermissionsByRoleId(roleId);
@@ -131,19 +138,20 @@ public class RoleService {
 
     /**
      * 为用户分配角色
+     * 注意：允许传入空列表清空所有角色（用于离职员工、临时禁用等场景）
+     * 分配后清除该用户的角色和权限缓存
      */
     @Transactional
+    @CacheEvict(value = { "user:roles", "user:permissions", "user:permissions:codes" }, key = "#userId")
     public void assignRolesToUser(Long userId, List<Long> roleIds) {
-        if (roleIds == null || roleIds.isEmpty()) {
-            throw new RuntimeException("至少需要分配一个角色");
-        }
-
         // 先删除旧的关联
         roleMapper.deleteRolesByUserId(userId);
 
-        // 再插入新的关联
-        roleMapper.assignRolesToUser(userId, roleIds);
+        // 如果 roleIds 为空或null，表示清空所有角色（允许此操作）
+        if (roleIds != null && !roleIds.isEmpty()) {
+            roleMapper.assignRolesToUser(userId, roleIds);
+        }
 
-        log.info("为用户 {} 分配角色成功，角色数: {}", userId, roleIds.size());
+        log.info("为用户 {} 分配角色成功，角色数: {}", userId, roleIds != null ? roleIds.size() : 0);
     }
 }

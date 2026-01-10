@@ -40,7 +40,12 @@ public class User {
 
     /**
      * 角色：ADMIN-管理员，USER-普通用户
+     * 
+     * @deprecated 该字段已废弃，请使用 RBAC 系统的 user_roles 表进行角色管理
+     * @see com.logistics.track17.entity.Role
+     * @see com.logistics.track17.service.RoleService
      */
+    @Deprecated
     private String role;
 
     /**

@@ -25,7 +25,28 @@ public @interface RequireAuth {
     /**
      * 需要的权限码列表（推荐使用）
      * 例如: {"system:user:create", "system:user:update"}
-     * 用户只需拥有其中任意一个权限即可通过（OR逻辑）
      */
     String[] permissions() default {};
+
+    /**
+     * 权限验证模式
+     * OR: 用户只需拥有其中任意一个权限即可通过（默认）
+     * AND: 用户必须同时拥有所有权限才能通过
+     */
+    PermissionMode permissionMode() default PermissionMode.OR;
+
+    /**
+     * 权限验证模式枚举
+     */
+    enum PermissionMode {
+        /**
+         * OR 逻辑：拥有任一权限即可（默认，向后兼容）
+         */
+        OR,
+
+        /**
+         * AND 逻辑：必须拥有所有权限
+         */
+        AND
+    }
 }

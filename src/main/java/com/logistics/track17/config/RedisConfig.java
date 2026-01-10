@@ -38,8 +38,8 @@ public class RedisConfig {
         template.setConnectionFactory(connectionFactory);
 
         // JSON 序列化配置
-        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer =
-            new Jackson2JsonRedisSerializer<>(Object.class);
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(
+                Object.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
@@ -50,9 +50,8 @@ public class RedisConfig {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         objectMapper.activateDefaultTyping(
-            LaissezFaireSubTypeValidator.instance,
-            ObjectMapper.DefaultTyping.NON_FINAL
-        );
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL);
         jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
 
         // String 序列化
@@ -73,12 +72,12 @@ public class RedisConfig {
     /**
      * 配置 CacheManager
      * 支持 @Cacheable 等注解
+     * 权限缓存设置30分钟过期，其他缓存5分钟过期
      */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         // JSON 序列化配置
-        Jackson2JsonRedisSerializer<Object> serializer =
-            new Jackson2JsonRedisSerializer<>(Object.class);
+        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(Object.class);
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
@@ -89,26 +88,37 @@ public class RedisConfig {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         objectMapper.activateDefaultTyping(
-            LaissezFaireSubTypeValidator.instance,
-            ObjectMapper.DefaultTyping.NON_FINAL
-        );
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL);
         serializer.setObjectMapper(objectMapper);
 
-        // 缓存配置：默认5分钟过期
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-            .entryTtl(Duration.ofMinutes(5))
-            .serializeKeysWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(
-                    new StringRedisSerializer()
-                )
-            )
-            .serializeValuesWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(serializer)
-            )
-            .disableCachingNullValues();
+        // 默认缓存配置：5分钟过期
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(5))
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(
+                                new StringRedisSerializer()))
+                .serializeValuesWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(serializer))
+                .disableCachingNullValues()
+                .prefixCacheNameWith("track17:"); // 添加缓存键前缀
 
+        // 权限缓存配置：30分钟过期（权限变更较少，可以缓存更久）
+        RedisCacheConfiguration permissionConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(30))
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(
+                                new StringRedisSerializer()))
+                .serializeValuesWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(serializer))
+                .disableCachingNullValues()
+                .prefixCacheNameWith("track17:");
+
+        // 构建 CacheManager，为不同缓存设置不同的配置
         return RedisCacheManager.builder(connectionFactory)
-            .cacheDefaults(config)
-            .build();
+                .cacheDefaults(defaultConfig)
+                .withCacheConfiguration("user:permissions", permissionConfig)
+                .withCacheConfiguration("user:roles", permissionConfig)
+                .build();
     }
 }
