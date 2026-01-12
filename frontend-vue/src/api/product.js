@@ -59,5 +59,37 @@ export default {
     async deleteProduct(id) {
         const response = await request.delete(`${API_BASE_URL}/${id}`)
         return response
+    },
+
+    /**
+     * 获取产品的所有变体
+     * @param {Number} productId 产品ID
+     * @returns {Promise}
+     */
+    async getProductVariants(productId) {
+        const response = await request.get(`${API_BASE_URL}/${productId}/variants`)
+        return response
+    },
+
+    /**
+     * 批量更新产品所有变体的价格
+     * @param {Number} productId 产品ID
+     * @param {Object} priceData - 价格数据 { price, compareAtPrice }
+     * @returns {Promise}
+     */
+    async updateProductPrice(productId, priceData) {
+        const response = await request.put(`${API_BASE_URL}/${productId}/price`, priceData)
+        return response
+    },
+
+    /**
+     * 更新单个变体的价格
+     * @param {Number} variantId 变体ID
+     * @param {Object} priceData - 价格数据 { price, compareAtPrice }
+     * @returns {Promise}
+     */
+    async updateVariantPrice(variantId, priceData) {
+        const response = await request.put(`${API_BASE_URL}/variants/${variantId}/price`, priceData)
+        return response
     }
 }

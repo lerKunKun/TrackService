@@ -83,4 +83,16 @@ public interface ProductVariantMapper {
      * @return 变体对象
      */
     ProductVariant selectBySku(@Param("sku") String sku);
+
+    /**
+     * 更新变体价格和原价
+     * 
+     * @param id             变体ID
+     * @param price          销售价格
+     * @param compareAtPrice 原价（对比价格）
+     * @return 影响行数
+     */
+    int updatePrice(@Param("id") Long id,
+            @Param("price") java.math.BigDecimal price,
+            @Param("compareAtPrice") java.math.BigDecimal compareAtPrice);
 }

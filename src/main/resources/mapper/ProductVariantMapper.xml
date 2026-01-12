@@ -114,4 +114,13 @@
         SELECT * FROM product_variants WHERE sku = #{sku}
     </select>
 
+    <!-- 更新变体价格和原价 -->
+    <update id="updatePrice">
+        UPDATE product_variants
+        SET price = #{price},
+            compare_at_price = #{compareAtPrice},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
 </mapper>

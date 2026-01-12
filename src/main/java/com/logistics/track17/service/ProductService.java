@@ -338,4 +338,51 @@ public class ProductService {
 
         log.info("删除产品 ID: {}", id);
     }
+
+    /**
+     * 更新产品变体价格和原价
+     * 
+     * @param variantId      变体ID
+     * @param price          销售价格
+     * @param compareAtPrice 原价（对比价格）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateVariantPrice(Long variantId, BigDecimal price, BigDecimal compareAtPrice) {
+        ProductVariant variant = new ProductVariant();
+        variant.setId(variantId);
+        variant.setPrice(price);
+        variant.setCompareAtPrice(compareAtPrice);
+
+        productVariantMapper.updatePrice(variantId, price, compareAtPrice);
+
+        log.info("更新变体价格 ID: {}, 价格: {}, 原价: {}", variantId, price, compareAtPrice);
+    }
+
+    /**
+     * 批量更新产品所有变体的价格
+     * 
+     * @param productId      产品ID
+     * @param price          销售价格
+     * @param compareAtPrice 原价
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateAllVariantsPrice(Long productId, BigDecimal price, BigDecimal compareAtPrice) {
+        List<ProductVariant> variants = productVariantMapper.selectByProductId(productId);
+
+        for (ProductVariant variant : variants) {
+            productVariantMapper.updatePrice(variant.getId(), price, compareAtPrice);
+        }
+
+        log.info("批量更新产品变体价格 Product ID: {}, 变体数: {}", productId, variants.size());
+    }
+
+    /**
+     * 查询产品的所有变体
+     * 
+     * @param productId 产品ID
+     * @return 变体列表
+     */
+    public List<ProductVariant> getProductVariants(Long productId) {
+        return productVariantMapper.selectByProductId(productId);
+    }
 }

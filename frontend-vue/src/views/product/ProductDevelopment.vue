@@ -316,7 +316,7 @@
             placeholder="用逗号分隔，例如: 服装,T恤,夏季"
           />
           <div style="color: #999; font-size: 12px; margin-top: 4px">
-            用逗号分隔多个标签
+            用逗号[英文(半角)]分隔多个标签
           </div>
         </a-form-item>
 
@@ -340,6 +340,38 @@
           </a-select>
           <div style="color: #999; font-size: 12px; margin-top: 4px">
             一个产品可以分配给多个商店
+          </div>
+        </a-form-item>
+
+        <a-divider>价格设置</a-divider>
+
+        <a-form-item label="销售价格">
+          <a-input-number
+            v-model:value="editForm.price"
+            :min="0"
+            :precision="2"
+            placeholder="销售价格"
+            style="width: 100%"
+          >
+            <template #prefix>$</template>
+          </a-input-number>
+          <div style="color: #999; font-size: 12px; margin-top: 4px">
+            此价格将应用到该产品的所有变体
+          </div>
+        </a-form-item>
+
+        <a-form-item label="原价（划线价）">
+          <a-input-number
+            v-model:value="editForm.compareAtPrice"
+            :min="0"
+            :precision="2"
+            placeholder="原价（对比价格）"
+            style="width: 100%"
+          >
+            <template #prefix>$</template>
+          </a-input-number>
+          <div style="color: #999; font-size: 12px; margin-top: 4px">
+            显示为划线价，用于展示折扣
           </div>
         </a-form-item>
       </a-form>
@@ -554,6 +586,21 @@ const editLoading = ref(false)
 const editForm = ref(null)
 
 const handleEdit = async (record) => {
+  // 获取产品的第一个变体价格
+  let variantPrice = null
+  let variantComparePrice = null
+  
+  try {
+    const variantsResponse = await productApi.getProductVariants(record.id)
+    if (variantsResponse && variantsResponse.data && variantsResponse.data.length > 0) {
+      const firstVariant = variantsResponse.data[0]
+      variantPrice = firstVariant.price
+      variantComparePrice = firstVariant.compareAtPrice
+    }
+  } catch (error) {
+    console.error('获取变体价格失败:', error)
+  }
+  
   editForm.value = {
     id: record.id,
     handle: record.handle,
@@ -561,7 +608,9 @@ const handleEdit = async (record) => {
     vendor: record.vendor,
     tags: record.tags,
     published: record.published,
-    shopIds: record.shopIds || []
+    shopIds: record.shopIds || [],
+    price: variantPrice || record.price,
+    compareAtPrice: variantComparePrice || record.compareAtPrice
   }
   editModalVisible.value = true
 }
@@ -574,6 +623,7 @@ const handleEditSubmit = async () => {
 
   editLoading.value = true
   try {
+    // 1. 更新产品基本信息
     await productApi.updateProduct(editForm.value.id, {
       handle: editForm.value.handle,
       title: editForm.value.title,
@@ -582,6 +632,14 @@ const handleEditSubmit = async () => {
       published: editForm.value.published,
       shopIds: editForm.value.shopIds
     })
+    
+    // 2. 如果有价格变更，则更新价格
+    if (editForm.value.price !== null && editForm.value.price !== undefined) {
+      await productApi.updateProductPrice(editForm.value.id, {
+        price: editForm.value.price,
+        compareAtPrice: editForm.value.compareAtPrice
+      })
+    }
     
     message.success('更新成功')
     editModalVisible.value = false

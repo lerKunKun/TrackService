@@ -1,14 +1,19 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.AuditLog;
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.ProductSearchRequest;
 import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductImport;
+import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.service.ProductService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.math.BigDecimal;
 
 import java.util.HashMap;
 import java.util.List;
@@ -189,5 +194,75 @@ public class ProductController {
         private String tags;
         private Integer published;
         private List<Long> shopIds;
+    }
+
+    /**
+     * 获取产品的所有变体
+     * 
+     * @param productId 产品ID
+     * @return 变体列表
+     */
+    @GetMapping("/{productId}/variants")
+    public ResponseEntity<Map<String, Object>> getProductVariants(@PathVariable Long productId) {
+        try {
+            List<ProductVariant> variants = productService.getProductVariants(productId);
+            return ResponseEntity.ok(responseSuccess(variants));
+        } catch (Exception e) {
+            log.error("查询产品变体失败", e);
+            return ResponseEntity.status(500).body(responseError("查询失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 更新单个变体的价格和原价
+     * 
+     * @param variantId 变体ID
+     * @param request   价格更新请求
+     * @return 更新结果
+     */
+    @PutMapping("/variants/{variantId}/price")
+    @RequireAuth(permissions = "product:price:update")
+    @AuditLog(operation = "修改产品价格", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> updateVariantPrice(
+            @PathVariable Long variantId,
+            @RequestBody PriceUpdateRequest request) {
+        try {
+            productService.updateVariantPrice(variantId, request.getPrice(), request.getCompareAtPrice());
+            return ResponseEntity.ok(responseSuccess("价格更新成功"));
+        } catch (Exception e) {
+            log.error("更新变体价格失败", e);
+            return ResponseEntity.status(500).body(responseError("更新失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 批量更新产品所有变体的价格
+     * 
+     * @param productId 产品ID
+     * @param request   价格更新请求
+     * @return 更新结果
+     */
+    @PutMapping("/{productId}/price")
+    @RequireAuth(permissions = "product:price:update")
+    @AuditLog(operation = "批量修改产品价格", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> updateAllVariantsPrice(
+            @PathVariable Long productId,
+            @RequestBody PriceUpdateRequest request) {
+        try {
+            productService.updateAllVariantsPrice(productId, request.getPrice(), request.getCompareAtPrice());
+            return ResponseEntity.ok(responseSuccess("批量价格更新成功"));
+        } catch (Exception e) {
+            log.error("批量更新变体价格失败", e);
+            return ResponseEntity.status(500).body(responseError("更新失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 价格更新请求DTO
+     */
+    @lombok.Data
+    public static class PriceUpdateRequest {
+        private BigDecimal price; // 销售价格
+        private BigDecimal compareAtPrice; // 原价（划线价）
     }
 }
