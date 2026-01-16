@@ -115,6 +115,12 @@ const routes = [
         name: 'ThemeMigration',
         component: () => import('@/views/theme/QuickMigration.vue'),
         meta: { title: '主题迁移' }
+      },
+      {
+        path: 'system/canvas',
+        name: 'SystemCanvas',
+        component: () => import('@/views/system/SystemCanvas.vue'),
+        meta: { title: '系统管理画布', requiresAdmin: true }
       }
     ]
   }

@@ -83,4 +83,24 @@ public interface UserMapper {
      * 删除用户
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 查询用户的角色列表
+     */
+    List<com.logistics.track17.entity.Role> selectRolesByUserId(@Param("userId") Long userId);
+
+    /**
+     * 删除用户的所有角色
+     */
+    int deleteUserRoles(@Param("userId") Long userId);
+
+    /**
+     * 为用户添加角色
+     */
+    int insertUserRole(@Param("userId") Long userId, @Param("roleId") Long roleId);
+
+    /**
+     * 批量查询多个用户的角色（避免 N+1 查询）
+     */
+    List<java.util.Map<String, Object>> selectRolesByUserIds(@Param("userIds") List<Long> userIds);
 }

@@ -175,6 +175,22 @@ public class RoleController {
     }
 
     /**
+     * 更新角色权限（PUT方式）
+     */
+    @PutMapping("/{id}/permissions")
+    @RequireAuth(permissions = "system:role:assign-permission")
+    public ResponseEntity<Result<Void>> updateRolePermissions(@PathVariable Long id,
+            @RequestBody AssignPermissionsRequest request) {
+        try {
+            roleService.assignPermissionsToRole(id, request.getPermissionIds());
+            return ResponseEntity.ok(Result.success("更新权限成功", null));
+        } catch (Exception e) {
+            log.error("更新权限失败", e);
+            return ResponseEntity.ok(Result.error(500, "更新权限失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 菜单分配请求
      */
     @Data

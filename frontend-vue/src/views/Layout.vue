@@ -121,6 +121,10 @@
               <SyncOutlined />
               <span>钉钉组织同步</span>
             </a-menu-item>
+            <a-menu-item key="system-canvas">
+              <ApartmentOutlined />
+              <span>系统画布</span>
+            </a-menu-item>
           </a-sub-menu>
         </template>
       </a-menu>
@@ -225,7 +229,8 @@ import {
   SettingOutlined,
   UserSwitchOutlined,
   MenuOutlined,
-  IdcardOutlined
+  IdcardOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { menuApi } from '@/api/menu'
@@ -288,6 +293,9 @@ watch(
     } else if (path.includes('dingtalk-sync')) {
       selectedKeys.value = ['dingtalk-sync']
       openKeys.value = ['system']
+    } else if (path.includes('system/canvas')) {
+      selectedKeys.value = ['system-canvas']
+      openKeys.value = ['system']
     } else if (path.includes('product/development')) {
       selectedKeys.value = ['product-development']
       openKeys.value = ['product']
@@ -333,6 +341,8 @@ const handleMenuClick = ({ key }) => {
     router.push('/product/procurement')
   } else if (key === 'product-listing') {
     router.push('/product/listing')
+  } else if (key === 'system-canvas') {
+    router.push('/system/canvas')
   } else {
     router.push(`/${key}`)
   }

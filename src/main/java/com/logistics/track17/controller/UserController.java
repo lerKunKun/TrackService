@@ -135,4 +135,43 @@ public class UserController {
         userService.deleteUser(id);
         return Result.success("用户删除成功", null);
     }
+
+    /**
+     * 获取用户的角色列表
+     */
+    @GetMapping("/{id}/roles")
+    @RequireAuth(permissions = "system:user:view")
+    public Result<List<com.logistics.track17.entity.Role>> getUserRoles(@PathVariable Long id) {
+        log.info("Get roles for user: {}", id);
+        List<com.logistics.track17.entity.Role> roles = userService.getUserRoles(id);
+        return Result.success(roles);
+    }
+
+    /**
+     * 更新用户的角色列表
+     */
+    @PutMapping("/{id}/roles")
+    @RequireAuth(permissions = "system:role:assign")
+    @AuditLog(operation = "更新用户角色", module = "用户管理")
+    public Result<Object> updateUserRoles(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<Long>> request) {
+        log.info("Update roles for user: {}, roles: {}", id, request.get("roleIds"));
+        List<Long> roleIds = request.get("roleIds");
+        userService.updateUserRoles(id, roleIds);
+        return Result.success("角色更新成功", null);
+    }
+
+    /**
+     * 获取用户列表（带角色信息）
+     */
+    @GetMapping("/with-roles")
+    @RequireAuth(permissions = "system:user:view")
+    public Result<Map<String, Object>> getUsersWithRoles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        log.info("Get users with roles, page: {}, size: {}", page, size);
+        Map<String, Object> data = userService.getUsersWithRoles(page, size);
+        return Result.success(data);
+    }
 }
