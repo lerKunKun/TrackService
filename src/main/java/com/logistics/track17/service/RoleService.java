@@ -146,4 +146,54 @@ public class RoleService {
 
         log.info("为用户 {} 分配角色成功，角色数: {}", userId, roleIds.size());
     }
+
+    /**
+     * 批量为用户分配角色
+     */
+    @Transactional
+    public void batchAssignRolesToUsers(List<UserRoleAssignment> assignments) {
+        if (assignments == null || assignments.isEmpty()) {
+            return;
+        }
+        // 提取所有用户ID，用于删除旧的角色关联
+        List<Long> userIds = assignments.stream()
+                .map(UserRoleAssignment::getUserId)
+                .collect(Collectors.toList());
+        roleMapper.deleteRolesByUserIds(userIds);
+
+        // 扁平化处理，准备批量插入
+        List<Map<String, Long>> userRolePairs = new ArrayList<>();
+        for (UserRoleAssignment assignment : assignments) {
+            for (Long roleId : assignment.getRoleIds()) {
+                Map<String, Long> pair = new HashMap<>();
+                pair.put("userId", assignment.getUserId());
+                pair.put("roleId", roleId);
+                userRolePairs.add(pair);
+            }
+        }
+
+        if (!userRolePairs.isEmpty()) {
+            roleMapper.batchAssignRolesToUsers(userRolePairs);
+        }
+
+        log.info("批量为 {} 个用户分配角色成功", assignments.size());
+    }
+
+    public static class UserRoleAssignment {
+        private final Long userId;
+        private final List<Long> roleIds;
+
+        public UserRoleAssignment(Long userId, List<Long> roleIds) {
+            this.userId = userId;
+            this.roleIds = roleIds;
+        }
+
+        public Long getUserId() {
+            return userId;
+        }
+
+        public List<Long> getRoleIds() {
+            return roleIds;
+        }
+    }
 }

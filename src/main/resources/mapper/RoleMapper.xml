@@ -115,4 +115,21 @@
         DELETE FROM user_roles WHERE user_id = #{userId}
     </delete>
 
+    <!-- 批量删除用户的角色 -->
+    <delete id="deleteRolesByUserIds" parameterType="java.util.List">
+        DELETE FROM user_roles
+        WHERE user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </delete>
+
+    <!-- 批量为用户分配角色 -->
+    <insert id="batchAssignRolesToUsers" parameterType="java.util.List">
+        INSERT INTO user_roles (user_id, role_id) VALUES
+        <foreach collection="assignments" item="assignment" separator=",">
+            (#{assignment.userId}, #{assignment.roleId})
+        </foreach>
+    </insert>
+
 </mapper>

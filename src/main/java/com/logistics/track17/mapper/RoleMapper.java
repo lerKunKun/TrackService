@@ -76,4 +76,14 @@ public interface RoleMapper {
      * 删除用户的所有角色
      */
     int deleteRolesByUserId(@Param("userId") Long userId);
+
+    /**
+     * 批量删除用户的角色
+     */
+    void deleteRolesByUserIds(@Param("userIds") List<Long> userIds);
+
+    /**
+     * 批量为用户分配角色
+     */
+    void batchAssignRolesToUsers(@Param("assignments") List<Map<String, Long>> assignments);
 }

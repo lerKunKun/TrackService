@@ -134,138 +134,141 @@ public class DingtalkSyncService {
     }
 
     /**
-     * 同步用户
+     * 同步用户（优化版）
      */
     @Transactional
     public int syncUsers() {
         log.info("开始同步钉钉用户...");
 
-        // 1. 获取所有部门映射
-        List<DingtalkDeptMapping> deptMappings = dingtalkDeptMappingMapper.selectAll();
-        log.info("获取到 {} 个部门映射", deptMappings.size());
+        // 1. 从钉钉获取所有部门的用户
+        List<DingtalkUserDTO> allDingUsers = getAllDingtalkUsers();
+        log.info("从钉钉获取到 {} 个用户", allDingUsers.size());
+
+        // 2. 获取数据库中所有钉钉用户
+        List<User> allDbUsers = userMapper.selectAllDingtalkUsers();
+        Map<String, User> dbUserMapByUnionId = allDbUsers.stream()
+                .filter(u -> u.getDingUnionId() != null)
+                .collect(Collectors.toMap(User::getDingUnionId, u -> u, (u1, u2) -> u1));
+        Map<String, User> dbUserMapByUserId = allDbUsers.stream()
+                .filter(u -> u.getDingUserId() != null)
+                .collect(Collectors.toMap(User::getDingUserId, u -> u, (u1, u2) -> u1));
+
+
+        List<User> usersToInsert = new ArrayList<>();
+        List<User> usersToUpdate = new ArrayList<>();
+
+        // 3. 遍历钉钉用户，进行比较和处理
+        for (DingtalkUserDTO dingUser : allDingUsers) {
+            User existingUser = dbUserMapByUnionId.get(dingUser.getUnionid());
+            if (existingUser == null) {
+                existingUser = dbUserMapByUserId.get(dingUser.getUserid());
+            }
+
+            if (existingUser == null) {
+                // 新用户
+                usersToInsert.add(createNewUserFromDingtalk(dingUser));
+            } else {
+                // 已存在用户，检查是否需要更新
+                if (isUserNeedsUpdate(existingUser, dingUser)) {
+                    updateUserFromDingtalk(existingUser, dingUser);
+                    usersToUpdate.add(existingUser);
+                }
+            }
+        }
 
         int processedCount = 0;
-        Set<String> processedUserIds = new HashSet<>(); // 避免重复处理
 
-        // 2. 遍历每个部门，获取用户
+        // 4. 批量插入
+        if (!usersToInsert.isEmpty()) {
+            userMapper.batchInsert(usersToInsert);
+            processedCount += usersToInsert.size();
+            log.info("批量插入 {} 个新用户", usersToInsert.size());
+        }
+
+        // 5. 批量更新
+        if (!usersToUpdate.isEmpty()) {
+            userMapper.batchUpdate(usersToUpdate);
+            processedCount += usersToUpdate.size();
+            log.info("批量更新 {} 个用户", usersToUpdate.size());
+        }
+
+        log.info("用户同步完成，共处理 {} 个用户", processedCount);
+        return processedCount;
+    }
+
+    private List<DingtalkUserDTO> getAllDingtalkUsers() {
+        List<DingtalkDeptMapping> deptMappings = dingtalkDeptMappingMapper.selectAll();
+        Set<String> processedUserIds = new HashSet<>();
+        List<DingtalkUserDTO> allDingUsers = new ArrayList<>();
+
         for (DingtalkDeptMapping mapping : deptMappings) {
             try {
-                List<DingtalkUserDTO> dingUsers = dingtalkApiService
-                        .getDepartmentUsers(mapping.getDingtalkDeptId());
-
+                List<DingtalkUserDTO> dingUsers = dingtalkApiService.getDepartmentUsers(mapping.getDingtalkDeptId());
                 for (DingtalkUserDTO dingUser : dingUsers) {
-                    // 去重：如果用户在多个部门，只处理一次
-                    if (processedUserIds.contains(dingUser.getUserid())) {
-                        continue;
-                    }
-
-                    try {
-                        syncSingleUser(dingUser);
-                        processedUserIds.add(dingUser.getUserid());
-                        processedCount++;
-                    } catch (Exception e) {
-                        log.error("同步用户失败: {}", dingUser.getName(), e);
+                    if (processedUserIds.add(dingUser.getUserid())) {
+                        allDingUsers.add(dingUser);
                     }
                 }
             } catch (Exception e) {
                 log.error("获取部门用户失败: {}", mapping.getDingtalkDeptName(), e);
             }
         }
-
-        log.info("用户同步完成，处理 {} 个用户", processedCount);
-        return processedCount;
+        return allDingUsers;
     }
 
-    /**
-     * 同步单个用户
-     */
-    private void syncSingleUser(DingtalkUserDTO dingUser) {
-        // 1. 优先通过unionId查找用户（与扫码登录保持一致）
-        User existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
+    private User createNewUserFromDingtalk(DingtalkUserDTO dingUser) {
+        User newUser = new User();
+        newUser.setUsername(generateUniqueUsername(dingUser));
+        newUser.setDingUserId(dingUser.getUserid());
+        newUser.setDingUnionId(dingUser.getUnionid());
+        newUser.setRealName(dingUser.getName());
+        newUser.setPhone(dingUser.getMobile());
+        newUser.setEmail(dingUser.getEmail());
+        newUser.setTitle(dingUser.getTitle());
+        newUser.setJobNumber(dingUser.getJobNumber());
+        newUser.setAvatar(dingUser.getAvatar());
+        newUser.setLoginSource("DINGTALK");
+        newUser.setStatus(dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
+        newUser.setSyncEnabled(1);
+        newUser.setRole("USER");
+        newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        return newUser;
+    }
 
-        // 2. 如果通过unionId找不到，尝试通过dingUserId查找（兼容旧数据）
-        if (existingUser == null && dingUser.getUserid() != null) {
-            existingUser = userMapper.selectByDingUserId(dingUser.getUserid());
-            // 如果找到了，更新unionId
-            if (existingUser != null && existingUser.getDingUnionId() == null) {
-                existingUser.setDingUnionId(dingUser.getUnionid());
-                log.info("为用户 {} 补充unionId: {}", existingUser.getUsername(), dingUser.getUnionid());
-            }
-        }
+    private void updateUserFromDingtalk(User existingUser, DingtalkUserDTO dingUser) {
+        Integer oldStatus = existingUser.getStatus();
+        Integer newStatus = dingUser.getActive() != null && dingUser.getActive() ? 1 : 0;
 
-        if (existingUser == null) {
-            // 新建用户
-            User newUser = new User();
-            newUser.setUsername(generateUniqueUsername(dingUser));
-            newUser.setDingUserId(dingUser.getUserid());
-            newUser.setDingUnionId(dingUser.getUnionid());
-            newUser.setRealName(dingUser.getName());
-            newUser.setPhone(dingUser.getMobile());
-            newUser.setEmail(dingUser.getEmail());
-            newUser.setTitle(dingUser.getTitle());
-            newUser.setJobNumber(dingUser.getJobNumber());
-            newUser.setAvatar(dingUser.getAvatar());
-            newUser.setLoginSource("DINGTALK");
+        existingUser.setDingUserId(dingUser.getUserid());
+        existingUser.setDingUnionId(dingUser.getUnionid());
+        existingUser.setRealName(dingUser.getName());
+        existingUser.setPhone(dingUser.getMobile());
+        existingUser.setEmail(dingUser.getEmail());
+        existingUser.setTitle(dingUser.getTitle());
+        existingUser.setJobNumber(dingUser.getJobNumber());
+        existingUser.setAvatar(dingUser.getAvatar());
+        existingUser.setStatus(newStatus);
 
-            // 根据钉钉active状态设置用户状态（active=true启用，active=false禁用）
-            newUser.setStatus(dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
-            newUser.setSyncEnabled(1); // 默认启用自动同步
-            newUser.setRole("USER"); // 默认角色
-            newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-
-            try {
-                userMapper.insert(newUser);
-                log.debug("创建新用户: {} (钉钉ID: {}), 状态: {}",
-                        dingUser.getName(),
-                        dingUser.getUserid(),
-                        newUser.getStatus() == 1 ? "启用" : "禁用");
-            } catch (org.springframework.dao.DuplicateKeyException e) {
-                // 可能是并发创建或username冲突，尝试再次查找
-                log.warn("用户创建失败，可能已存在: {}", dingUser.getName());
-                existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
-                if (existingUser != null) {
-                    log.info("找到已存在用户: {}", existingUser.getUsername());
-                    // 继续执行更新逻辑
-                } else {
-                    throw e; // 如果还是找不到，抛出异常
-                }
-            }
-
-        }
-
-        if (existingUser != null) {
-            // 更新用户信息
-            Integer oldStatus = existingUser.getStatus();
-            Integer newStatus = dingUser.getActive() != null && dingUser.getActive() ? 1 : 0;
-
-            existingUser.setDingUserId(dingUser.getUserid()); // 更新dingUserId
-            existingUser.setDingUnionId(dingUser.getUnionid()); // 确保unionId存在
-            existingUser.setRealName(dingUser.getName());
-            existingUser.setPhone(dingUser.getMobile());
-            existingUser.setEmail(dingUser.getEmail());
-            existingUser.setTitle(dingUser.getTitle());
-            existingUser.setJobNumber(dingUser.getJobNumber());
-            existingUser.setAvatar(dingUser.getAvatar());
-            existingUser.setStatus(newStatus);
-
-            userMapper.update(existingUser);
-
-            // 如果状态发生变化，记录详细日志
-            if (!oldStatus.equals(newStatus)) {
-                if (newStatus == 0) {
-                    log.info("员工离职 - 禁用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
-                } else {
-                    log.info("员工复职 - 启用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
-                }
-            } else {
-                log.debug("更新用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
-            }
+        if (!oldStatus.equals(newStatus)) {
+            log.info("用户状态变更: {} ({} -> {})", existingUser.getUsername(),
+                    oldStatus == 1 ? "启用" : "禁用",
+                    newStatus == 1 ? "启用" : "禁用");
         }
     }
 
+    private boolean isUserNeedsUpdate(User user, DingtalkUserDTO dingUser) {
+        // 比较关键字段
+        return !Objects.equals(user.getRealName(), dingUser.getName()) ||
+                !Objects.equals(user.getPhone(), dingUser.getMobile()) ||
+                !Objects.equals(user.getEmail(), dingUser.getEmail()) ||
+                !Objects.equals(user.getTitle(), dingUser.getTitle()) ||
+                !Objects.equals(user.getJobNumber(), dingUser.getJobNumber()) ||
+                !Objects.equals(user.getAvatar(), dingUser.getAvatar()) ||
+                !Objects.equals(user.getStatus(), dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
+    }
+
     /**
-     * 应用角色映射规则
-     * 只处理 sync_enabled=1 的用户
+     * 应用角色映射规则（优化版）
      */
     @Transactional
     public int applyRoleMappingRules() {
@@ -279,35 +282,31 @@ public class DingtalkSyncService {
         }
         log.info("获取到 {} 条启用的映射规则", rules.size());
 
-        // 2. 获取所有启用自动同步的用户
-        List<User> allUsers = userMapper.selectAll();
-        List<User> syncEnabledUsers = allUsers.stream()
-                .filter(user -> user.getSyncEnabled() != null && user.getSyncEnabled() == 1)
-                .filter(user -> user.getDeletedAt() == null)
-                .collect(Collectors.toList());
-
+        // 2. 获取所有需要同步角色的用户
+        List<User> syncEnabledUsers = userMapper.selectAllSyncEnabledUsers();
         log.info("共有 {} 个用户启用了自动同步", syncEnabledUsers.size());
 
-        int assignedCount = 0;
+        if (syncEnabledUsers.isEmpty()) {
+            return 0;
+        }
 
-        // 3. 为每个用户匹配角色
+        // 3. 为每个用户匹配角色，并收集分配任务
+        List<RoleService.UserRoleAssignment> assignments = new ArrayList<>();
         for (User user : syncEnabledUsers) {
-            try {
-                List<Long> matchedRoleIds = matchRolesForUser(user, rules);
-
-                if (!matchedRoleIds.isEmpty()) {
-                    // 使用RoleService为用户分配角色
-                    roleService.assignRolesToUser(user.getId(), matchedRoleIds);
-                    log.info("为用户 {} 分配 {} 个角色", user.getUsername(), matchedRoleIds.size());
-                    assignedCount++;
-                }
-            } catch (Exception e) {
-                log.error("为用户分配角色失败: {}", user.getUsername(), e);
+            List<Long> matchedRoleIds = matchRolesForUser(user, rules);
+            if (!matchedRoleIds.isEmpty()) {
+                assignments.add(new RoleService.UserRoleAssignment(user.getId(), matchedRoleIds));
             }
         }
 
-        log.info("角色映射完成，共处理 {} 个用户", assignedCount);
-        return assignedCount;
+        // 4. 批量分配角色
+        if (!assignments.isEmpty()) {
+            roleService.batchAssignRolesToUsers(assignments);
+            log.info("批量为 {} 个用户分配了角色", assignments.size());
+        }
+
+        log.info("角色映射完成");
+        return assignments.size();
     }
 
     /**

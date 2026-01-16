@@ -140,4 +140,53 @@
         UPDATE users SET deleted_at = NOW() WHERE id = #{id}
     </update>
 
+    <!-- 查询所有钉钉用户 -->
+    <select id="selectAllDingtalkUsers" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE ding_union_id IS NOT NULL OR ding_user_id IS NOT NULL
+    </select>
+
+    <!-- 批量插入 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO users (
+            username, password, email, phone, real_name, role, status, avatar,
+            ding_union_id, ding_user_id, corp_id, login_source, sync_enabled, title, job_number
+        ) VALUES
+        <foreach collection="users" item="user" separator=",">
+            (
+            #{user.username}, #{user.password}, #{user.email}, #{user.phone}, #{user.realName},
+            #{user.role}, #{user.status}, #{user.avatar}, #{user.dingUnionId}, #{user.dingUserId},
+            #{user.corpId}, #{user.loginSource}, #{user.syncEnabled}, #{user.title}, #{user.jobNumber}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 批量更新 -->
+    <update id="batchUpdate" parameterType="java.util.List">
+        <foreach collection="users" item="user" separator=";">
+            UPDATE users
+            <set>
+                username = #{user.username},
+                email = #{user.email},
+                phone = #{user.phone},
+                real_name = #{user.realName},
+                avatar = #{user.avatar},
+                status = #{user.status},
+                ding_union_id = #{user.dingUnionId},
+                ding_user_id = #{user.dingUserId},
+                title = #{user.title},
+                job_number = #{user.jobNumber}
+            </set>
+            WHERE id = #{user.id}
+        </foreach>
+    </update>
+
+    <!-- 查询所有启用同步的用户 -->
+    <select id="selectAllSyncEnabledUsers" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE sync_enabled = 1 AND deleted_at IS NULL
+    </select>
+
 </mapper>
