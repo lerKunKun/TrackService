@@ -31,15 +31,8 @@ public class ShopifyOAuthController {
     private final ShopService shopService;
     private final ShopifyWebhookService webhookService;
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-
     @Value("${shopify.oauth.frontend-redirect:http://localhost:5173/shops}")
     private String frontendRedirect;
-
-    // OAuth state 存储配置
-    private static final String OAUTH_STATE_PREFIX = "oauth:state:";
-    private static final long STATE_EXPIRE_SECONDS = 300; // 5分钟过期
 
     public ShopifyOAuthController(ShopifyOAuthService shopifyOAuthService,
             ShopService shopService,
@@ -65,14 +58,8 @@ public class ShopifyOAuthController {
             throw BusinessException.of("无效的Shopify店铺域名格式");
         }
 
-        // 生成授权URL
+        // 生成授权URL（state已在service中处理）
         String authUrl = shopifyOAuthService.generateAuthorizationUrl(shopDomain);
-
-        // 提取state并保存到Redis（5分钟过期）
-        String state = extractStateFromUrl(authUrl);
-        String key = OAUTH_STATE_PREFIX + state;
-        redisTemplate.opsForValue().set(key, shopDomain, STATE_EXPIRE_SECONDS, TimeUnit.SECONDS);
-        log.info("Stored OAuth state in Redis: {} for shop: {}", state, shopDomain);
 
         // 重定向到Shopify授权页面
         response.sendRedirect(authUrl);
@@ -101,25 +88,11 @@ public class ShopifyOAuthController {
         log.info("Received OAuth callback from shop: {}", shop);
 
         try {
-            // 1. 从Redis验证state
-            String key = OAUTH_STATE_PREFIX + state;
-            String storedShop = (String) redisTemplate.opsForValue().get(key);
-
-            if (storedShop == null) {
-                log.warn("Invalid or expired OAuth state: {}", state);
+            // 1. 验证state
+            if (!shopifyOAuthService.validateState(state, shop)) {
                 response.sendRedirect(frontendRedirect + "?oauth=error&reason=invalid_or_expired_state");
                 return;
             }
-
-            if (!storedShop.equals(shop)) {
-                log.warn("OAuth state mismatch. Stored: {}, Received: {}", storedShop, shop);
-                response.sendRedirect(frontendRedirect + "?oauth=error&reason=state_mismatch");
-                return;
-            }
-
-            // 删除已使用的state
-            redisTemplate.delete(key);
-            log.info("OAuth state validated and removed from Redis: {}", state);
 
             // 2. 验证HMAC签名（使用原始query string）
             String queryString = request.getQueryString();
@@ -248,14 +221,4 @@ public class ShopifyOAuthController {
         }
     }
 
-    /**
-     * 从授权URL中提取state参数
-     */
-    private String extractStateFromUrl(String url) {
-        String[] parts = url.split("state=");
-        if (parts.length > 1) {
-            return parts[1].split("&")[0];
-        }
-        throw BusinessException.of("无法提取OAuth state");
-    }
 }
