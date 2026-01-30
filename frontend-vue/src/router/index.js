@@ -53,8 +53,8 @@ const routes = [
       {
         path: 'product/procurement',
         name: 'ProductProcurement',
-        component: () => import('@/views/product/ComingSoon.vue'),
-        meta: { title: '采购管理' }
+        component: () => import('@/views/product/ProcurementManagement.vue'),
+        meta: { title: '采购管理' } // Points to new component
       },
       {
         path: 'product/listing',

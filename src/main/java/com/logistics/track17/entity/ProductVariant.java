@@ -94,9 +94,19 @@ public class ProductVariant {
     private String sku;
 
     /**
-     * 采购商品链接
+     * 采购链接
      */
     private String procurementUrl;
+
+    /**
+     * 采购价格
+     */
+    private BigDecimal procurementPrice;
+
+    /**
+     * 采购商名称
+     */
+    private String supplier;
 
     /**
      * 创建时间

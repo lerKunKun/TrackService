@@ -385,4 +385,199 @@ public class ProductService {
     public List<ProductVariant> getProductVariants(Long productId) {
         return productVariantMapper.selectByProductId(productId);
     }
+
+    /**
+     * 更新变体采购信息
+     * 
+     * @param variantId        变体ID
+     * @param sku              SKU (可选)
+     * @param procurementUrl   采购链接 (可选)
+     * @param procurementPrice 采购价格 (可选)
+     * @param supplier         采购商名称 (可选)
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateVariantProcurement(Long variantId, String sku,
+            String procurementUrl, BigDecimal procurementPrice, String supplier) {
+        ProductVariant variant = new ProductVariant();
+        variant.setId(variantId);
+        if (sku != null) {
+            variant.setSku(sku);
+        }
+        if (procurementUrl != null) {
+            variant.setProcurementUrl(procurementUrl);
+        }
+        if (procurementPrice != null) {
+            variant.setProcurementPrice(procurementPrice);
+        }
+        if (supplier != null) {
+            variant.setSupplier(supplier);
+        }
+        productVariantMapper.update(variant);
+        log.info("更新变体采购信息 ID: {}, SKU: {}, 采购商: {}", variantId, sku, supplier);
+    }
+
+    /**
+     * 导出产品到Shopify CSV格式
+     * 仅导出店铺产品SKU,不包含采购信息
+     * 
+     * @param shopId     店铺ID (可选,用于按店铺筛选)
+     * @param productIds 产品ID列表 (可选,为空则导出全部)
+     * @return CSV文本内容
+     */
+    public String exportProductsToCSV(Long shopId, List<Long> productIds) throws IOException {
+        StringBuilder csv = new StringBuilder();
+
+        // Shopify CSV 标准列头
+        csv.append("Handle,Title,Body (HTML),Vendor,Tags,Published,");
+        csv.append("Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,");
+        csv.append("Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,");
+        csv.append("Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,");
+        csv.append("Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,");
+        csv.append("Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,");
+        csv.append("Google Shopping / Google Product Category,Google Shopping / Gender,Google Shopping / Age Group,");
+        csv.append("Google Shopping / MPN,Google Shopping / AdWords Grouping,Google Shopping / AdWords Labels,");
+        csv.append("Google Shopping / Condition,Google Shopping / Custom Product,Google Shopping / Custom Label 0,");
+        csv.append(
+                "Google Shopping / Custom Label 1,Google Shopping / Custom Label 2,Google Shopping / Custom Label 3,");
+        csv.append("Google Shopping / Custom Label 4,Variant Image,Variant Weight Unit,Variant Tax Code,");
+        csv.append("Cost per item,Status\n");
+
+        // 查询产品列表
+        List<Product> products;
+        if (productIds != null && !productIds.isEmpty()) {
+            // 按指定产品ID导出
+            products = new ArrayList<>();
+            for (Long id : productIds) {
+                Product p = productMapper.selectById(id);
+                if (p != null) {
+                    products.add(p);
+                }
+            }
+        } else {
+            // 导出全部产品
+            products = productMapper.selectByPage(null, null, null, shopId, 0, Integer.MAX_VALUE);
+        }
+
+        // 遍历产品
+        for (Product product : products) {
+            // 如果指定了shopId,检查产品是否关联该店铺
+            if (shopId != null) {
+                List<Long> shopIds = productShopMapper.selectShopIdsByProductId(product.getId());
+                if (!shopIds.contains(shopId)) {
+                    continue; // 跳过不属于该店铺的产品
+                }
+            }
+
+            // 查询产品的所有变体
+            List<ProductVariant> variants = productVariantMapper.selectByProductId(product.getId());
+
+            if (variants.isEmpty()) {
+                continue; // 跳过没有变体的产品
+            }
+
+            // 第一行: 产品信息 + 第一个变体
+            ProductVariant firstVariant = variants.get(0);
+            csv.append(escapeCsvField(product.getHandle())).append(",");
+            csv.append(escapeCsvField(product.getTitle())).append(",");
+            csv.append(escapeCsvField(product.getBodyHtml())).append(",");
+            csv.append(escapeCsvField(product.getVendor())).append(",");
+            csv.append(escapeCsvField(product.getTags())).append(",");
+            csv.append(product.getPublished() == 1 ? "TRUE" : "FALSE").append(",");
+
+            // 变体选项
+            csv.append(escapeCsvField(firstVariant.getOption1Name())).append(",");
+            csv.append(escapeCsvField(firstVariant.getOption1Value())).append(",");
+            csv.append(escapeCsvField(firstVariant.getOption2Name())).append(",");
+            csv.append(escapeCsvField(firstVariant.getOption2Value())).append(",");
+            csv.append(escapeCsvField(firstVariant.getOption3Name())).append(",");
+            csv.append(escapeCsvField(firstVariant.getOption3Value())).append(",");
+
+            // 变体信息 (仅包含店铺SKU,不包含采购信息)
+            csv.append(escapeCsvField(firstVariant.getSku())).append(",");
+            csv.append(firstVariant.getWeight() != null ? firstVariant.getWeight() : "").append(",");
+            csv.append("shopify,"); // Inventory Tracker
+            csv.append(firstVariant.getInventoryQuantity() != null ? firstVariant.getInventoryQuantity() : "0")
+                    .append(",");
+            csv.append("deny,"); // Inventory Policy
+            csv.append("manual,"); // Fulfillment Service
+            csv.append(firstVariant.getPrice() != null ? firstVariant.getPrice() : "").append(",");
+            csv.append(firstVariant.getCompareAtPrice() != null ? firstVariant.getCompareAtPrice() : "").append(",");
+            csv.append("TRUE,TRUE,"); // Requires Shipping, Taxable
+            csv.append(escapeCsvField(firstVariant.getBarcode())).append(",");
+            csv.append(escapeCsvField(firstVariant.getImageUrl())).append(",");
+            csv.append("1,"); // Image Position
+            csv.append(","); // Image Alt Text
+            csv.append("FALSE,"); // Gift Card
+
+            // SEO和Google Shopping字段 (暂时留空)
+            for (int i = 0; i < 20; i++) {
+                csv.append(",");
+            }
+
+            csv.append(escapeCsvField(firstVariant.getImageUrl())).append(","); // Variant Image
+            csv.append("g,"); // Variant Weight Unit
+            csv.append(","); // Variant Tax Code
+            csv.append(","); // Cost per item (不导出采购价格)
+            csv.append(product.getPublished() == 1 ? "active" : "draft");
+            csv.append("\n");
+
+            // 后续行: 其他变体 (仅变体信息,产品信息留空)
+            for (int i = 1; i < variants.size(); i++) {
+                ProductVariant variant = variants.get(i);
+
+                // 产品信息列留空,仅填写Handle
+                csv.append(escapeCsvField(product.getHandle())).append(",");
+                csv.append(",,,,,,"); // Title到Published留空
+
+                // 变体选项
+                csv.append(escapeCsvField(variant.getOption1Name())).append(",");
+                csv.append(escapeCsvField(variant.getOption1Value())).append(",");
+                csv.append(escapeCsvField(variant.getOption2Name())).append(",");
+                csv.append(escapeCsvField(variant.getOption2Value())).append(",");
+                csv.append(escapeCsvField(variant.getOption3Name())).append(",");
+                csv.append(escapeCsvField(variant.getOption3Value())).append(",");
+
+                // 变体信息
+                csv.append(escapeCsvField(variant.getSku())).append(",");
+                csv.append(variant.getWeight() != null ? variant.getWeight() : "").append(",");
+                csv.append("shopify,");
+                csv.append(variant.getInventoryQuantity() != null ? variant.getInventoryQuantity() : "0").append(",");
+                csv.append("deny,manual,");
+                csv.append(variant.getPrice() != null ? variant.getPrice() : "").append(",");
+                csv.append(variant.getCompareAtPrice() != null ? variant.getCompareAtPrice() : "").append(",");
+                csv.append("TRUE,TRUE,");
+                csv.append(escapeCsvField(variant.getBarcode())).append(",");
+                csv.append(escapeCsvField(variant.getImageUrl())).append(",");
+                csv.append((i + 1) + ",");
+
+                // 其余字段留空
+                for (int j = 0; j < 21; j++) {
+                    csv.append(",");
+                }
+
+                csv.append(escapeCsvField(variant.getImageUrl())).append(",");
+                csv.append("g,,,,");
+                csv.append("\n");
+            }
+        }
+
+        log.info("导出CSV完成,产品数: {}, 店铺ID: {}", products.size(), shopId);
+        return csv.toString();
+    }
+
+    /**
+     * 转义CSV字段 (处理逗号、换行符、引号)
+     */
+    private String escapeCsvField(String field) {
+        if (field == null) {
+            return "";
+        }
+
+        // 如果包含逗号、换行符或引号,需要用引号包裹,并将引号转义为两个引号
+        if (field.contains(",") || field.contains("\n") || field.contains("\"")) {
+            return "\"" + field.replace("\"", "\"\"") + "\"";
+        }
+
+        return field;
+    }
 }

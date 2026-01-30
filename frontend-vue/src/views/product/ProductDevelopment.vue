@@ -5,6 +5,10 @@
       <div class="toolbar">
         <h2>产品开发</h2>
         <a-space>
+          <a-button @click="handleExportCSV">
+            <DownloadOutlined />
+            导出CSV
+          </a-button>
           <a-button type="primary" @click="showUploadModal">
             <UploadOutlined />
             导入CSV
@@ -371,7 +375,7 @@
             <template #prefix>$</template>
           </a-input-number>
           <div style="color: #999; font-size: 12px; margin-top: 4px">
-            显示为划线价，用于展示折扣
+            显示为划线价,用于展示折扣
           </div>
         </a-form-item>
       </a-form>
@@ -384,6 +388,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
 import {
   UploadOutlined,
+  DownloadOutlined,
   SearchOutlined,
   TagOutlined,
   EditOutlined,
@@ -598,7 +603,7 @@ const handleEdit = async (record) => {
       variantComparePrice = firstVariant.compareAtPrice
     }
   } catch (error) {
-    console.error('获取变体价格失败:', error)
+    console.error('获取变体信息失败:', error)
   }
   
   editForm.value = {
@@ -633,7 +638,7 @@ const handleEditSubmit = async () => {
       shopIds: editForm.value.shopIds
     })
     
-    // 2. 如果有价格变更，则更新价格
+    // 2. 如果有价格变更,则更新价格
     if (editForm.value.price !== null && editForm.value.price !== undefined) {
       await productApi.updateProductPrice(editForm.value.id, {
         price: editForm.value.price,
@@ -665,7 +670,43 @@ const handleDelete = async (id) => {
     fetchProducts() // 刷新列表
   } catch (error) {
     console.error('删除产品失败:', error)
-    message.error('删除失败，请重试')
+    message.error('删除失败,请重试')
+  }
+}
+
+// 导出CSV
+const handleExportCSV = async () => {
+  try {
+    // 构建导出参数(如果筛选了店铺,则只导出该店铺的产品)
+    const params = {}
+    if (filters.shopId) {
+      params.shopId = filters.shopId
+    }
+
+    message.loading({ content: '正在生成CSV文件...', key: 'export', duration: 0 })
+    
+    const response = await productApi.exportProductsCSV(params)
+    
+    message.success({ content: '导出成功!', key: 'export', duration: 2 })
+
+    // 创建Blob下载链接
+    const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // 生成文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    const shopName = filters.shopId ? getShopName(filters.shopId) : '全部店铺'
+    link.download = `products_export_${shopName}_${timestamp}.csv`
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('导出CSV失败:', error)
+    message.error({ content: '导出失败,请重试', key: 'export' })
   }
 }
 

@@ -91,5 +91,31 @@ export default {
     async updateVariantPrice(variantId, priceData) {
         const response = await request.put(`${API_BASE_URL}/variants/${variantId}/price`, priceData)
         return response
+    },
+
+
+    /**
+     * 更新变体采购信息
+     * @param {Number} variantId 变体ID
+     * @param {Object} procurementData - 采购数据 { sku, procurementUrl, procurementPrice, supplier }
+     * @returns {Promise}
+     */
+    async updateVariantProcurement(variantId, procurementData) {
+        const response = await request.put(`${API_BASE_URL}/variants/${variantId}/procurement`, procurementData)
+        return response
+    },
+
+
+    /**
+     * 导出产品到CSV
+     * @param {Object} params - 导出参数 { shopId, productIds }
+     * @returns {Promise}
+     */
+    async exportProductsCSV(params) {
+        const response = await request.get(`${API_BASE_URL}/export/csv`, {
+            params,
+            responseType: 'blob'  // 重要: 指定返回类型为blob用于文件下载
+        })
+        return response
     }
 }

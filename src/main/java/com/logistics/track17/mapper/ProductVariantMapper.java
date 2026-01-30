@@ -12,87 +12,87 @@ import java.util.List;
 @Mapper
 public interface ProductVariantMapper {
 
-    /**
-     * 插入产品变体
-     * 
-     * @param variant 变体对象
-     * @return 影响行数
-     */
-    int insert(ProductVariant variant);
+        /**
+         * 插入产品变体
+         * 
+         * @param variant 变体对象
+         * @return 影响行数
+         */
+        int insert(ProductVariant variant);
 
-    /**
-     * 批量插入产品变体
-     * 
-     * @param variants 变体列表
-     * @return 影响行数
-     */
-    int batchInsert(@Param("variants") List<ProductVariant> variants);
+        /**
+         * 批量插入产品变体
+         * 
+         * @param variants 变体列表
+         * @return 影响行数
+         */
+        int batchInsert(@Param("variants") List<ProductVariant> variants);
 
-    /**
-     * 根据ID查询变体
-     * 
-     * @param id 变体ID
-     * @return 变体对象
-     */
-    ProductVariant selectById(@Param("id") Long id);
+        /**
+         * 根据ID查询变体
+         * 
+         * @param id 变体ID
+         * @return 变体对象
+         */
+        ProductVariant selectById(@Param("id") Long id);
 
-    /**
-     * 根据产品ID查询所有变体
-     * 
-     * @param productId 产品ID
-     * @return 变体列表
-     */
-    List<ProductVariant> selectByProductId(@Param("productId") Long productId);
+        /**
+         * 根据产品ID查询所有变体
+         * 
+         * @param productId 产品ID
+         * @return 变体列表
+         */
+        List<ProductVariant> selectByProductId(@Param("productId") Long productId);
 
-    /**
-     * 根据产品ID查询第一个变体
-     * 
-     * @param productId 产品ID
-     * @return 第一个变体对象
-     */
-    ProductVariant selectFirstByProductId(@Param("productId") Long productId);
+        /**
+         * 根据产品ID查询第一个变体
+         * 
+         * @param productId 产品ID
+         * @return 第一个变体对象
+         */
+        ProductVariant selectFirstByProductId(@Param("productId") Long productId);
 
-    /**
-     * 更新变体
-     * 
-     * @param variant 变体对象
-     * @return 影响行数
-     */
-    int update(ProductVariant variant);
+        /**
+         * 更新变体
+         * 
+         * @param variant 变体对象
+         * @return 影响行数
+         */
+        int update(ProductVariant variant);
 
-    /**
-     * 删除变体
-     * 
-     * @param id 变体ID
-     * @return 影响行数
-     */
-    int deleteById(@Param("id") Long id);
+        /**
+         * 删除变体
+         * 
+         * @param id 变体ID
+         * @return 影响行数
+         */
+        int deleteById(@Param("id") Long id);
 
-    /**
-     * 删除产品的所有变体
-     * 
-     * @param productId 产品ID
-     * @return 影响行数
-     */
-    int deleteByProductId(@Param("productId") Long productId);
+        /**
+         * 删除产品的所有变体
+         * 
+         * @param productId 产品ID
+         * @return 影响行数
+         */
+        int deleteByProductId(@Param("productId") Long productId);
 
-    /**
-     * 根据SKU查询变体
-     * 
-     * @param sku SKU
-     * @return 变体对象
-     */
-    ProductVariant selectBySku(@Param("sku") String sku);
+        /**
+         * 根据SKU查询变体
+         * 
+         * @param sku SKU
+         * @return 变体对象
+         */
+        ProductVariant selectBySku(@Param("sku") String sku);
 
-    /**
-     * 更新变体价格和原价
-     * 
-     * @param id             变体ID
-     * @param price          销售价格
-     * @param compareAtPrice 原价（对比价格）
-     * @return 影响行数
-     */
-    int updatePrice(@Param("id") Long id,
-            @Param("price") java.math.BigDecimal price,
-            @Param("compareAtPrice") java.math.BigDecimal compareAtPrice);
+        /**
+         * 更新变体价格和原价
+         * 
+         * @param id             变体ID
+         * @param price          销售价格
+         * @param compareAtPrice 原价（对比价格）
+         * @return 影响行数
+         */
+        int updatePrice(@Param("id") Long id,
+                        @Param("price") java.math.BigDecimal price,
+                        @Param("compareAtPrice") java.math.BigDecimal compareAtPrice);
 }
