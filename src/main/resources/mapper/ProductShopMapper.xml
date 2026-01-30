@@ -36,6 +36,15 @@
         SELECT product_id FROM product_shops WHERE shop_id = #{shopId}
     </select>
 
+    <!-- 根据产品ID列表批量查询商店关联 -->
+    <select id="selectByProductIds" resultMap="ProductShopResultMap">
+        SELECT * FROM product_shops 
+        WHERE product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <!-- 删除产品的所有商店关联 -->
     <delete id="deleteByProductId">
         DELETE FROM product_shops WHERE product_id = #{productId}
@@ -50,5 +59,13 @@
     <delete id="deleteByProductIdAndShopId">
         DELETE FROM product_shops WHERE product_id = #{productId} AND shop_id = #{shopId}
     </delete>
+
+    <!-- 更新刊登状态 -->
+    <update id="updatePublishStatus">
+        UPDATE product_shops
+        SET publish_status = #{status},
+            last_export_time = #{lastExportTime}
+        WHERE product_id = #{productId} AND shop_id = #{shopId}
+    </update>
 
 </mapper>

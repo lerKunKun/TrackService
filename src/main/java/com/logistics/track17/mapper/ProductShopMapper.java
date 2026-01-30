@@ -4,6 +4,7 @@ import com.logistics.track17.entity.ProductShop;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -46,6 +47,14 @@ public interface ProductShopMapper {
     List<Long> selectProductIdsByShopId(@Param("shopId") Long shopId);
 
     /**
+     * 根据产品ID列表批量查询商店关联
+     * 
+     * @param productIds 产品ID列表
+     * @return 关联列表
+     */
+    List<ProductShop> selectByProductIds(@Param("productIds") List<Long> productIds);
+
+    /**
      * 删除产品的所有商店关联
      * 
      * @param productId 产品ID
@@ -69,4 +78,12 @@ public interface ProductShopMapper {
      * @return 影响行数
      */
     int deleteByProductIdAndShopId(@Param("productId") Long productId, @Param("shopId") Long shopId);
+
+    /**
+     * 更新刊登导出状态
+     */
+    int updatePublishStatus(@Param("productId") Long productId,
+            @Param("shopId") Long shopId,
+            @Param("status") Integer status,
+            @Param("lastExportTime") LocalDateTime lastExportTime);
 }

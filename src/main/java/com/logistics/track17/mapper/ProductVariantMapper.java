@@ -53,6 +53,14 @@ public interface ProductVariantMapper {
     ProductVariant selectFirstByProductId(@Param("productId") Long productId);
 
     /**
+     * 批量查询产品的第一个变体 (用于列表展示)
+     * 
+     * @param productIds 产品ID列表
+     * @return 变体列表
+     */
+    List<ProductVariant> selectFirstVariantsByProductIds(@Param("productIds") List<Long> productIds);
+
+    /**
      * 更新变体
      * 
      * @param variant 变体对象

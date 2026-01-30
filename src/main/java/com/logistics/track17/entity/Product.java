@@ -59,4 +59,14 @@ public class Product {
      * 更新时间
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 刊登状态 (非数据库字段, 聚合自 product_shops)
+     */
+    private Integer publishStatus;
+
+    /**
+     * 最后导出时间 (非数据库字段, 聚合自 product_shops)
+     */
+    private LocalDateTime lastExportTime;
 }

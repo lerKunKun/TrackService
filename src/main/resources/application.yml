@@ -2,9 +2,16 @@ spring:
   application:
     name: track-17-server
 
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+      enabled: true
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     hikari:
@@ -54,7 +61,7 @@ jwt:
 track17:
   api:
     url: https://api.17track.net/track/v2.4
-    token: ${TRACK17-TOKEN}
+    token: 872063955E597617098184FDD971DD16
     register-endpoint: /register
     query-endpoint: /gettrackinfo
     timeout: 10000
@@ -62,15 +69,29 @@ track17:
 # Shopify OAuth Configuration
 shopify:
   api:
-    key: ${SHOPIFY_API_KEY}
-    secret: ${SHOPIFY_API_SECRET}
+    key: fb439dc379d34cca96383be85a8eebbf
+    secret: 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
   oauth:
     redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback
     frontend-redirect: http://localhost:3000/shops
   webhook:
-    base-url: http://localhost:8080/api/v1  # 生产环境需要改为公网地址
+    base-url: https://institution-reservoir-float-son.trycloudflare.com/api/v1  # 生产版更换公网URL
 
-# Logging
+# DingTalk OAuth Configuration
+dingtalk:
+  corp-id: ding5a2a2426f8bfaff7a1320dcb25e91351  # 企业CorpId
+  app-key: ding2o5exqttk4d9vjqq  # AppKey (Client ID)
+  app-secret: atE27kNpKYUlwHy9jGHL1T5sPfZUn0gDe3q87uT9kDPF5TWySizUPX-lf0JIHJdP  # AppSecret (Client Secret)
+  redirect-uri: http://localhost:3000/api/v1/auth/dingtalk/callback
+  qr-connect-url: https://login.dingtalk.com/oauth2/auth  # OAuth 2.0 授权地址
+  token-url: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
+  user-info-url: https://api.dingtalk.com/v1.0/contact/users/me
+
+# Security AOP Configuration
+security:
+  aop:
+    enabled: true  # 是否启用AOP鉴权（排除路径在AuthenticationAspect中配置）
+
 logging:
   level:
     com.logistics.track17: DEBUG
@@ -78,3 +99,28 @@ logging:
     org.mybatis: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ========== Shopify Theme Migration Configuration ==========
+
+# 文件存储配置
+storage:
+  type: local  # local / minio
+  local:
+    base-path: ./storage/theme-archives
+
+# MinIO配置（生产环境使用）
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET:shopify-themes}
+
+# Git临时目录
+git:
+  temp-dir: ./temp/git-repos
+
+# 主题迁移配置
+theme-migration:
+  async: true  # 是否异步处理
+  timeout: 300000  # 超时时间(ms)
+  max-upload-size: 104857600  # 最大上传大小(100MB)

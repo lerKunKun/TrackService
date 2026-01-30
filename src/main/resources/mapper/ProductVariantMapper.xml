@@ -22,6 +22,8 @@
         <result property="option3Value" column="option3_value"/>
         <result property="sku" column="sku"/>
         <result property="procurementUrl" column="procurement_url"/>
+        <result property="procurementPrice" column="procurement_price"/>
+        <result property="supplier" column="supplier"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -32,13 +34,13 @@
             product_id, title, price, compare_at_price, image_url,
             inventory_quantity, weight, barcode,
             option1_name, option1_value, option2_name, option2_value, option3_name, option3_value,
-            sku, procurement_url
+            sku
         )
         VALUES (
             #{productId}, #{title}, #{price}, #{compareAtPrice}, #{imageUrl},
             #{inventoryQuantity}, #{weight}, #{barcode},
             #{option1Name}, #{option1Value}, #{option2Name}, #{option2Value}, #{option3Name}, #{option3Value},
-            #{sku}, #{procurementUrl}
+            #{sku}
         )
     </insert>
 
@@ -48,7 +50,7 @@
             product_id, title, price, compare_at_price, image_url,
             inventory_quantity, weight, barcode,
             option1_name, option1_value, option2_name, option2_value, option3_name, option3_value,
-            sku, procurement_url
+            sku
         )
         VALUES
         <foreach collection="variants" item="item" separator=",">
@@ -56,7 +58,7 @@
                 #{item.productId}, #{item.title}, #{item.price}, #{item.compareAtPrice}, #{item.imageUrl},
                 #{item.inventoryQuantity}, #{item.weight}, #{item.barcode},
                 #{item.option1Name}, #{item.option1Value}, #{item.option2Name}, #{item.option2Value},
-                #{item.option3Name}, #{item.option3Value}, #{item.sku}, #{item.procurementUrl}
+                #{item.option3Name}, #{item.option3Value}, #{item.sku}
             )
         </foreach>
     </insert>
@@ -74,6 +76,21 @@
     <!-- 根据产品ID查询第一个变体 -->
     <select id="selectFirstByProductId" resultMap="ProductVariantResultMap">
         SELECT * FROM product_variants WHERE product_id = #{productId} ORDER BY id ASC LIMIT 1
+    </select>
+
+    <!-- 批量查询产品的第一个变体 -->
+    <select id="selectFirstVariantsByProductIds" resultMap="ProductVariantResultMap">
+        SELECT v.* 
+        FROM product_variants v
+        INNER JOIN (
+            SELECT product_id, MIN(id) as min_id
+            FROM product_variants
+            WHERE product_id IN
+            <foreach collection="productIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            GROUP BY product_id
+        ) first_ids ON v.id = first_ids.min_id
     </select>
 
     <!-- 更新变体 -->
@@ -95,6 +112,8 @@
             <if test="option3Value != null">option3_value = #{option3Value},</if>
             <if test="sku != null">sku = #{sku},</if>
             <if test="procurementUrl != null">procurement_url = #{procurementUrl},</if>
+            <if test="procurementPrice != null">procurement_price = #{procurementPrice},</if>
+            <if test="supplier != null">supplier = #{supplier},</if>
         </set>
         WHERE id = #{id}
     </update>
@@ -118,8 +137,8 @@
     <update id="updatePrice">
         UPDATE product_variants
         SET price = #{price},
-            compare_at_price = #{compareAtPrice},
-            updated_at = CURRENT_TIMESTAMP
+        compare_at_price = #{compareAtPrice},
+        updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id}
     </update>
 

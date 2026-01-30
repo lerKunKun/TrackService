@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
-
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -264,5 +264,88 @@ public class ProductController {
     public static class PriceUpdateRequest {
         private BigDecimal price; // 销售价格
         private BigDecimal compareAtPrice; // 原价（划线价）
+    }
+
+    /**
+     * 更新变体采购信息
+     * 可以更新SKU、采购链接、采购价格、供应商等信息
+     * 
+     * @param variantId 变体ID
+     * @param request   采购信息更新请求
+     * @return 更新结果
+     */
+    @PutMapping("/variants/{variantId}/procurement")
+    public ResponseEntity<Map<String, Object>> updateVariantProcurement(
+            @PathVariable Long variantId,
+            @RequestBody VariantProcurementUpdateRequest request) {
+        try {
+            productService.updateVariantProcurement(
+                    variantId,
+                    request.getSku(),
+                    request.getProcurementUrl(),
+                    request.getProcurementPrice(),
+                    request.getSupplier());
+            return ResponseEntity.ok(responseSuccess("变体采购信息更新成功"));
+        } catch (Exception e) {
+            log.error("更新变体采购信息失败", e);
+            return ResponseEntity.status(500).body(responseError("更新失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 导出产品到Shopify CSV格式
+     * 
+     * @param shopId     店铺ID (可选,用于按店铺筛选)
+     * @param productIds 产品ID列表 (可选,逗号分隔)
+     * @return CSV文件下载
+     */
+    @GetMapping("/export/csv")
+    public ResponseEntity<byte[]> exportProductsCSV(
+            @RequestParam(required = false) Long shopId,
+            @RequestParam(required = false) String productIds) {
+        try {
+            // 解析产品ID列表
+            List<Long> ids = null;
+            if (productIds != null && !productIds.trim().isEmpty()) {
+                ids = new ArrayList<>();
+                for (String id : productIds.split(",")) {
+                    try {
+                        ids.add(Long.parseLong(id.trim()));
+                    } catch (NumberFormatException e) {
+                        log.warn("无效的产品ID: {}", id);
+                    }
+                }
+            }
+
+            // 生成CSV内容
+            String csvContent = productService.exportProductsToCSV(shopId, ids);
+            byte[] csvBytes = csvContent.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+            // 设置响应头
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.parseMediaType("text/csv"));
+            headers.setContentDispositionFormData("attachment",
+                    "products_export_" + System.currentTimeMillis() + ".csv");
+            headers.setContentLength(csvBytes.length);
+
+            return new ResponseEntity<>(csvBytes, headers, org.springframework.http.HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("导出CSV失败", e);
+            // 返回错误信息(JSON格式)
+            String errorJson = "{\"success\":false,\"message\":\"导出失败: " + e.getMessage() + "\"}";
+            byte[] errorBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return new ResponseEntity<>(errorBytes, org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * 变体采购信息更新请求DTO
+     */
+    @lombok.Data
+    public static class VariantProcurementUpdateRequest {
+        private String sku;
+        private String procurementUrl;
+        private BigDecimal procurementPrice;
+        private String supplier;
     }
 }

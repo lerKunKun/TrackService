@@ -1,7 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import Layout from '@/views/Layout.vue'
 
 const routes = [
+  {
+    path: '/product/listing',
+    component: Layout,
+    children: [
+      {
+        path: '',
+        name: 'ProductListing',
+        component: () => import('@/views/product/listing/ProductListing.vue'),
+        meta: { title: '产品刊登', icon: 'ShopOutlined' }
+      }
+    ]
+  },
   {
     path: '/login',
     name: 'Login',
@@ -53,7 +66,7 @@ const routes = [
       {
         path: 'product/procurement',
         name: 'ProductProcurement',
-        component: () => import('@/views/product/ComingSoon.vue'),
+        component: () => import('@/views/product/ProcurementManagement.vue'),
         meta: { title: '采购管理' }
       },
       {

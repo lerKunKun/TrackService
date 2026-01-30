@@ -31,6 +31,20 @@ export default {
     },
 
     /**
+     * 导出Shopify CSV
+     * @param {Array} productIds 产品ID列表
+     * @returns {Promise}
+     */
+    async exportShopifyCsv(productIds) {
+        return request({
+            url: '/listing/export/csv',
+            method: 'post',
+            data: { productIds },
+            responseType: 'blob' // 重要：接收文件流
+        })
+    },
+
+    /**
      * 根据ID查询产品详情
      * @param {Number} id 产品ID
      * @returns {Promise}
@@ -90,6 +104,17 @@ export default {
      */
     async updateVariantPrice(variantId, priceData) {
         const response = await request.put(`${API_BASE_URL}/variants/${variantId}/price`, priceData)
+        return response
+    },
+
+    /**
+     * 更新变体采购信息
+     * @param {Number} variantId 变体ID
+     * @param {Object} procurementData - 采购数据 { sku, procurementUrl, procurementPrice, supplier }
+     * @returns {Promise}
+     */
+    async updateVariantProcurement(variantId, procurementData) {
+        const response = await request.put(`${API_BASE_URL}/variants/${variantId}/procurement`, procurementData)
         return response
     }
 }
