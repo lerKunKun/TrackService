@@ -93,6 +93,17 @@
         ) first_ids ON v.id = first_ids.min_id
     </select>
 
+    <!-- 批量统计产品的变体数量 -->
+    <select id="countVariantsByProductIds" resultType="java.util.Map">
+        SELECT product_id, COUNT(*) as count
+        FROM product_variants
+        WHERE product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY product_id
+    </select>
+
     <!-- 更新变体 -->
     <update id="update">
         UPDATE product_variants

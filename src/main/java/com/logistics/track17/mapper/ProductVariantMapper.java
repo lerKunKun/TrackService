@@ -61,6 +61,15 @@ public interface ProductVariantMapper {
     List<ProductVariant> selectFirstVariantsByProductIds(@Param("productIds") List<Long> productIds);
 
     /**
+     * 批量统计产品的变体数量
+     *
+     * @param productIds 产品ID列表
+     * @return 统计结果列表 [{product_id=1, count=3}, ...]
+     */
+    java.util.List<java.util.Map<String, Object>> countVariantsByProductIds(
+            @Param("productIds") java.util.List<Long> productIds);
+
+    /**
      * 更新变体
      * 
      * @param variant 变体对象

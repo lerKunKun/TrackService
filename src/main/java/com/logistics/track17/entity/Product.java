@@ -48,7 +48,7 @@ public class Product {
     /**
      * 产品刊登链接 (P3使用)
      */
-    private String listingUrl;
+    private String productUrl;
 
     /**
      * 创建时间

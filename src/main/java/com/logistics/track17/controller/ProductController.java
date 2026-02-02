@@ -2,6 +2,7 @@ package com.logistics.track17.controller;
 
 import com.logistics.track17.annotation.AuditLog;
 import com.logistics.track17.annotation.RequireAuth;
+import com.logistics.track17.dto.ProductProcurementSummaryDTO;
 import com.logistics.track17.dto.ProductSearchRequest;
 import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductImport;
@@ -335,6 +336,31 @@ public class ProductController {
             String errorJson = "{\"success\":false,\"message\":\"导出失败: " + e.getMessage() + "\"}";
             byte[] errorBytes = errorJson.getBytes(java.nio.charset.StandardCharsets.UTF_8);
             return new ResponseEntity<>(errorBytes, org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * 获取采购管理列表（分页+摘要信息）
+     * 性能优化：只返回产品摘要和变体统计，不返回完整变体列表
+     *
+     * @param page     页码
+     * @param pageSize 每页大小
+     * @param keyword  关键词（可选）
+     * @param status   筛选状态（可选：complete/incomplete/no-info）
+     * @return 分页结果
+     */
+    @GetMapping("/procurement-list")
+    public ResponseEntity<Map<String, Object>> getProcurementList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
+        try {
+            Map<String, Object> result = productService.getProcurementList(page, pageSize, keyword, status);
+            return ResponseEntity.ok(responseSuccess(result));
+        } catch (Exception e) {
+            log.error("获取采购列表失败", e);
+            return ResponseEntity.status(500).body(responseError("查询失败: " + e.getMessage()));
         }
     }
 

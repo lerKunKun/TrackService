@@ -1,6 +1,7 @@
 package com.logistics.track17.service;
 
 import com.logistics.track17.dto.ProductDTO;
+import com.logistics.track17.dto.ProductProcurementSummaryDTO;
 import com.logistics.track17.dto.ProductSearchRequest;
 import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductImport;
@@ -147,6 +148,8 @@ public class ProductService {
 
             String currentHandle = null;
             Product currentProduct = null;
+            // 同一颜色的variants共享第一个variant的图片URL
+            Map<String, String> colorImageMap = new HashMap<>();
 
             for (CSVRecord record : csvParser) {
                 String handle = record.get("Handle");
@@ -168,6 +171,8 @@ public class ProductService {
 
                     products.add(currentProduct);
                     variantsMap.put(handle, new ArrayList<ProductVariant>());
+                    // 新产品时清空颜色图片映射
+                    colorImageMap.clear();
                 }
 
                 // 创建变体
@@ -186,8 +191,24 @@ public class ProductService {
                     variant.setCompareAtPrice(new BigDecimal(compareAtPrice));
                 }
 
-                // 图片
-                variant.setImageUrl(getOptionalField(record, "Image Src"));
+                // 图片处理：同一颜色的variants共享第一个variant的图片
+                String option1Value = getOptionalField(record, "Option1 Value");
+                String colorKey = (option1Value != null && !option1Value.isEmpty()) ? option1Value : "default";
+
+                String variantImage = getOptionalField(record, "Variant Image");
+                if (variantImage == null || variantImage.isEmpty()) {
+                    variantImage = getOptionalField(record, "Image Src");
+                }
+
+                // 如果当前variant有图片URL，记录为该颜色的代表图片
+                if (variantImage != null && !variantImage.isEmpty() && variantImage.startsWith("http")) {
+                    colorImageMap.put(colorKey, variantImage);
+                    variant.setImageUrl(variantImage);
+                } else {
+                    // 如果当前variant无图片，使用同颜色第一个variant的图片
+                    String cachedImage = colorImageMap.get(colorKey);
+                    variant.setImageUrl(cachedImage); // 如果该颜色还没有图片，则为null
+                }
 
                 // SKU
                 variant.setSku(getOptionalField(record, "Variant SKU"));
@@ -252,6 +273,7 @@ public class ProductService {
         // 3. 批量查询关联数据 (如果产品列表非空)
         Map<Long, List<Long>> productShopMap = new HashMap<>(); // productId -> List<shopId>
         Map<Long, ProductVariant> firstVariantMap = new HashMap<>(); // productId -> firstVariant
+        Map<Long, Integer> variantCountMap = new HashMap<>(); // productId -> count
 
         if (!productIds.isEmpty()) {
             // A. 批量查询商店关联
@@ -265,6 +287,14 @@ public class ProductService {
             List<ProductVariant> firstVariants = productVariantMapper.selectFirstVariantsByProductIds(productIds);
             for (ProductVariant v : firstVariants) {
                 firstVariantMap.put(v.getProductId(), v);
+            }
+
+            // C. 批量统计变体数量
+            List<Map<String, Object>> counts = productVariantMapper.countVariantsByProductIds(productIds);
+            for (Map<String, Object> map : counts) {
+                Long pid = ((Number) map.get("product_id")).longValue();
+                Integer count = ((Number) map.get("count")).intValue();
+                variantCountMap.put(pid, count);
             }
         }
 
@@ -289,6 +319,9 @@ public class ProductService {
                 dto.setPrice(firstVariant.getPrice());
                 dto.setCompareAtPrice(firstVariant.getCompareAtPrice());
             }
+
+            // 填充变体数量
+            dto.setVariantCount(variantCountMap.getOrDefault(product.getId(), 0));
 
             productDTOs.add(dto);
         }
@@ -527,12 +560,27 @@ public class ProductService {
             csv.append(escapeCsvField(product.getTags())).append(",");
             csv.append(product.getPublished() == 1 ? "TRUE" : "FALSE").append(",");
 
-            // 变体选项
-            csv.append(escapeCsvField(firstVariant.getOption1Name())).append(",");
-            csv.append(escapeCsvField(firstVariant.getOption1Value())).append(",");
-            csv.append(escapeCsvField(firstVariant.getOption2Name())).append(",");
+            // 变体选项 - 处理必填检查
+            String opt1Name = firstVariant.getOption1Name();
+            String opt1Value = firstVariant.getOption1Value();
+
+            if (opt1Name == null || opt1Name.isEmpty()) {
+                opt1Name = "Title";
+            }
+            if (opt1Value == null || opt1Value.isEmpty()) {
+                opt1Value = variants.size() == 1 ? "Default Title" : firstVariant.getTitle();
+            }
+
+            // 保存最终确定的Option Name，供后续变体验证使用
+            final String finalOpt1Name = opt1Name;
+            final String finalOpt2Name = firstVariant.getOption2Name();
+            final String finalOpt3Name = firstVariant.getOption3Name();
+
+            csv.append(escapeCsvField(finalOpt1Name)).append(",");
+            csv.append(escapeCsvField(opt1Value)).append(",");
+            csv.append(escapeCsvField(finalOpt2Name)).append(",");
             csv.append(escapeCsvField(firstVariant.getOption2Value())).append(",");
-            csv.append(escapeCsvField(firstVariant.getOption3Name())).append(",");
+            csv.append(escapeCsvField(finalOpt3Name)).append(",");
             csv.append(escapeCsvField(firstVariant.getOption3Value())).append(",");
 
             // 变体信息 (仅包含店铺SKU,不包含采购信息)
@@ -553,7 +601,7 @@ public class ProductService {
             csv.append("FALSE,"); // Gift Card
 
             // SEO和Google Shopping字段 (暂时留空)
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 15; i++) {
                 csv.append(",");
             }
 
@@ -570,15 +618,38 @@ public class ProductService {
 
                 // 产品信息列留空,仅填写Handle
                 csv.append(escapeCsvField(product.getHandle())).append(",");
-                csv.append(",,,,,,"); // Title到Published留空
+                csv.append(",,,,,"); // Title到Published留空
 
-                // 变体选项
-                csv.append(escapeCsvField(variant.getOption1Name())).append(",");
-                csv.append(escapeCsvField(variant.getOption1Value())).append(",");
-                csv.append(escapeCsvField(variant.getOption2Name())).append(",");
-                csv.append(escapeCsvField(variant.getOption2Value())).append(",");
-                csv.append(escapeCsvField(variant.getOption3Name())).append(",");
-                csv.append(escapeCsvField(variant.getOption3Value())).append(",");
+                // 变体选项 - 后续变体不需要重复Option Name，只填Value
+                csv.append(","); // Option1 Name 留空
+
+                String variantOpt1Value = matchOptionValue(variant, finalOpt1Name, 1);
+                if (variantOpt1Value == null || variantOpt1Value.isEmpty()) {
+                    // 尝试使用标题
+                    variantOpt1Value = variant.getTitle();
+                }
+                // 如果标题也为空，且第一行定义了Option1 Name，必须填充默认值
+                if ((variantOpt1Value == null || variantOpt1Value.isEmpty())
+                        && (finalOpt1Name != null && !finalOpt1Name.isEmpty())) {
+                    variantOpt1Value = "Default Value " + (i + 1);
+                }
+                csv.append(escapeCsvField(variantOpt1Value)).append(",");
+
+                csv.append(","); // Option2 Name 留空
+                String variantOpt2Value = matchOptionValue(variant, finalOpt2Name, 2);
+                if ((variantOpt2Value == null || variantOpt2Value.isEmpty())
+                        && (finalOpt2Name != null && !finalOpt2Name.isEmpty())) {
+                    variantOpt2Value = "Default Value " + (i + 1);
+                }
+                csv.append(escapeCsvField(variantOpt2Value)).append(",");
+
+                csv.append(","); // Option3 Name 留空
+                String variantOpt3Value = matchOptionValue(variant, finalOpt3Name, 3);
+                if ((variantOpt3Value == null || variantOpt3Value.isEmpty())
+                        && (finalOpt3Name != null && !finalOpt3Name.isEmpty())) {
+                    variantOpt3Value = "Default Value " + (i + 1);
+                }
+                csv.append(escapeCsvField(variantOpt3Value)).append(",");
 
                 // 变体信息
                 csv.append(escapeCsvField(variant.getSku())).append(",");
@@ -590,16 +661,21 @@ public class ProductService {
                 csv.append(variant.getCompareAtPrice() != null ? variant.getCompareAtPrice() : "").append(",");
                 csv.append("TRUE,TRUE,");
                 csv.append(escapeCsvField(variant.getBarcode())).append(",");
-                csv.append(escapeCsvField(variant.getImageUrl())).append(",");
+                csv.append(","); // Image Src留空（只有第一个variant有，后续variant通过Variant Image引用）
                 csv.append((i + 1) + ",");
 
                 // 其余字段留空
-                for (int j = 0; j < 21; j++) {
+                for (int j = 0; j < 17; j++) {
                     csv.append(",");
                 }
 
-                csv.append(escapeCsvField(variant.getImageUrl())).append(",");
-                csv.append("g,,,,");
+                String finalVariantImage = variant.getImageUrl();
+                // 移除强制兜底逻辑，避免将主图(如粉色)强行赋予没有图片的变体(如裸色)
+                // if (finalVariantImage == null || finalVariantImage.isEmpty()) {
+                // finalVariantImage = firstVariant.getImageUrl();
+                // }
+                csv.append(escapeCsvField(finalVariantImage)).append(",");
+                csv.append("g,,,");
                 csv.append("\n");
             }
         }
@@ -622,5 +698,84 @@ public class ProductService {
         }
 
         return field;
+    }
+
+    /**
+     * 根据 Option Name 匹配变体的 Option Value
+     * 解决变体 Option 顺序与 Header 不一致的问题
+     * 如果变体没有Option Name信息，则回退到按位置匹配
+     */
+    private String matchOptionValue(ProductVariant variant, String targetName, int defaultPosition) {
+        if (targetName == null || targetName.isEmpty()) {
+            return null;
+        }
+
+        // 1. 尝试按名称匹配 (Smart Mapping)
+        if (targetName.equals(variant.getOption1Name())) {
+            return variant.getOption1Value();
+        }
+        if (targetName.equals(variant.getOption2Name())) {
+            return variant.getOption2Value();
+        }
+        if (targetName.equals(variant.getOption3Name())) {
+            return variant.getOption3Value();
+        }
+
+        // 2. 如果没找到匹配，检查变体是否缺失 Option Name 信息
+        // 如果该位置的 Option Name 为空，说明变体可能只是简单存储了 Value，此时回退到位置匹配
+        String nameAtPos = null;
+        if (defaultPosition == 1)
+            nameAtPos = variant.getOption1Name();
+        else if (defaultPosition == 2)
+            nameAtPos = variant.getOption2Name();
+        else if (defaultPosition == 3)
+            nameAtPos = variant.getOption3Name();
+
+        if (nameAtPos == null || nameAtPos.isEmpty()) {
+            if (defaultPosition == 1)
+                return variant.getOption1Value();
+            else if (defaultPosition == 2)
+                return variant.getOption2Value();
+            else if (defaultPosition == 3)
+                return variant.getOption3Value();
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取采购管理列表（分页+摘要信息）
+     * 性能优化版本：使用JOIN查询，一次性获取产品和变体统计
+     *
+     * @param page     页码
+     * @param pageSize 每页大小
+     * @param keyword  搜索关键词
+     * @param status   筛选状态 (complete/incomplete/no-info)
+     * @return 分页结果
+     */
+    public Map<String, Object> getProcurementList(Integer page, Integer pageSize, String keyword, String status) {
+        // 计算偏移量
+        int offset = (page - 1) * pageSize;
+
+        // 构建查询参数
+        Map<String, Object> params = new HashMap<>();
+        params.put("offset", offset);
+        params.put("pageSize", pageSize);
+        params.put("keyword", keyword != null && !keyword.trim().isEmpty() ? keyword.trim() : null);
+        params.put("status", status);
+
+        // 查询数据
+        List<ProductProcurementSummaryDTO> list = productMapper.selectProcurementList(params);
+        long total = productMapper.countProcurementList(params);
+
+        // 构建返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("pageSize", pageSize);
+        result.put("totalPages", (total + pageSize - 1) / pageSize);
+
+        return result;
     }
 }

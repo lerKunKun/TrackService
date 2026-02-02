@@ -121,7 +121,7 @@
 
         <div v-else class="product-list">
           <div 
-            v-for="product in paginatedProducts" 
+            v-for="product in productGroups" 
             :key="product.key"
             class="product-card"
             :class="{ 'is-expanded': expandedRowKeys.includes(product.key) }"
@@ -193,9 +193,18 @@
                   <div class="variant-content">
                     <div class="variant-main">
                       <div class="variant-title-section">
-                        <span class="variant-name">{{ variant.title || '默认变体' }}</span>
-                        <a-tag v-if="variant.sku" size="small" color="blue">{{ variant.sku }}</a-tag>
-                        <a-tag v-else size="small">无SKU</a-tag>
+                        <div v-if="getVariantOptions(variant).length > 0" class="variant-options-list">
+                          <div v-for="(opt, idx) in getVariantOptions(variant)" :key="idx" class="variant-option-item">
+                            <span class="opt-name">{{ opt.name }}:</span>
+                            <span class="opt-value">{{ opt.value }}</span>
+                          </div>
+                        </div>
+                        <span v-else class="variant-name">{{ formatVariantTitle(variant) }}</span>
+                        
+                        <div class="sku-tag-wrapper">
+                          <a-tag v-if="variant.sku" size="small" color="blue">{{ variant.sku }}</a-tag>
+                          <a-tag v-else size="small">无SKU</a-tag>
+                        </div>
                       </div>
 
                       <div class="variant-procurement">
@@ -266,10 +275,11 @@
         <a-pagination
           v-model:current="pagination.current"
           v-model:page-size="pagination.pageSize"
-          :total="filteredProducts.length"
+          :total="pagination.total"
           :show-size-changer="true"
           :show-total="total => `共 ${total} 个产品`"
           :page-size-options="['5', '10', '20', '50']"
+          @change="handlePageChange"
         />
       </div>
     </div>
@@ -479,7 +489,8 @@ const filters = reactive({
 // 分页
 const pagination = reactive({
   current: 1,
-  pageSize: 20
+  pageSize: 20,
+  total: 0  // 总数从服务端获取
 })
 
 // 编辑模态框
@@ -500,9 +511,10 @@ const batchForm = ref({
 
 // 统计数据
 const stats = computed(() => {
-  const total = productGroups.value.length
+  const total = pagination.total || 0  // 使用服务端total
+  // 完成度从productGroups中计算
   const complete = productGroups.value.filter(p => p.allComplete).length
-  const incomplete = total - complete
+  const incomplete = productGroups.value.filter(p => !p.allComplete).length
   
   return {
     totalProducts: total,
@@ -516,42 +528,6 @@ const hasActiveFilters = computed(() => {
   return !!(filters.keyword || filters.supplier || filters.status)
 })
 
-// 筛选后的产品列表
-const filteredProducts = computed(() => {
-  let result = [...productGroups.value]
-  
-  if (filters.keyword) {
-    const keyword = filters.keyword.toLowerCase()
-    result = result.filter(p => 
-      p.title?.toLowerCase().includes(keyword) ||
-      p.variants.some(v => v.sku?.toLowerCase().includes(keyword))
-    )
-  }
-  
-  if (filters.supplier) {
-    result = result.filter(p => 
-      p.variants.some(v => v.supplier === filters.supplier)
-    )
-  }
-  
-  if (filters.status === 'complete') {
-    result = result.filter(p => p.allComplete)
-  } else if (filters.status === 'incomplete') {
-    result = result.filter(p => !p.allComplete && p.hasProcurement)
-  } else if (filters.status === 'no-info') {
-    result = result.filter(p => !p.hasProcurement)
-  }
-  
-  return result
-})
-
-// 分页后的产品列表
-const paginatedProducts = computed(() => {
-  const start = (pagination.current - 1) * pagination.pageSize
-  const end = start + pagination.pageSize
-  return filteredProducts.value.slice(start, end)
-})
-
 // 供应商选项
 const supplierOptions = computed(() => {
   return suppliers.value.map(s => ({ value: s }))
@@ -559,64 +535,79 @@ const supplierOptions = computed(() => {
 
 // 方法
 
-// 获取产品列表
+// 跟踪正在加载变体的产品
+const loadingVariants = ref(new Set())
+
+// 懒加载变体详情
+const loadVariantDetails = async (productId) => {
+  if (loadingVariants.value.has(productId)) return
+  
+  loadingVariants.value.add(productId)
+  try {
+    const response = await productApi.getProductVariants(productId)
+    const variants = response.data || []
+    
+    // Backfill option names
+    const option1Name = variants.find(v => v.option1Name)?.option1Name
+    const option2Name = variants.find(v => v.option2Name)?.option2Name
+    const option3Name = variants.find(v => v.option3Name)?.option3Name
+    
+    variants.forEach(v => {
+      if (!v.option1Name && option1Name) v.option1Name = option1Name
+      if (!v.option2Name && option2Name) v.option2Name = option2Name
+      if (!v.option3Name && option3Name) v.option3Name = option3Name
+    })
+    
+    // 更新产品的variants
+    const product = productGroups.value.find(p => p.productId === productId)
+    if (product) {
+      product.variants = variants.map(v => ({
+        ...v,
+        key: `variant-${v.id}`,
+        variantId: v.id,
+        productId: productId,
+        productTitle: product.title
+      }))
+    }
+  } catch (error) {
+    console.error(`获取产品${productId}变体失败:`, error)
+    message.error('加载变体失败')
+  } finally {
+    loadingVariants.value.delete(productId)
+  }
+}
+
+// 获取产品列表（服务端分页）
 const fetchProcurementList = async () => {
   loading.value = true
   try {
-    // 获取所有产品以支持前端筛选(状态/供应商等复杂筛选)
-    const response = await productApi.getProductList({ page: 1, pageSize: 1000 })
+    const response = await productApi.getProcurementList({
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+      keyword: filters.keyword || null,
+      status: filters.status || null
+    })
+    
     if (response.success && response.data) {
-      const products = response.data.list || []
+      productGroups.value = response.data.list.map(product => ({
+        key: `product-${product.id}`,
+        productId: product.id,
+        title: product.title,
+        imageUrl: product.imageUrl,
+        variantCount: product.variantCount,
+        allComplete: product.variantCount > 0 && 
+                     product.completeVariantCount === product.variantCount,
+        hasProcurement: product.completeVariantCount > 0,
+        publishStatus: product.publishStatus,
+        lastExportTime: product.lastExportTime,
+        variants: []  // 初始为空，展开时才加载
+      }))
       
-      const productPromises = products.map(async (product) => {
-        try {
-          const variantsResp = await productApi.getProductVariants(product.id)
-          const variants = variantsResp.data || []
-          
-          const allComplete = variants.length > 0 && variants.every(v => 
-            v.sku && v.procurementUrl && v.procurementPrice && v.supplier
-          )
-          
-          const hasProcurement = variants.some(v => 
-            v.procurementUrl || v.procurementPrice || v.supplier
-          )
-          
-          return {
-            key: `product-${product.id}`,
-            productId: product.id,
-            title: product.title,
-            imageUrl: product.imageUrl || (variants[0]?.imageUrl),
-            variantCount: variants.length,
-            allComplete,
-            variantCount: variants.length,
-            allComplete,
-            hasProcurement,
-            publishStatus: product.publishStatus,
-            lastExportTime: product.lastExportTime,
-            variants: variants.map(v => ({
-              ...v,
-              key: `variant-${v.id}`,
-              variantId: v.id,
-              productId: product.id,
-              productTitle: product.title
-            }))
-          }
-        } catch (error) {
-          console.error(`获取产品${product.id}变体失败:`, error)
-          return null
-        }
-      })
-
-      const allProducts = (await Promise.all(productPromises)).filter(p => p !== null)
-      productGroups.value = allProducts
+      pagination.total = response.data.total
       
-      // 提取唯一供应商
-      const allVariants = allProducts.flatMap(p => p.variants)
-      const uniqueSuppliers = [...new Set(allVariants.map(v => v.supplier).filter(s => s))]
-      suppliers.value = uniqueSuppliers.sort()
-      
-      // 默认展开前5个产品
-      // expandedRowKeys.value = allProducts.slice(0, 5).map(p => p.key)
+      // 从所有变体中提取供应商（需要单独查询或保留现有逻辑）
+      // 注意：由于现在不加载所有变体，供应商筛选可能需要后端支持
+      // 这里暂时保留现有逻辑，如果需要供应商筛选功能，需要后端返回供应商列表
     }
   } catch (error) {
     console.error('获取采购信息列表失败:', error)
@@ -635,9 +626,10 @@ const debouncedSearch = () => {
   }, 500)
 }
 
-// 搜索
+// 搜索（重置分页并重新加载）
 const handleSearch = () => {
   pagination.current = 1
+  fetchProcurementList()
 }
 
 // 重置筛选
@@ -654,14 +646,27 @@ const handleRefresh = () => {
   fetchProcurementList()
 }
 
-// 切换展开
-const toggleExpand = (key) => {
+// 切换展开（懒加载变体）
+const toggleExpand = async (key) => {
   const index = expandedRowKeys.value.indexOf(key)
   if (index > -1) {
+    // 收起
     expandedRowKeys.value.splice(index, 1)
   } else {
+    // 展开 - 先检查是否已加载变体
+    const product = productGroups.value.find(p => p.key === key)
+    if (product && product.variants.length === 0) {
+      await loadVariantDetails(product.productId)
+    }
     expandedRowKeys.value.push(key)
   }
+}
+
+// 分页改变（重新加载数据）
+const handlePageChange = (page, pageSize) => {
+  pagination.current = page
+  pagination.pageSize = pageSize
+  fetchProcurementList()
 }
 
 // 变体选择
@@ -728,6 +733,46 @@ const getProductStatusText = (product) => {
   return '无采购信息'
 }
 
+// 获取变体属性列表
+const getVariantOptions = (variant) => {
+    const options = []
+    
+    if (variant.option1Value && variant.option1Value !== 'Default Title') {
+        // 如果有name就显示name，没有就只显示value
+        options.push({
+            name: variant.option1Name || 'Option 1',
+            value: variant.option1Value
+        })
+    }
+    if (variant.option2Value) {
+        options.push({
+            name: variant.option2Name || 'Option 2',
+            value: variant.option2Value
+        })
+    }
+    if (variant.option3Value) {
+        options.push({
+            name: variant.option3Name || 'Option 3',
+            value: variant.option3Value
+        })
+    }
+    
+    return options
+}
+
+// 格式化变体标题 (用于纯文本展示，如编辑框)
+const formatVariantTitle = (variant) => {
+    const options = getVariantOptions(variant)
+    if (options.length > 0) {
+        return options.map(o => `${o.name}:${o.value}`).join(' ')
+    }
+    
+    if (variant.title && variant.title !== 'Default Title' && variant.title !== 'Default Variant') {
+        return variant.title
+    }
+    return '单变体'
+}
+
 // 计算利润
 const getProfit = (variant) => {
   if (!variant.price || !variant.procurementPrice) return 0
@@ -747,7 +792,7 @@ const handleEdit = (variant) => {
     variantId: variant.variantId || variant.id,
     productId: variant.productId,
     productTitle: variant.productTitle,
-    variantTitle: variant.title,
+    variantTitle: formatVariantTitle(variant),
     sku: variant.sku || '',
     price: variant.price || 0,
     procurementUrl: variant.procurementUrl || '',
@@ -856,14 +901,7 @@ const filterSupplier = (input, option) => {
   return option.value.toLowerCase().includes(input.toLowerCase())
 }
 
-// 监听筛选条件变化
-watch(() => filteredProducts.value.length, () => {
-  // 筛选结果变化时重置到第一页
-  if (pagination.current > 1 && paginatedProducts.value.length === 0) {
-    pagination.current = 1
-  }
-})
-
+// 页面挂载时加载数据
 onMounted(() => {
   fetchProcurementList()
 })
@@ -877,7 +915,7 @@ onMounted(() => {
   background-color: #52c41a;
   color: #fff;
 }
-</style>
+
 /* 使用更现代的配色方案 */
 .procurement-page {
   min-height: 100vh;
@@ -1407,4 +1445,30 @@ onMounted(() => {
     white-space: normal;
   }
 }
+  .variant-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .variant-option-item {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #333;
+  }
+  
+  .opt-name {
+    color: #666;
+    margin-right: 4px;
+    font-weight: 500;
+  }
+  
+  .opt-value {
+    color: #111;
+    font-weight: 600;
+  }
+  
+  .sku-tag-wrapper {
+    margin-top: 4px;
+  }
 </style>

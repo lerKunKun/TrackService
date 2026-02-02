@@ -59,4 +59,9 @@ public class ProductDTO {
      * 第一个变体的原价
      */
     private BigDecimal compareAtPrice;
+
+    /**
+     * 变体数量
+     */
+    private Integer variantCount;
 }

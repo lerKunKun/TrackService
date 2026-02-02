@@ -4,18 +4,6 @@ import Layout from '@/views/Layout.vue'
 
 const routes = [
   {
-    path: '/product/listing',
-    component: Layout,
-    children: [
-      {
-        path: '',
-        name: 'ProductListing',
-        component: () => import('@/views/product/listing/ProductListing.vue'),
-        meta: { title: '产品刊登', icon: 'ShopOutlined' }
-      }
-    ]
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/Login.vue'),
@@ -72,7 +60,7 @@ const routes = [
       {
         path: 'product/listing',
         name: 'ProductListing',
-        component: () => import('@/views/product/ComingSoon.vue'),
+        component: () => import('@/views/product/listing/ProductListing.vue'),
         meta: { title: '产品刊登' }
       },
       {

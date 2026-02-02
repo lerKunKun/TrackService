@@ -108,6 +108,16 @@ export default {
     },
 
     /**
+     * 获取采购管理列表（分页+摘要，性能优化版）
+     * @param {Object} params - 查询参数 { page, pageSize, keyword, status }
+     * @returns {Promise}
+     */
+    async getProcurementList(params) {
+        const response = await request.get(`${API_BASE_URL}/procurement-list`, { params })
+        return response
+    },
+
+    /**
      * 更新变体采购信息
      * @param {Number} variantId 变体ID
      * @param {Object} procurementData - 采购数据 { sku, procurementUrl, procurementPrice, supplier }
