@@ -19,7 +19,7 @@ const routes = [
     path: '/',
     component: () => import('@/views/Layout.vue'),
     redirect: '/dashboard',
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, title: '首页' },
     children: [
       {
         path: 'dashboard',
@@ -62,6 +62,12 @@ const routes = [
         name: 'ProductListing',
         component: () => import('@/views/product/listing/ProductListing.vue'),
         meta: { title: '产品刊登' }
+      },
+      {
+        path: 'product/authorization',
+        name: 'ProductAuthorization',
+        component: () => import('@/views/product/ProductAuthorization.vue'),
+        meta: { title: '产品可见性' }
       },
       {
         path: 'system/users',

@@ -32,19 +32,59 @@ public class ShopService {
     /**
      * 创建店铺（直接使用Shop对象，用于OAuth流程）
      */
+    /**
+     * 创建店铺（直接使用Shop对象，用于OAuth流程）
+     */
     @Transactional(rollbackFor = Exception.class)
     public Shop create(Shop shop) {
-        log.info("Creating shop from OAuth: {}", shop.getShopName());
+        log.info("Creating shop: {}", shop.getShopName());
 
         // 设置默认时区
         if (StringUtils.isBlank(shop.getTimezone())) {
             shop.setTimezone("UTC");
         }
 
-        shopMapper.insert(shop);
+        try {
+            shopMapper.insert(shop);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            log.warn("Shop create failed due to duplicate key, trying update instead: {}", shop.getShopDomain());
+            Shop existing = getByShopDomain(shop.getShopDomain());
+            if (existing != null) {
+                shop.setId(existing.getId());
+                update(shop);
+                return shop;
+            } else {
+                throw e;
+            }
+        }
 
         log.info("Shop created successfully with ID: {}", shop.getId());
         return shop;
+    }
+
+    /**
+     * 保存或更新店铺 (Upsert logic)
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Shop saveOrUpdateShop(Shop shop) {
+        if (StringUtils.isBlank(shop.getShopDomain())) {
+            throw BusinessException.of("Shop domain is required");
+        }
+
+        Shop existingShop = getByShopDomain(shop.getShopDomain());
+
+        if (existingShop != null) {
+            log.info("Shop exists, updating: {}", shop.getShopDomain());
+            shop.setId(existingShop.getId());
+            // Preserve fields that shouldn't be overwritten blindly if new is null
+            if (shop.getUserId() == null)
+                shop.setUserId(existingShop.getUserId());
+
+            update(shop);
+            return shop;
+        } else {
+            return create(shop);
+        }
     }
 
     /**

@@ -68,7 +68,8 @@
     <select id="selectByPage" resultMap="ProductResultMap">
         SELECT DISTINCT p.*,
         (SELECT MAX(publish_status) FROM product_shops WHERE product_id = p.id) as publishStatus,
-        (SELECT MAX(last_export_time) FROM product_shops WHERE product_id = p.id) as lastExportTime
+        (SELECT MAX(last_export_time) FROM product_shops WHERE product_id = p.id) as lastExportTime,
+        (SELECT v.image_url FROM product_variants v WHERE v.product_id = p.id AND v.image_url IS NOT NULL LIMIT 1) as imageUrl
         FROM products p
         <if test="shopId != null">
             LEFT JOIN product_shops ps ON p.id = ps.product_id

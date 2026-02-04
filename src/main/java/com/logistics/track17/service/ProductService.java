@@ -395,7 +395,10 @@ public class ProductService {
 
         // 添加新关联
         if (shopIds != null && !shopIds.isEmpty()) {
-            productShopMapper.batchInsert(productId, shopIds);
+            Long currentUserId = com.logistics.track17.util.UserContextHolder.getCurrentUserId();
+            // Default to NOT_PUBLISHED (0) or similar, and use current user as
+            // publisher/associator
+            productShopMapper.batchInsert(productId, shopIds, currentUserId, 0);
         }
     }
 

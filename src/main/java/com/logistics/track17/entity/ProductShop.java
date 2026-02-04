@@ -25,6 +25,21 @@ public class ProductShop {
     private Long shopId;
 
     /**
+     * Who published this product (user ID)
+     */
+    private Long publishedBy;
+
+    /**
+     * Publish status (0: not published, 1: published, 2: unpublished)
+     */
+    private Integer publishStatus;
+
+    /**
+     * Last export time
+     */
+    private LocalDateTime lastExportTime;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

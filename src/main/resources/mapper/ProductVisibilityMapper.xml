@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ProductVisibilityMapper">
+
+    <!-- Result Map -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.ProductVisibility">
+        <id column="id" property="id"/>
+        <result column="product_id" property="productId"/>
+        <result column="user_id" property="userId"/>
+        <result column="role_id" property="roleId"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="granted_by" property="grantedBy"/>
+        <result column="granted_at" property="grantedAt"/>
+        <result column="expires_at" property="expiresAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- Base Columns -->
+    <sql id="Base_Column_List">
+        id, product_id, user_id, role_id, shop_id, granted_by, granted_at, expires_at, created_at, updated_at
+    </sql>
+
+    <!-- Insert -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.ProductVisibility" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product_visibility (
+            product_id, user_id, role_id, shop_id, granted_by, granted_at, expires_at
+        ) VALUES (
+            #{productId}, #{userId}, #{roleId}, #{shopId}, #{grantedBy}, #{grantedAt}, #{expiresAt}
+        )
+    </insert>
+
+    <!-- Batch Insert -->
+    <insert id="batchInsert">
+        INSERT INTO product_visibility (
+            product_id, user_id, role_id, shop_id, granted_by, granted_at, expires_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.productId}, #{item.userId}, #{item.roleId}, #{item.shopId},
+             #{item.grantedBy}, #{item.grantedAt}, #{item.expiresAt})
+        </foreach>
+    </insert>
+
+    <!-- Delete by ID -->
+    <delete id="deleteById">
+        DELETE FROM product_visibility WHERE id = #{id}
+    </delete>
+
+    <!-- Delete by product and user -->
+    <delete id="deleteByProductAndUser">
+        DELETE FROM product_visibility 
+        WHERE product_id = #{productId} 
+          AND user_id = #{userId}
+    </delete>
+
+    <!-- Delete by product and role -->
+    <delete id="deleteByProductAndRole">
+        DELETE FROM product_visibility 
+        WHERE product_id = #{productId} 
+          AND role_id = #{roleId}
+    </delete>
+
+    <!-- Batch delete by product IDs -->
+    <delete id="deleteByProductIds">
+        DELETE FROM product_visibility 
+        WHERE product_id IN
+        <foreach collection="productIds" item="productId" open="(" separator="," close=")">
+            #{productId}
+        </foreach>
+    </delete>
+
+    <!-- Select by ID -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM product_visibility
+        WHERE id = #{id}
+    </select>
+
+    <!-- Check user visibility to product -->
+    <select id="existsByUserAndProduct" resultType="int">
+        SELECT COUNT(*)
+        FROM product_visibility
+        WHERE user_id = #{userId}
+          AND product_id = #{productId}
+          <if test="shopId != null">
+              AND (shop_id IS NULL OR shop_id = #{shopId})
+          </if>
+          AND (expires_at IS NULL OR expires_at > NOW())
+    </select>
+
+    <!-- Check role visibility to product -->
+    <select id="existsByRolesAndProduct" resultType="int">
+        SELECT COUNT(*)
+        FROM product_visibility
+        WHERE role_id IN
+        <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+            #{roleId}
+        </foreach>
+        AND product_id = #{productId}
+        <if test="shopId != null">
+            AND (shop_id IS NULL OR shop_id = #{shopId})
+        </if>
+        AND (expires_at IS NULL OR expires_at > NOW())
+    </select>
+
+    <!-- Select authorized products -->
+    <select id="selectAuthorizedProducts" resultType="com.logistics.track17.entity.Product">
+        SELECT DISTINCT p.*,
+        (SELECT v.image_url FROM product_variants v WHERE v.product_id = p.id AND v.image_url IS NOT NULL LIMIT 1) as imageUrl
+        FROM products p
+        INNER JOIN product_visibility pv ON p.id = pv.product_id
+        WHERE (
+            (pv.user_id = #{userId})
+            OR 
+            (pv.role_id IN
+            <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+                #{roleId}
+            </foreach>
+            )
+        )
+        <if test="shopId != null">
+            AND (pv.shop_id IS NULL OR pv.shop_id = #{shopId})
+        </if>
+        AND (pv.expires_at IS NULL OR pv.expires_at > NOW())
+        <if test="keyword != null and keyword != ''">
+            AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.handle LIKE CONCAT('%', #{keyword}, '%')
+                OR p.vendor LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY p.id DESC
+        <if test="limit != null and limit > 0">
+            LIMIT #{offset}, #{limit}
+        </if>
+    </select>
+
+    <!-- Count authorized products -->
+    <select id="countAuthorizedProducts" resultType="int">
+        SELECT COUNT(DISTINCT p.id)
+        FROM products p
+        INNER JOIN product_visibility pv ON p.id = pv.product_id
+        WHERE (
+            (pv.user_id = #{userId})
+            OR 
+            (pv.role_id IN
+            <foreach collection="roleIds" item="roleId" open="(" separator="," close=")">
+                #{roleId}
+            </foreach>
+            )
+        )
+        <if test="shopId != null">
+            AND (pv.shop_id IS NULL OR pv.shop_id = #{shopId})
+        </if>
+        AND (pv.expires_at IS NULL OR pv.expires_at > NOW())
+        <if test="keyword != null and keyword != ''">
+            AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.handle LIKE CONCAT('%', #{keyword}, '%')
+                OR p.vendor LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </select>
+
+    <!-- Select by product ID -->
+    <select id="selectByProductId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM product_visibility
+        WHERE product_id = #{productId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Select by granted by -->
+    <select id="selectByGrantedBy" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM product_visibility
+        WHERE granted_by = #{grantedBy}
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>

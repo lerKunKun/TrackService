@@ -55,7 +55,6 @@
             @click="handleSelectLeft(item)"
           >
             <a-avatar :src="item.avatar" :size="40" class="item-avatar">
-              <template #icon><UserOutlined /></template>
             </a-avatar>
             <div class="item-info">
               <div class="item-name">{{ item.name }}</div>
@@ -193,7 +192,6 @@
           <div class="link-parties">
             <div class="party">
               <a-avatar :src="selectedLeft.avatar" :size="48">
-                <template #icon><UserOutlined /></template>
               </a-avatar>
               <span>{{ selectedLeft.name }}</span>
             </div>
@@ -292,6 +290,7 @@ import {
 import { userApi } from '@/api/user'
 import { roleApi } from '@/api/role'
 import { permissionApi } from '@/api/permission'
+import request from '@/utils/request'
 
 // 视图切换
 const activeView = ref('users')
@@ -345,6 +344,10 @@ const filterTags = computed(() => {
   ]
 })
 
+
+// 默认头像
+const defaultAvatar = new URL('../../assets/default-avatar.png', import.meta.url).href
+
 // 左侧列表
 const leftList = computed(() => {
   if (activeView.value === 'users') {
@@ -352,7 +355,7 @@ const leftList = computed(() => {
       id: u.id,
       name: u.realName || u.username,
       description: u.department || u.email,
-      avatar: u.avatar,
+      avatar: u.avatar || defaultAvatar,
       roles: u.roles || [],
       connectionCount: (u.roles?.length || 0)
     }))
@@ -467,7 +470,19 @@ const handleSelectLeft = async (item) => {
   if (activeView.value === 'users') {
     pendingChanges.value.roleIds = item.roles?.map(r => r.id) || []
   } else {
-    pendingChanges.value.permissionIds = item.permissions?.map(p => p.id) || []
+    // 角色视图：加载角色权限
+    try {
+      const permissions = await roleApi.getPermissions(item.id)
+      item.permissions = permissions || []
+      // 强制更新 selectedLeft 以触发视图刷新
+      selectedLeft.value = { ...item }
+      pendingChanges.value.permissionIds = permissions?.map(p => p.id) || []
+    } catch (error) {
+      console.error('加载角色权限失败:', error)
+      item.permissions = []
+      selectedLeft.value = { ...item }
+      pendingChanges.value.permissionIds = []
+    }
   }
 }
 
@@ -511,11 +526,15 @@ const handleFilterAssets = () => {
 const handleSyncDingtalk = async () => {
   syncing.value = true
   try {
-    // TODO: 调用钉钉同步API
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    message.success('同步成功')
-    loadData()
+    const response = await request.post('/dingtalk/sync/full')
+    if (response.code === 200) {
+      message.success('同步指令已发送，后台正在处理')
+      loadData()
+    } else {
+      message.error(response.message || '同步失败')
+    }
   } catch (error) {
+    console.error('同步钉钉失败:', error)
     message.error('同步失败')
   } finally {
     syncing.value = false

@@ -8,21 +8,24 @@
         <id property="id" column="id"/>
         <result property="productId" column="product_id"/>
         <result property="shopId" column="shop_id"/>
+        <result property="publishedBy" column="published_by"/>
+        <result property="publishStatus" column="publish_status"/>
+        <result property="lastExportTime" column="last_export_time"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
     <!-- 插入产品商店关联 -->
     <insert id="insert" parameterType="com.logistics.track17.entity.ProductShop" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO product_shops (product_id, shop_id)
-        VALUES (#{productId}, #{shopId})
+        INSERT INTO product_shops (product_id, shop_id, published_by, publish_status, last_export_time)
+        VALUES (#{productId}, #{shopId}, #{publishedBy}, #{publishStatus}, #{lastExportTime})
     </insert>
 
     <!-- 批量插入关联关系 -->
     <insert id="batchInsert">
-        INSERT INTO product_shops (product_id, shop_id)
+        INSERT INTO product_shops (product_id, shop_id, published_by, publish_status, last_export_time)
         VALUES
         <foreach collection="shopIds" item="shopId" separator=",">
-            (#{productId}, #{shopId})
+            (#{productId}, #{shopId}, #{publishedBy}, #{publishStatus}, NOW())
         </foreach>
     </insert>
 
@@ -64,7 +67,8 @@
     <update id="updatePublishStatus">
         UPDATE product_shops
         SET publish_status = #{status},
-            last_export_time = #{lastExportTime}
+            last_export_time = #{lastExportTime},
+            published_by = #{publishedBy}
         WHERE product_id = #{productId} AND shop_id = #{shopId}
     </update>
 

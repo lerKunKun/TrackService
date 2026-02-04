@@ -69,4 +69,9 @@ public class Product {
      * 最后导出时间 (非数据库字段, 聚合自 product_shops)
      */
     private LocalDateTime lastExportTime;
+
+    /**
+     * 产品主图URL (非数据库字段, 取自第一个变体)
+     */
+    private String imageUrl;
 }

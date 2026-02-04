@@ -24,11 +24,16 @@ public interface ProductShopMapper {
     /**
      * 批量插入关联关系
      * 
-     * @param productId 产品ID
-     * @param shopIds   商店ID列表
+     * @param productId     产品ID
+     * @param shopIds       商店ID列表
+     * @param publishedBy   刊登人
+     * @param publishStatus 刊登状态
      * @return 影响行数
      */
-    int batchInsert(@Param("productId") Long productId, @Param("shopIds") List<Long> shopIds);
+    int batchInsert(@Param("productId") Long productId,
+            @Param("shopIds") List<Long> shopIds,
+            @Param("publishedBy") Long publishedBy,
+            @Param("publishStatus") Integer publishStatus);
 
     /**
      * 根据产品ID查询关联的所有商店ID
@@ -85,5 +90,6 @@ public interface ProductShopMapper {
     int updatePublishStatus(@Param("productId") Long productId,
             @Param("shopId") Long shopId,
             @Param("status") Integer status,
-            @Param("lastExportTime") LocalDateTime lastExportTime);
+            @Param("lastExportTime") LocalDateTime lastExportTime,
+            @Param("publishedBy") Long publishedBy);
 }

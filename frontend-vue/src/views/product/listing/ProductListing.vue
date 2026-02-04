@@ -46,18 +46,32 @@
         </div>
 
         <div class="action-group">
+
           <a-button 
             type="primary" 
+            ghost
+            size="large"
+            @click="handlePublish"
+            :loading="publishing"
+            :disabled="selectedRowKeys.length === 0"
+          >
+            <template #icon><CloudUploadOutlined /></template>
+            批量刊登
+          </a-button>
+
+          <a-button 
+            type="default" 
             size="large"
             @click="handleExport"
             :loading="exporting"
             :disabled="selectedRowKeys.length === 0"
           >
             <template #icon><DownloadOutlined /></template>
-            导出选中产品 {{ selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : '' }}
+            导出CSV {{ selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : '' }}
           </a-button>
         </div>
-      </div>
+        </div>
+
 
       <!-- 批量操作提示条 -->
       <transition name="slide-fade">
@@ -163,13 +177,17 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { SearchOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import { message, Modal } from 'ant-design-vue'
+import { SearchOutlined, DownloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
 import productApi from '@/api/product'
+import { productPublishApi } from '@/api/product-publish'
+import { useUserStore } from '@/stores/user'
 import dayjs from 'dayjs'
 
+const userStore = useUserStore()
 const loading = ref(false)
 const exporting = ref(false)
+const publishing = ref(false)
 const list = ref([])
 const selectedRowKeys = ref([])
 
@@ -229,8 +247,7 @@ const rowSelection = computed(() => ({
   selectedRowKeys: selectedRowKeys.value,
   onChange: onSelectChange,
   getCheckboxProps: (record) => ({
-    // 可以添加禁用逻辑，比如已刊登的产品
-    // disabled: record.publishStatus === 1
+    // 可以添加禁用逻辑
   })
 }))
 
@@ -239,6 +256,8 @@ const isAllSelected = computed(() => {
 })
 
 onMounted(() => {
+  // If user changes shop, we should reload. 
+  // Ideally watch userStore.currentShopId but simpler to just load on mount.
   fetchList()
 })
 
@@ -249,7 +268,9 @@ const fetchList = async () => {
       page: pagination.current,
       pageSize: pagination.pageSize,
       keyword: filters.keyword || undefined,
-      status: filters.status
+      status: filters.status,
+      // If we want to filter by current shop explicitly:
+      // shopId: userStore.currentShopId 
     }
     const res = await productApi.getProductList(params)
     if (res.success) {
@@ -296,6 +317,44 @@ const handleSelectAll = (e) => {
 
 const clearSelection = () => {
   selectedRowKeys.value = []
+}
+
+const handlePublish = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要刊登的产品')
+    return
+  }
+
+  if (!userStore.currentShopId) {
+    message.warning('请先在顶部选择一个店铺')
+    return
+  }
+
+  Modal.confirm({
+    title: '确认刊登',
+    content: `确定将选中的 ${selectedRowKeys.value.length} 个产品刊登到当前店铺吗？`,
+    async onOk() {
+      publishing.value = true
+      try {
+        const res = await productPublishApi.publish({
+          shopId: userStore.currentShopId,
+          productIds: selectedRowKeys.value
+        })
+        if (res.code === 200 || res.success) {
+           message.success('刊登成功')
+           clearSelection()
+           fetchList()
+        } else {
+           message.error(res.message || '刊登失败')
+        }
+      } catch (error) {
+        console.error(error)
+        message.error('刊登请求失败')
+      } finally {
+        publishing.value = false
+      }
+    }
+  })
 }
 
 const handleExport = async () => {
@@ -346,6 +405,8 @@ const getInventoryColor = (inventory) => {
   if (inventory < 10) return 'warning'
   return 'success'
 }
+
+
 </script>
 
 <style scoped>

@@ -89,8 +89,9 @@ public class ProductListingService {
 
         // 更新状态
         LocalDateTime now = LocalDateTime.now();
+        Long currentUserId = com.logistics.track17.util.UserContextHolder.getCurrentUserId();
         for (ProductStoreStatusUpdate update : updates) {
-            productShopMapper.updatePublishStatus(update.productId, update.shopId, 1, now); // 1 = 已导出
+            productShopMapper.updatePublishStatus(update.productId, update.shopId, 1, now, currentUserId); // 1 = 已导出
         }
 
         return csv.toString().getBytes(StandardCharsets.UTF_8);

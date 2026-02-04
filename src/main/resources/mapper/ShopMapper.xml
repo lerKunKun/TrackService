@@ -72,9 +72,18 @@
                 #{isActive}, #{lastSyncTime})
     </insert>
 
+    <!-- 根据ID查询店铺 -->
     <select id="selectById" resultMap="BaseResultMap">
-        SELECT <include refid="Detail_Column_List"/>
-        FROM shops WHERE id = #{id} AND deleted_at IS NULL
+        SELECT <include refid="Base_Column_List"/>
+        FROM shops
+        WHERE id = #{id}
+    </select>
+
+    <!-- 查询所有店铺 -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM shops
+        ORDER BY id DESC
     </select>
 
     <select id="selectByShopDomain" resultMap="BaseResultMap">
