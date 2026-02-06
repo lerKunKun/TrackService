@@ -53,12 +53,38 @@ public interface ProductMapper {
         int update(Product product);
 
         /**
+         * 批量更新产品状态
+         * 
+         * @param ids       产品ID列表
+         * @param published 上架状态
+         * @return 影响行数
+         */
+        int batchUpdateStatus(@Param("ids") List<Long> ids, @Param("published") Integer published);
+
+        /**
+         * 批量更新产品标签
+         * 
+         * @param ids  产品ID列表
+         * @param tags 标签
+         * @return 影响行数
+         */
+        int batchUpdateTags(@Param("ids") List<Long> ids, @Param("tags") String tags);
+
+        /**
          * 删除产品
          * 
          * @param id 产品ID
          * @return 影响行数
          */
         int deleteById(@Param("id") Long id);
+
+        /**
+         * 批量删除产品
+         * 
+         * @param ids 产品ID列表
+         * @return 影响行数
+         */
+        int batchDeleteByIds(@Param("ids") List<Long> ids);
 
         /**
          * 分页查询产品列表
@@ -108,4 +134,17 @@ public interface ProductMapper {
          * @return 总数
          */
         long countProcurementList(java.util.Map<String, Object> params);
+
+        /**
+         * 统计采购管理各状态数量
+         *
+         * @param keyword 搜索关键词
+         * @return 统计结果
+         */
+        com.logistics.track17.dto.ProductProcurementStatsDTO selectProcurementStats(@Param("keyword") String keyword);
+
+        /**
+         * 查询所有标签
+         */
+        List<String> selectAllTags();
 }

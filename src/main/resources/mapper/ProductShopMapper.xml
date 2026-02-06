@@ -29,6 +29,15 @@
         </foreach>
     </insert>
 
+    <!-- 批量插入关联列表 -->
+    <insert id="batchInsertList">
+        INSERT INTO product_shops (product_id, shop_id, published_by, publish_status, last_export_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.productId}, #{item.shopId}, #{item.publishedBy}, #{item.publishStatus}, NOW())
+        </foreach>
+    </insert>
+
     <!-- 根据产品ID查询关联的所有商店ID -->
     <select id="selectShopIdsByProductId" resultType="java.lang.Long">
         SELECT shop_id FROM product_shops WHERE product_id = #{productId}
@@ -56,6 +65,14 @@
     <!-- 删除商店的所有产品关联 -->
     <delete id="deleteByShopId">
         DELETE FROM product_shops WHERE shop_id = #{shopId}
+    </delete>
+
+    <!-- 批量删除产品的商店关联 -->
+    <delete id="deleteByProductIds">
+        DELETE FROM product_shops WHERE product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </delete>
 
     <!-- 删除指定的产品商店关联 -->

@@ -1,7 +1,6 @@
 package com.logistics.track17.service;
 
 import com.logistics.track17.entity.Product;
-import com.logistics.track17.entity.ProductShop;
 import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.mapper.ProductMapper;
 import com.logistics.track17.mapper.ProductShopMapper;

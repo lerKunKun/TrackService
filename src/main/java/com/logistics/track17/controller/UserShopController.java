@@ -1,13 +1,11 @@
 package com.logistics.track17.controller;
 
 import com.logistics.track17.dto.Result;
-import com.logistics.track17.entity.UserShopRole;
+
 import com.logistics.track17.service.UserShopService;
 import com.logistics.track17.util.UserContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * User Shop Controller

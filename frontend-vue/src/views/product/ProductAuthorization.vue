@@ -3,20 +3,66 @@
     <a-card title="产品可见性授权" :bordered="false">
       <template #extra>
         <a-space>
+            <a-select
+              v-model:value="filters.tags"
+              mode="tags"
+              style="width: 200px"
+              placeholder="按标签筛选(支持多选)"
+              :token-separators="[',', ' ']"
+              allow-clear
+              @change="handleSearch"
+            >
+              <a-select-option v-for="tag in tagsList" :key="tag" :value="tag">
+                {{ tag }}
+              </a-select-option>
+            </a-select>
+            <a-select
+              v-model:value="filters.filterShopIds"
+              mode="multiple"
+              style="width: 200px"
+              placeholder="按关联店铺筛选"
+              :max-tag-count="1"
+              allow-clear
+              @change="handleSearch"
+            >
+               <a-select-option v-for="shop in shopList" :key="shop.id" :value="shop.id">
+                {{ shop.shopName }}
+              </a-select-option>
+            </a-select>
+
+            <a-select
+              v-model:value="filters.procurementStatus"
+              style="width: 150px"
+              placeholder="采购完善状态"
+              allow-clear
+               @change="handleSearch"
+            >
+              <a-select-option value="complete">已完善</a-select-option>
+              <a-select-option value="incomplete">未完善</a-select-option>
+            </a-select>
+
           <a-input-search
             v-model:value="searchKeyword"
-            placeholder="搜索产品名称/SKU"
+            placeholder="搜索产品名称/Handle"
             style="width: 250px"
             @search="handleSearch"
           />
         </a-space>
       </template>
 
+      <div v-if="selectedRowKeys.length > 0" style="margin-bottom: 16px">
+        <a-space>
+          <span>已选择 {{ selectedRowKeys.length }} 项</span>
+          <a-button type="primary" @click="handleBatchAuthorize">批量授权</a-button>
+        </a-space>
+      </div>
+
       <a-table
         :columns="columns"
         :data-source="products"
         :loading="loading"
         :pagination="pagination"
+        :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
         @change="handleTableChange"
         row-key="id"
       >
@@ -155,6 +201,7 @@ import { ref, onMounted, reactive, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { FileImageOutlined } from '@ant-design/icons-vue'
 import { productVisibilityApi } from '@/api/product-visibility'
+import productApi from '@/api/product'
 import { userApi } from '@/api/user'
 import { roleApi } from '@/api/role'
 import { userShopApi } from '@/api/user-shop'
@@ -169,11 +216,19 @@ const products = ref([])
 const modalVisible = ref(false)
 const currentProduct = ref(null)
 const authorizationList = ref([])
+const selectedRowKeys = ref([]) // For batch selection
 
 // Data sources for selects
 const userList = ref([])
 const roleList = ref([])
 const shopList = ref([])
+const tagsList = ref([])
+
+const filters = reactive({
+  tags: [],
+  filterShopIds: [],
+  procurementStatus: undefined
+})
 
 const authForm = reactive({
   targetType: 'USER',
@@ -193,7 +248,7 @@ const pagination = reactive({
 const columns = [
   { title: '图片', key: 'image', width: 80 },
   { title: '产品标题', dataIndex: 'title', key: 'title' },
-  { title: 'SKU', dataIndex: 'handle', key: 'handle' },
+  { title: '产品Handle', dataIndex: 'handle', key: 'handle' },
   { title: '操作', key: 'action', width: 120 }
 ]
 
@@ -211,7 +266,10 @@ const loadData = async () => {
       page: pagination.current,
       size: pagination.pageSize,
       keyword: searchKeyword.value,
-      shopId: userStore.currentShopId 
+      shopId: userStore.currentShopId,
+      tags: filters.tags,
+      filterShopIds: filters.filterShopIds,
+      procurementStatus: filters.procurementStatus
     }
     
     const res = await productVisibilityApi.getAuthorizedProducts(params)
@@ -259,12 +317,22 @@ const loadMeta = async () => {
             roleList.value = roles
         }
     } catch (e) { console.error(e) }
+}
 
-    // Load shops
+const loadShops = async () => {
     try {
         const shopRes = await userShopApi.getMyShops()
         if (shopRes.code === 200) {
             shopList.value = shopRes.data
+        }
+    } catch (e) { console.error(e) }
+}
+
+const loadTags = async () => {
+    try {
+        const res = await productApi.getAllTags()
+        if (res.code === 200) {
+            tagsList.value = res.data
         }
     } catch (e) { console.error(e) }
 }
@@ -280,7 +348,39 @@ const handleTableChange = (pag) => {
   loadData()
 }
 
+const onSelectChange = (keys) => {
+  selectedRowKeys.value = keys
+}
+
+const handleBatchAuthorize = () => {
+    if (selectedRowKeys.value.length === 0) return
+    
+    // Use the first selected product as "current" just for display context, 
+    // or create a dummy one.
+    // Ideally, we should show "Batch Operation" title.
+    currentProduct.value = { 
+        id: selectedRowKeys.value[0], 
+        title: `批量操作 (${selectedRowKeys.value.length} 个产品)`, 
+        handle: 'Multiple' 
+    }
+    
+    authForm.targetType = 'USER'
+    authForm.targetId = undefined
+    authForm.shopId = undefined
+    authForm.expiresAt = undefined
+
+    if (userList.value.length === 0) {
+        loadMeta()
+    }
+    // For batch, we probably don't load existing authorizations (too complex to merge)
+    // So we default to "grant" tab
+    authorizationList.value = [] // Clear list
+    
+    modalVisible.value = true
+}
+
 const handleAuthorize = (record) => {
+  selectedRowKeys.value = [] // Clear batch selection
   currentProduct.value = record
   authForm.targetType = 'USER'
   authForm.targetId = undefined
@@ -308,20 +408,26 @@ const handleGrant = async () => {
     modalLoading.value = true
     try {
         const payload = {
-            productIds: [currentProduct.value.id],
+            // Support batch or single
+            productIds: selectedRowKeys.value.length > 0 ? selectedRowKeys.value : [currentProduct.value.id],
             targetType: authForm.targetType,
             targetId: authForm.targetId,
             shopId: authForm.shopId,
-            expiresAt: authForm.expiresAt ? authForm.expiresAt.format('YYYY-MM-DDTHH:mm:ss') : null
+            expiresAt: authForm.expiresAt ? authForm.expiresAt.format('YYYY-MM-DD HH:mm:ss') : null
         }
         
         const res = await productVisibilityApi.grantVisibility(payload)
         if (res.code === 200) {
             message.success('授权成功')
-            // Refresh list
-            loadAuthorizations(currentProduct.value.id)
+            // Refresh list if single
+            if (selectedRowKeys.value.length === 0) {
+                 loadAuthorizations(currentProduct.value.id)
+            }
+            // Clear selection
+            selectedRowKeys.value = []
             // Reset form partly
             authForm.targetId = undefined
+            modalVisible.value = false // Close modal after batch
         } else {
             message.error(res.message || '授权失败')
         }
@@ -375,6 +481,8 @@ const filterOption = (input, option) => {
 
 onMounted(() => {
   loadData()
+  loadShops()
+  loadTags()
 })
 </script>
 

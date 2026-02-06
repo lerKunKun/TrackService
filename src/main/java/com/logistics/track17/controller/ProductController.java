@@ -165,6 +165,63 @@ public class ProductController {
     }
 
     /**
+     * 批量删除产品
+     * 
+     * @param request 批量删除请求
+     * @return 删除结果
+     */
+    @PostMapping("/batch/delete")
+    @RequireAuth(permissions = "product:delete")
+    @AuditLog(operation = "批量删除产品", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
+        try {
+            productService.batchDeleteProducts(request.getIds());
+            return ResponseEntity.ok(responseSuccess("批量删除成功"));
+        } catch (Exception e) {
+            log.error("批量删除产品失败", e);
+            return ResponseEntity.status(500).body(responseError("删除失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 批量更新产品 (标签、状态)
+     * 
+     * @param request 批量更新请求
+     * @return 更新结果
+     */
+    @PostMapping("/batch/update")
+    @RequireAuth(permissions = "product:update")
+    @AuditLog(operation = "批量更新产品", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> batchUpdate(@RequestBody BatchUpdateRequest request) {
+        try {
+            productService.batchUpdateProducts(request.getIds(), request.getTags(), request.getPublished());
+            return ResponseEntity.ok(responseSuccess("批量更新成功"));
+        } catch (Exception e) {
+            log.error("批量更新产品失败", e);
+            return ResponseEntity.status(500).body(responseError("更新失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 批量更新产品商店关联
+     * 
+     * @param request 批量商店更新请求
+     * @return 更新结果
+     */
+    @PostMapping("/batch/shops")
+    @RequireAuth(permissions = "product:shops:update")
+    @AuditLog(operation = "批量更新产品商店", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> batchUpdateShops(@RequestBody BatchShopUpdateRequest request) {
+        try {
+            productService.batchUpdateProductShops(request.getProductIds(), request.getShopIds());
+            return ResponseEntity.ok(responseSuccess("批量更新商店关联成功"));
+        } catch (Exception e) {
+            log.error("批量更新产品商店失败", e);
+            return ResponseEntity.status(500).body(responseError("更新失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 构造成功响应
      */
     private Map<String, Object> responseSuccess(Object data) {
@@ -294,6 +351,25 @@ public class ProductController {
     }
 
     /**
+     * 删除变体
+     *
+     * @param variantId 变体ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/variants/{variantId}")
+    @RequireAuth(permissions = "product:delete")
+    @AuditLog(operation = "删除变体", module = "产品管理")
+    public ResponseEntity<Map<String, Object>> deleteVariant(@PathVariable Long variantId) {
+        try {
+            productService.deleteVariant(variantId);
+            return ResponseEntity.ok(responseSuccess("删除成功"));
+        } catch (Exception e) {
+            log.error("删除变体失败", e);
+            return ResponseEntity.status(500).body(responseError("删除失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 导出产品到Shopify CSV格式
      * 
      * @param shopId     店铺ID (可选,用于按店铺筛选)
@@ -365,6 +441,23 @@ public class ProductController {
     }
 
     /**
+     * 获取采购管理统计信息
+     *
+     * @param keyword 关键词（可选）
+     * @return 统计结果
+     */
+    @GetMapping("/procurement/stats")
+    public ResponseEntity<Map<String, Object>> getProcurementStats(@RequestParam(required = false) String keyword) {
+        try {
+            com.logistics.track17.dto.ProductProcurementStatsDTO stats = productService.getProcurementStats(keyword);
+            return ResponseEntity.ok(responseSuccess(stats));
+        } catch (Exception e) {
+            log.error("获取采购统计信息失败", e);
+            return ResponseEntity.status(500).body(responseError("查询失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 变体采购信息更新请求DTO
      */
     @lombok.Data
@@ -373,5 +466,46 @@ public class ProductController {
         private String procurementUrl;
         private BigDecimal procurementPrice;
         private String supplier;
+    }
+
+    /**
+     * 批量删除请求DTO
+     */
+    @lombok.Data
+    public static class BatchDeleteRequest {
+        private List<Long> ids;
+    }
+
+    /**
+     * 批量更新请求DTO
+     */
+    @lombok.Data
+    public static class BatchUpdateRequest {
+        private List<Long> ids;
+        private String tags;
+        private Integer published;
+    }
+
+    /**
+     * 批量商店更新请求DTO
+     */
+    @lombok.Data
+    public static class BatchShopUpdateRequest {
+        private List<Long> productIds;
+        private List<Long> shopIds;
+    }
+
+    /**
+     * 获取所有标签
+     */
+    @GetMapping("/tags")
+    public ResponseEntity<Map<String, Object>> getAllTags() {
+        try {
+            List<String> tags = productService.getAllTags();
+            return ResponseEntity.ok(responseSuccess(tags));
+        } catch (Exception e) {
+            log.error("获取标签列表失败", e);
+            return ResponseEntity.status(500).body(responseError("查询失败: " + e.getMessage()));
+        }
     }
 }

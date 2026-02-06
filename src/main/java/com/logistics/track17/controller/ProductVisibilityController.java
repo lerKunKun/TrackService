@@ -29,6 +29,9 @@ public class ProductVisibilityController {
     public Result<Object> getAuthorizedProducts(
             @RequestParam(required = false) Long shopId,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) List<String> tags,
+            @RequestParam(required = false) List<Long> filterShopIds,
+            @RequestParam(required = false) String procurementStatus,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
 
@@ -39,7 +42,8 @@ public class ProductVisibilityController {
             shopId = ShopContext.getCurrentShopId();
         }
 
-        List<Product> products = productVisibilityService.getAuthorizedProducts(userId, shopId, keyword, page, size);
+        List<Product> products = productVisibilityService.getAuthorizedProducts(userId, shopId, keyword, tags,
+                filterShopIds, procurementStatus, page, size);
         return Result.success(products);
     }
 
@@ -49,14 +53,18 @@ public class ProductVisibilityController {
     @GetMapping("/products/count")
     public Result<Object> countAuthorizedProducts(
             @RequestParam(required = false) Long shopId,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) List<String> tags,
+            @RequestParam(required = false) List<Long> filterShopIds,
+            @RequestParam(required = false) String procurementStatus) {
 
         Long userId = UserContextHolder.getCurrentUserId();
         if (shopId == null && ShopContext.hasShopContext()) {
             shopId = ShopContext.getCurrentShopId();
         }
 
-        int count = productVisibilityService.countAuthorizedProducts(userId, shopId, keyword);
+        int count = productVisibilityService.countAuthorizedProducts(userId, shopId, keyword, tags, filterShopIds,
+                procurementStatus);
         return Result.success(count);
     }
 

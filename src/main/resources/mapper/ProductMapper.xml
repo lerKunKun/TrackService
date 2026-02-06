@@ -64,6 +64,34 @@
         DELETE FROM products WHERE id = #{id}
     </delete>
 
+    <!-- 批量删除产品 -->
+    <delete id="batchDeleteByIds">
+        DELETE FROM products WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 批量更新产品状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE products
+        SET published = #{published}, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 批量更新产品标签 -->
+    <update id="batchUpdateTags">
+        UPDATE products
+        SET tags = #{tags}, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
     <!-- 分页查询 -->
     <select id="selectByPage" resultMap="ProductResultMap">
         SELECT DISTINCT p.*,
@@ -186,6 +214,20 @@
                          OR v6.supplier IS NOT NULL)
                 )
             </if>
+            <if test="status == 'uncomplete'">
+                AND (p.id NOT IN (
+                    SELECT v7.product_id FROM product_variants v7
+                    WHERE v7.product_id = p.id
+                    GROUP BY v7.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v7.procurement_url IS NOT NULL 
+                             AND v7.procurement_price IS NOT NULL 
+                             AND v7.supplier IS NOT NULL 
+                             AND v7.sku IS NOT NULL
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                ) OR NOT EXISTS (SELECT 1 FROM product_variants v8 WHERE v8.product_id = p.id))
+            </if>
         </where>
         GROUP BY p.id
         ORDER BY p.id DESC
@@ -249,7 +291,63 @@
                          OR v6.supplier IS NOT NULL)
                 )
             </if>
+            <if test="status == 'uncomplete'">
+                AND (p.id NOT IN (
+                    SELECT v7.product_id FROM product_variants v7
+                    WHERE v7.product_id = p.id
+                    GROUP BY v7.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v7.procurement_url IS NOT NULL 
+                             AND v7.procurement_price IS NOT NULL 
+                             AND v7.supplier IS NOT NULL 
+                             AND v7.sku IS NOT NULL
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                ) OR NOT EXISTS (SELECT 1 FROM product_variants v8 WHERE v8.product_id = p.id))
+            </if>
         </where>
+    </select>
+
+
+
+    <!-- 统计采购管理各状态数量 -->
+    <select id="selectProcurementStats" resultType="com.logistics.track17.dto.ProductProcurementStatsDTO">
+        SELECT
+            COUNT(1) as totalCount,
+            SUM(CASE WHEN is_complete = 1 THEN 1 ELSE 0 END) as completeCount,
+            SUM(CASE WHEN is_complete = 0 THEN 1 ELSE 0 END) as incompleteCount
+        FROM (
+            SELECT
+                p.id,
+                CASE
+                    WHEN COUNT(v.id) > 0 AND COUNT(v.id) = SUM(
+                        CASE WHEN v.procurement_url IS NOT NULL
+                             AND v.procurement_price IS NOT NULL
+                             AND v.supplier IS NOT NULL
+                             AND v.sku IS NOT NULL
+                        THEN 1 ELSE 0 END
+                    ) THEN 1
+                    ELSE 0
+                END as is_complete
+            FROM products p
+            LEFT JOIN product_variants v ON p.id = v.product_id
+            <where>
+                <if test="keyword != null and keyword != ''">
+                    AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+                         OR EXISTS (
+                            SELECT 1 FROM product_variants v2 
+                            WHERE v2.product_id = p.id 
+                            AND v2.sku LIKE CONCAT('%', #{keyword}, '%')
+                         ))
+                </if>
+            </where>
+            GROUP BY p.id
+        ) as product_stats
+    </select>
+
+    <!-- 查询所有标签 -->
+    <select id="selectAllTags" resultType="string">
+        SELECT DISTINCT tags FROM products WHERE tags IS NOT NULL AND tags != ''
     </select>
 
 </mapper>

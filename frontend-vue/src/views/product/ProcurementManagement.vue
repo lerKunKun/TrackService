@@ -6,15 +6,27 @@
         <div class="title-section">
           <h1>采购管理</h1>
           <div class="stats-pills">
-            <span class="stat-pill">
+            <span 
+              class="stat-pill" 
+              :class="{ 'active': !filters.status }"
+              @click="handleStatClick('')"
+            >
               <span class="stat-label">总产品</span>
               <span class="stat-value">{{ stats.totalProducts }}</span>
             </span>
-            <span class="stat-pill">
+            <span 
+              class="stat-pill" 
+              :class="{ 'active': filters.status === 'complete' }"
+              @click="handleStatClick('complete')"
+            >
               <span class="stat-label">已完善</span>
               <span class="stat-value complete">{{ stats.completeProducts }}</span>
             </span>
-            <span class="stat-pill">
+            <span 
+              class="stat-pill" 
+              :class="{ 'active': filters.status === 'uncomplete' }"
+              @click="handleStatClick('uncomplete')"
+            >
               <span class="stat-label">未完善</span>
               <span class="stat-value incomplete">{{ stats.incompleteProducts }}</span>
             </span>
@@ -79,7 +91,8 @@
           >
             <a-select-option value="">全部</a-select-option>
             <a-select-option value="complete">已完善</a-select-option>
-            <a-select-option value="incomplete">未完善</a-select-option>
+            <a-select-option value="incomplete">部分完善</a-select-option>
+            <a-select-option value="uncomplete">全部未完善</a-select-option>
             <a-select-option value="no-info">无采购信息</a-select-option>
           </a-select>
         </a-form-item>
@@ -262,6 +275,19 @@
                     >
                       编辑
                     </a-button>
+                    <a-popconfirm
+                      title="确定要删除这个变体吗？"
+                      @confirm="handleDeleteVariant(variant)"
+                    >
+                      <a-button 
+                        type="link" 
+                        danger
+                        size="small" 
+                        class="delete-button"
+                      >
+                        删除
+                      </a-button>
+                    </a-popconfirm>
                   </div>
                 </div>
               </div>
@@ -479,6 +505,13 @@ const suppliers = ref([])
 const selectedVariantKeys = ref([])
 const expandedRowKeys = ref([])
 
+// 统计数据
+const statsData = reactive({
+  totalCount: 0,
+  completeCount: 0,
+  incompleteCount: 0
+})
+
 // 筛选条件
 const filters = reactive({
   keyword: '',
@@ -510,16 +543,12 @@ const batchForm = ref({
 // 计算属性
 
 // 统计数据
+// 统计数据
 const stats = computed(() => {
-  const total = pagination.total || 0  // 使用服务端total
-  // 完成度从productGroups中计算
-  const complete = productGroups.value.filter(p => p.allComplete).length
-  const incomplete = productGroups.value.filter(p => !p.allComplete).length
-  
   return {
-    totalProducts: total,
-    completeProducts: complete,
-    incompleteProducts: incomplete
+    totalProducts: statsData.totalCount,
+    completeProducts: statsData.completeCount,
+    incompleteProducts: statsData.incompleteCount
   }
 })
 
@@ -617,6 +646,22 @@ const fetchProcurementList = async () => {
   }
 }
 
+// 获取统计信息
+const fetchStats = async () => {
+    try {
+        const response = await productApi.getProcurementStats({
+            keyword: filters.keyword || null
+        })
+        if (response.success && response.data) {
+            statsData.totalCount = response.data.totalCount
+            statsData.completeCount = response.data.completeCount
+            statsData.incompleteCount = response.data.incompleteCount
+        }
+    } catch (error) {
+        console.error('获取统计信息失败:', error)
+    }
+}
+
 // 防抖搜索
 let searchTimeout = null
 const debouncedSearch = () => {
@@ -630,6 +675,7 @@ const debouncedSearch = () => {
 const handleSearch = () => {
   pagination.current = 1
   fetchProcurementList()
+  fetchStats()
 }
 
 // 重置筛选
@@ -637,13 +683,12 @@ const handleResetFilters = () => {
   filters.keyword = ''
   filters.supplier = ''
   filters.status = ''
-  pagination.current = 1
+  handleSearch()
 }
 
 // 刷新
 const handleRefresh = () => {
   handleResetFilters()
-  fetchProcurementList()
 }
 
 // 切换展开（懒加载变体）
@@ -786,6 +831,12 @@ const getProfitMargin = (variant) => {
   return margin.toFixed(1)
 }
 
+// 统计点击筛选
+const handleStatClick = (status) => {
+    filters.status = status
+    handleSearch()
+}
+
 // 编辑单个变体
 const handleEdit = (variant) => {
   editForm.value = {
@@ -800,6 +851,29 @@ const handleEdit = (variant) => {
     supplier: variant.supplier || ''
   }
   editModalVisible.value = true
+}
+
+// 删除变体
+const handleDeleteVariant = async (variant) => {
+  const variantId = variant.variantId || variant.id
+  try {
+    await productApi.deleteVariant(variantId)
+    message.success('删除成功')
+    
+    // 从列表中移除
+    const product = productGroups.value.find(p => p.productId === variant.productId)
+    if (product) {
+      product.variants = product.variants.filter(v => (v.variantId || v.id) !== variantId)
+      product.variantCount = Math.max(0, product.variantCount - 1)
+      if (product.variants.length === 0) {
+        // 如果没有变体了，重新加载列表或者移除产品
+         fetchProcurementList()
+      }
+    }
+  } catch (error) {
+    console.error('删除变体失败:', error)
+    message.error('删除失败,请重试')
+  }
 }
 
 // 提交编辑
@@ -902,8 +976,10 @@ const filterSupplier = (input, option) => {
 }
 
 // 页面挂载时加载数据
+// 页面挂载时加载数据
 onMounted(() => {
   fetchProcurementList()
+  fetchStats()
 })
 </script>
 
@@ -1470,5 +1546,22 @@ onMounted(() => {
   
   .sku-tag-wrapper {
     margin-top: 4px;
+  }
+  
+  /* Stat Pills Interactive */
+  .stat-pill {
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+  }
+
+  .stat-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  .stat-pill.active {
+    background: #e6f7ff;
+    border-color: #1890ff;
   }
 </style>

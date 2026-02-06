@@ -4,6 +4,17 @@ const API_BASE_URL = '/product'  // request已经有/api/v1 baseURL
 
 export default {
     /**
+     * Get all unique tags
+     * @returns {Promise}
+     */
+    getAllTags() {
+        return request({
+            url: '/product/tags',
+            method: 'get'
+        })
+    },
+
+    /**
      * 导入Shopify CSV文件
      * @param {File} file CSV文件
      * @returns {Promise}
@@ -126,5 +137,52 @@ export default {
     async updateVariantProcurement(variantId, procurementData) {
         const response = await request.put(`${API_BASE_URL}/variants/${variantId}/procurement`, procurementData)
         return response
+    },
+
+    /**
+     * 删除变体
+     * @param {Number} variantId 变体ID
+     * @returns {Promise}
+     */
+    async deleteVariant(variantId) {
+        const response = await request.delete(`${API_BASE_URL}/variants/${variantId}`)
+        return response
+    },
+
+    /**
+     * 获取采购管理统计信息
+     * @param {Object} params - 查询参数 { keyword }
+     * @returns {Promise}
+     */
+    async getProcurementStats(params) {
+        const response = await request.get(`${API_BASE_URL}/procurement/stats`, { params })
+        return response
+    },
+
+    /**
+     * 批量删除产品
+     * @param {Array} ids 产品ID列表
+     * @returns {Promise}
+     */
+    async batchDeleteProducts(ids) {
+        return request.post(`${API_BASE_URL}/batch/delete`, { ids })
+    },
+
+    /**
+     * 批量更新产品 (标签、状态)
+     * @param {Object} data { ids, tags, published }
+     * @returns {Promise}
+     */
+    async batchUpdateProducts(data) {
+        return request.post(`${API_BASE_URL}/batch/update`, data)
+    },
+
+    /**
+     * 批量更新产品商店关联
+     * @param {Object} data { productIds, shopIds }
+     * @returns {Promise}
+     */
+    async batchUpdateProductShops(data) {
+        return request.post(`${API_BASE_URL}/batch/shops`, data)
     }
 }

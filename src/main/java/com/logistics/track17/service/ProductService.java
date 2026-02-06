@@ -419,6 +419,92 @@ public class ProductService {
     }
 
     /**
+     * 批量删除产品
+     * 
+     * @param ids 产品ID列表
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchDeleteProducts(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        // 删除商店关联
+        productShopMapper.deleteByProductIds(ids);
+
+        // 删除变体 (通过数据库外键级联删除)
+
+        // 删除产品
+        productMapper.batchDeleteByIds(ids);
+
+        log.info("批量删除产品 IDs: {}", ids);
+    }
+
+    /**
+     * 批量更新产品信息 (标签、上架状态)
+     * 
+     * @param ids       产品ID列表
+     * @param tags      标签 (可选)
+     * @param published 上架状态 (可选)
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdateProducts(List<Long> ids, String tags, Integer published) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        if (tags != null) {
+            productMapper.batchUpdateTags(ids, tags);
+        }
+
+        if (published != null) {
+            productMapper.batchUpdateStatus(ids, published);
+        }
+
+        log.info("批量更新产品 IDs: {}, tags: {}, published: {}", ids, tags, published);
+    }
+
+    /**
+     * 批量更新产品商店关联
+     * 采用覆盖模式: 删除旧关联 -> 插入新关联
+     * 
+     * @param productIds 产品ID列表
+     * @param shopIds    商店ID列表
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdateProductShops(List<Long> productIds, List<Long> shopIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return;
+        }
+
+        // 1. 删除旧关联
+        productShopMapper.deleteByProductIds(productIds);
+
+        // 2. 插入新关联
+        if (shopIds != null && !shopIds.isEmpty()) {
+            Long currentUserId = com.logistics.track17.util.UserContextHolder.getCurrentUserId();
+            List<com.logistics.track17.entity.ProductShop> list = new ArrayList<>();
+
+            for (Long pid : productIds) {
+                for (Long sid : shopIds) {
+                    com.logistics.track17.entity.ProductShop ps = new com.logistics.track17.entity.ProductShop();
+                    ps.setProductId(pid);
+                    ps.setShopId(sid);
+                    ps.setPublishedBy(currentUserId);
+                    ps.setPublishStatus(0); // Default Not Published
+                    list.add(ps);
+                }
+            }
+
+            if (!list.isEmpty()) {
+                productShopMapper.batchInsertList(list);
+            }
+        }
+
+        log.info("批量更新产品商店关联 ProductIDs: {}, ShopIDs: {}", productIds, shopIds);
+    }
+
+    /**
      * 更新产品变体价格和原价
      * 
      * @param variantId      变体ID
@@ -493,6 +579,17 @@ public class ProductService {
         }
         productVariantMapper.update(variant);
         log.info("更新变体采购信息 ID: {}, SKU: {}, 采购商: {}", variantId, sku, supplier);
+    }
+
+    /**
+     * 删除变体
+     *
+     * @param variantId 变体ID
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteVariant(Long variantId) {
+        productVariantMapper.deleteById(variantId);
+        log.info("删除变体 ID: {}", variantId);
     }
 
     /**
@@ -780,5 +877,45 @@ public class ProductService {
         result.put("totalPages", (total + pageSize - 1) / pageSize);
 
         return result;
+    }
+
+    /**
+     * 获取采购管理各状态数量
+     *
+     * @param keyword 搜索关键词
+     * @return 统计结果
+     */
+    public com.logistics.track17.dto.ProductProcurementStatsDTO getProcurementStats(String keyword) {
+        if (keyword != null && keyword.trim().isEmpty()) {
+            keyword = null;
+        } else if (keyword != null) {
+            keyword = keyword.trim();
+        }
+        return productMapper.selectProcurementStats(keyword);
+    }
+
+    /**
+     * 获取所有不重复的标签
+     */
+    public List<String> getAllTags() {
+        List<String> rawTags = productMapper.selectAllTags();
+        if (rawTags == null || rawTags.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<String> uniqueTags = new HashSet<>();
+        for (String tagsStr : rawTags) {
+            if (tagsStr != null && !tagsStr.trim().isEmpty()) {
+                String[] split = tagsStr.split(",");
+                for (String tag : split) {
+                    if (!tag.trim().isEmpty()) {
+                        uniqueTags.add(tag.trim());
+                    }
+                }
+            }
+        }
+        List<String> sortedTags = new ArrayList<>(uniqueTags);
+        Collections.sort(sortedTags);
+        return sortedTags;
     }
 }

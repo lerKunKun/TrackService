@@ -122,13 +122,59 @@
         <if test="shopId != null">
             AND (pv.shop_id IS NULL OR pv.shop_id = #{shopId})
         </if>
-        AND (pv.expires_at IS NULL OR pv.expires_at > NOW())
+            AND (pv.expires_at IS NULL OR pv.expires_at > NOW())
         <if test="keyword != null and keyword != ''">
             AND (
                 p.title LIKE CONCAT('%', #{keyword}, '%')
                 OR p.handle LIKE CONCAT('%', #{keyword}, '%')
                 OR p.vendor LIKE CONCAT('%', #{keyword}, '%')
             )
+        </if>
+        <if test="tags != null and tags.size() > 0">
+            AND (
+            <foreach collection="tags" item="tag" separator=" OR ">
+                p.tags LIKE CONCAT('%', #{tag}, '%')
+            </foreach>
+            )
+        </if>
+        <if test="filterShopIds != null and filterShopIds.size() > 0">
+            AND EXISTS (
+                SELECT 1 FROM product_shops ps_filter WHERE ps_filter.product_id = p.id 
+                AND ps_filter.shop_id IN
+                <foreach collection="filterShopIds" item="fsId" open="(" separator="," close=")">
+                    #{fsId}
+                </foreach>
+            )
+        </if>
+        <if test="procurementStatus != null">
+             <if test="procurementStatus == 'complete'">
+                AND p.id IN (
+                    SELECT v3.product_id FROM product_variants v3
+                    WHERE v3.product_id = p.id
+                    GROUP BY v3.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v3.procurement_url IS NOT NULL AND v3.procurement_url != ''
+                             AND v3.procurement_price IS NOT NULL
+                             AND v3.supplier IS NOT NULL AND v3.supplier != ''
+                             AND v3.sku IS NOT NULL AND v3.sku != ''
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                )
+            </if>
+            <if test="procurementStatus == 'incomplete'">
+                AND (p.id NOT IN (
+                    SELECT v7.product_id FROM product_variants v7
+                    WHERE v7.product_id = p.id
+                    GROUP BY v7.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v7.procurement_url IS NOT NULL AND v7.procurement_url != ''
+                             AND v7.procurement_price IS NOT NULL 
+                             AND v7.supplier IS NOT NULL AND v7.supplier != ''
+                             AND v7.sku IS NOT NULL AND v7.sku != ''
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                ) OR NOT EXISTS (SELECT 1 FROM product_variants v8 WHERE v8.product_id = p.id))
+            </if>
         </if>
         ORDER BY p.id DESC
         <if test="limit != null and limit > 0">
@@ -160,6 +206,52 @@
                 OR p.handle LIKE CONCAT('%', #{keyword}, '%')
                 OR p.vendor LIKE CONCAT('%', #{keyword}, '%')
             )
+        </if>
+        <if test="tags != null and tags.size() > 0">
+            AND (
+            <foreach collection="tags" item="tag" separator=" OR ">
+                p.tags LIKE CONCAT('%', #{tag}, '%')
+            </foreach>
+            )
+        </if>
+        <if test="filterShopIds != null and filterShopIds.size() > 0">
+            AND EXISTS (
+                SELECT 1 FROM product_shops ps_filter WHERE ps_filter.product_id = p.id 
+                AND ps_filter.shop_id IN
+                <foreach collection="filterShopIds" item="fsId" open="(" separator="," close=")">
+                    #{fsId}
+                </foreach>
+            )
+        </if>
+        <if test="procurementStatus != null">
+             <if test="procurementStatus == 'complete'">
+                AND p.id IN (
+                    SELECT v3.product_id FROM product_variants v3
+                    WHERE v3.product_id = p.id
+                    GROUP BY v3.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v3.procurement_url IS NOT NULL AND v3.procurement_url != ''
+                             AND v3.procurement_price IS NOT NULL 
+                             AND v3.supplier IS NOT NULL AND v3.supplier != ''
+                             AND v3.sku IS NOT NULL AND v3.sku != ''
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                )
+            </if>
+            <if test="procurementStatus == 'incomplete'">
+                AND (p.id NOT IN (
+                    SELECT v7.product_id FROM product_variants v7
+                    WHERE v7.product_id = p.id
+                    GROUP BY v7.product_id
+                    HAVING COUNT(*) = SUM(CASE 
+                        WHEN v7.procurement_url IS NOT NULL AND v7.procurement_url != ''
+                             AND v7.procurement_price IS NOT NULL 
+                             AND v7.supplier IS NOT NULL AND v7.supplier != ''
+                             AND v7.sku IS NOT NULL AND v7.sku != ''
+                        THEN 1 ELSE 0 END)
+                    AND COUNT(*) > 0
+                ) OR NOT EXISTS (SELECT 1 FROM product_variants v8 WHERE v8.product_id = p.id))
+            </if>
         </if>
     </select>
 

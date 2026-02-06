@@ -5,14 +5,23 @@
       <div class="toolbar">
         <h2>产品开发</h2>
         <a-space>
-          <a-button @click="handleExportCSV">
-            <DownloadOutlined />
-            导出CSV
-          </a-button>
+
           <a-button type="primary" @click="showUploadModal">
             <UploadOutlined />
             导入CSV
           </a-button>
+          <a-dropdown v-if="selectedRowKeys.length > 0">
+            <template #overlay>
+              <a-menu @click="handleBatchMenuClick">
+                <a-menu-item key="edit">批量编辑 (标签/状态)</a-menu-item>
+                <a-menu-item key="shop">批量分配商店</a-menu-item>
+                <a-menu-item key="delete" danger>批量删除</a-menu-item>
+              </a-menu>
+            </template>
+            <a-button>
+              批量操作 <DownOutlined />
+            </a-button>
+          </a-dropdown>
         </a-space>
       </div>
 
@@ -88,6 +97,7 @@
         :data-source="tableData"
         :loading="loading"
         :pagination="pagination"
+        :row-selection="rowSelection"
         @change="handleTableChange"
         row-key="id"
       >
@@ -359,24 +369,92 @@
           >
             <template #prefix>$</template>
           </a-input-number>
+          <div style="display: flex; gap: 16px; margin-top: 8px; background: #f5f5f5; padding: 8px; border-radius: 4px;">
+            <div style="flex: 1">
+              <span style="color: #666; font-size: 12px">平均采购价:</span>
+              <div style="font-weight: 500">${{ avgProcurementPrice }}</div>
+            </div>
+            <div style="flex: 1">
+              <span style="color: #666; font-size: 12px">预计利润:</span>
+              <div :style="{ color: estimatedProfit >= 0 ? '#52c41a' : '#ff4d4f', fontWeight: '500' }">
+                ${{ estimatedProfit }}
+                <span v-if="editForm.price > 0" style="font-size: 12px; color: #999; margin-left: 4px">
+                   ({{ profitMargin }}%)
+                </span>
+              </div>
+            </div>
+          </div>
           <div style="color: #999; font-size: 12px; margin-top: 4px">
             此价格将应用到该产品的所有变体
           </div>
         </a-form-item>
 
         <a-form-item label="原价（划线价）">
-          <a-input-number
-            v-model:value="editForm.compareAtPrice"
-            :min="0"
-            :precision="2"
-            placeholder="原价（对比价格）"
-            style="width: 100%"
-          >
-            <template #prefix>$</template>
-          </a-input-number>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <a-input-number
+              v-model:value="editForm.compareAtPrice"
+              :min="0"
+              :precision="2"
+              placeholder="原价（对比价格）"
+              style="width: 100%"
+            >
+              <template #prefix>$</template>
+            </a-input-number>
+            <a-tag color="error" v-if="discountPercentage > 0">
+              -{{ discountPercentage }}% OFF
+            </a-tag>
+          </div>
           <div style="color: #999; font-size: 12px; margin-top: 4px">
             显示为划线价,用于展示折扣
           </div>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 批量编辑弹窗 -->
+    <a-modal
+      v-model:open="batchEditModal.visible"
+      title="批量编辑 (标签/状态)"
+      :confirm-loading="batchEditModal.loading"
+      @ok="handleBatchEditSubmit"
+    >
+      <a-form :model="batchEditModal.form" layout="vertical">
+        <a-form-item label="标签 (追加或覆盖)">
+          <a-input 
+            v-model:value="batchEditModal.form.tags" 
+            placeholder="输入标签，多个用逗号分隔" 
+          />
+          <div style="color: #999; font-size: 12px">注意: 这里会直接替换原有的标签</div>
+        </a-form-item>
+        <a-form-item label="上架状态">
+          <a-select v-model:value="batchEditModal.form.published" placeholder="不修改">
+             <a-select-option :value="null">不修改</a-select-option>
+             <a-select-option :value="1">已上架</a-select-option>
+             <a-select-option :value="0">草稿</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 批量分配商店弹窗 -->
+    <a-modal
+      v-model:open="batchShopModal.visible"
+      title="批量分配商店"
+      :confirm-loading="batchShopModal.loading"
+      @ok="handleBatchShopSubmit"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="选择商店 (将覆盖原有分配)">
+          <a-select
+            v-model:value="batchShopModal.shopIds"
+            mode="multiple"
+            placeholder="选择要分配的商店"
+            style="width: 100%"
+          >
+            <a-select-option v-for="shop in shops" :key="shop.id" :value="shop.id">
+              {{ shop.shopName }}
+            </a-select-option>
+          </a-select>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -388,14 +466,16 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
 import {
   UploadOutlined,
-  DownloadOutlined,
+
   SearchOutlined,
   TagOutlined,
   EditOutlined,
   DeleteOutlined,
   PictureOutlined,
-  InboxOutlined
+  InboxOutlined,
+  DownOutlined
 } from '@ant-design/icons-vue'
+import { Modal } from 'ant-design-vue'
 import productApi from '@/api/product'
 import { shopApi } from '@/api/shop'
 
@@ -406,6 +486,15 @@ const isMobile = computed(() => !screens.value.md)
 const loading = ref(false)
 const tableData = ref([])
 const shops = ref([])
+const selectedRowKeys = ref([])
+
+// 表格选择配置
+const rowSelection = {
+  selectedRowKeys: selectedRowKeys,
+  onChange: (keys) => {
+    selectedRowKeys.value = keys
+  }
+}
 
 const filters = reactive({
   title: null,
@@ -589,6 +678,33 @@ const handleUpload = async () => {
 const editModalVisible = ref(false)
 const editLoading = ref(false)
 const editForm = ref(null)
+const avgProcurementPrice = ref('0.00')
+
+// 计算预计利润
+const estimatedProfit = computed(() => {
+  if (!editForm.value || !editForm.value.price) return '0.00'
+  const price = Number(editForm.value.price) || 0
+  const cost = Number(avgProcurementPrice.value) || 0
+  return (price - cost).toFixed(2)
+})
+
+// 计算利润率
+const profitMargin = computed(() => {
+  if (!editForm.value || !editForm.value.price) return '0'
+  const price = Number(editForm.value.price) || 0
+  const cost = Number(avgProcurementPrice.value) || 0
+  if (price <= 0) return '0'
+  return (((price - cost) / price) * 100).toFixed(0)
+})
+
+// 计算折扣百分比
+const discountPercentage = computed(() => {
+  if (!editForm.value || !editForm.value.price || !editForm.value.compareAtPrice) return 0
+  const price = Number(editForm.value.price)
+  const compare = Number(editForm.value.compareAtPrice)
+  if (compare <= price || compare <= 0) return 0
+  return Math.round(((compare - price) / compare) * 100)
+})
 
 const handleEdit = async (record) => {
   // 获取产品的第一个变体价格
@@ -601,9 +717,24 @@ const handleEdit = async (record) => {
       const firstVariant = variantsResponse.data[0]
       variantPrice = firstVariant.price
       variantComparePrice = firstVariant.compareAtPrice
+      
+      // 计算平均采购价
+      const validCosts = variantsResponse.data
+        .map(v => Number(v.procurementPrice))
+        .filter(p => !isNaN(p) && p > 0)
+      
+      if (validCosts.length > 0) {
+        const totalCost = validCosts.reduce((a, b) => a + b, 0)
+        avgProcurementPrice.value = (totalCost / validCosts.length).toFixed(2)
+      } else {
+        avgProcurementPrice.value = '0.00'
+      }
+    } else {
+      avgProcurementPrice.value = '0.00'
     }
   } catch (error) {
     console.error('获取变体信息失败:', error)
+    avgProcurementPrice.value = '0.00'
   }
   
   editForm.value = {
@@ -674,46 +805,100 @@ const handleDelete = async (id) => {
   }
 }
 
-// 导出CSV
-const handleExportCSV = async () => {
-  try {
-    // 构建导出参数(如果筛选了店铺,则只导出该店铺的产品)
-    const params = {}
-    if (filters.shopId) {
-      params.shopId = filters.shopId
-    }
 
-    message.loading({ content: '正在生成CSV文件...', key: 'export', duration: 0 })
-    
-    const response = await productApi.exportProductsCSV(params)
-    
-    message.success({ content: '导出成功!', key: 'export', duration: 2 })
-
-    // 创建Blob下载链接
-    const blob = new Blob([response], { type: 'text/csv;charset=utf-8;' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    
-    // 生成文件名
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-    const shopName = filters.shopId ? getShopName(filters.shopId) : '全部店铺'
-    link.download = `products_export_${shopName}_${timestamp}.csv`
-    
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (error) {
-    console.error('导出CSV失败:', error)
-    message.error({ content: '导出失败,请重试', key: 'export' })
-  }
-}
 
 onMounted(() => {
   fetchShops()
   fetchProducts()
 })
+
+// 批量操作相关
+const batchEditModal = reactive({
+  visible: false,
+  loading: false,
+  form: {
+    tags: '',
+    published: null
+  }
+})
+
+const batchShopModal = reactive({
+  visible: false,
+  loading: false,
+  shopIds: []
+})
+
+const handleBatchMenuClick = ({ key }) => {
+  if (key === 'delete') {
+    handleBatchDelete()
+  } else if (key === 'edit') {
+    batchEditModal.visible = true
+    batchEditModal.form = { tags: '', published: null }
+  } else if (key === 'shop') {
+    batchShopModal.visible = true
+    batchShopModal.shopIds = []
+  }
+}
+
+const handleBatchDelete = () => {
+  Modal.confirm({
+    title: '确认批量删除',
+    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个产品吗？此操作不可恢复。`,
+    okText: '确定',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await productApi.batchDeleteProducts(selectedRowKeys.value)
+        message.success('批量删除成功')
+        selectedRowKeys.value = [] // 清空选择
+        fetchProducts()
+      } catch (error) {
+        console.error('批量删除失败:', error)
+        message.error('批量删除失败')
+      }
+    }
+  })
+}
+
+const handleBatchEditSubmit = async () => {
+  batchEditModal.loading = true
+  try {
+    await productApi.batchUpdateProducts({
+      ids: selectedRowKeys.value,
+      tags: batchEditModal.form.tags,
+      published: batchEditModal.form.published
+    })
+    message.success('批量更新成功')
+    batchEditModal.visible = false
+    selectedRowKeys.value = []
+    fetchProducts()
+  } catch (error) {
+    console.error('批量更新失败:', error)
+    message.error('批量更新失败')
+  } finally {
+    batchEditModal.loading = false
+  }
+}
+
+const handleBatchShopSubmit = async () => {
+  batchShopModal.loading = true
+  try {
+    await productApi.batchUpdateProductShops({
+      productIds: selectedRowKeys.value,
+      shopIds: batchShopModal.shopIds
+    })
+    message.success('批量分配商店成功')
+    batchShopModal.visible = false
+    selectedRowKeys.value = []
+    fetchProducts()
+  } catch (error) {
+    console.error('批量分配商店失败:', error)
+    message.error('批量分配商店失败')
+  } finally {
+    batchShopModal.loading = false
+  }
+}
 </script>
 
 <style scoped>
