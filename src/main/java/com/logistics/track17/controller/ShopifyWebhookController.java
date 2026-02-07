@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.track17.entity.Order;
 import com.logistics.track17.entity.Shop;
+import com.logistics.track17.dto.TrackingRequest;
+import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.OrderService;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyWebhookService;
+import com.logistics.track17.service.TrackingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,16 +30,19 @@ public class ShopifyWebhookController {
     private final ShopifyWebhookService webhookService;
     private final ShopService shopService;
     private final OrderService orderService;
+    private final TrackingService trackingService;
     private final ObjectMapper objectMapper;
 
     @Autowired
     public ShopifyWebhookController(ShopifyWebhookService webhookService,
             ShopService shopService,
             OrderService orderService,
+            TrackingService trackingService,
             ObjectMapper objectMapper) {
         this.webhookService = webhookService;
         this.shopService = shopService;
         this.orderService = orderService;
+        this.trackingService = trackingService;
         this.objectMapper = objectMapper;
     }
 
@@ -231,10 +237,7 @@ public class ShopifyWebhookController {
             log.info("Order updated: {} (ID: {}, Status: {}) for shop: {}",
                     orderNumber, orderId, fulfillmentStatus, shopDomain);
 
-            // TODO: 实现订单更新逻辑
-            // 1. 查找现有订单
-            // 2. 更新订单状态
-            // 3. 如果订单已发货,同步物流跟踪号
+            Order order = orderService.saveOrderFromWebhook(shop, orderData);
 
             // 检查是否有物流信息
             if (orderData.has("fulfillments") && orderData.get("fulfillments").isArray()) {
@@ -249,7 +252,16 @@ public class ShopifyWebhookController {
                         log.info("Tracking info found - Number: {}, Company: {}",
                                 trackingNumber, trackingCompany);
 
-                        // TODO: 调用TrackingService注册跟踪号
+                        TrackingRequest trackingRequest = new TrackingRequest();
+                        trackingRequest.setTrackingNumber(trackingNumber);
+                        trackingRequest.setOrderId(order.getId());
+                        trackingRequest.setSource("shopify");
+                        try {
+                            trackingService.create(trackingRequest);
+                        } catch (BusinessException e) {
+                            log.warn("Unable to register tracking number {} from Shopify webhook: {}",
+                                    trackingNumber, e.getMessage());
+                        }
                     }
                 }
             }

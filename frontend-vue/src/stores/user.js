@@ -102,6 +102,46 @@ export const useUserStore = defineStore('user', () => {
     setStorageItem('avatar', userInfo.avatar || '')
   }
 
+  // Shop Context
+  const currentShopId = ref(getStorageItem('currentShopId') ? Number(getStorageItem('currentShopId')) : null)
+  const accessibleShops = ref([])
+
+  // Load accessible shops
+  const loadAccessibleShops = async () => {
+    try {
+      // Lazy load API to avoid circular dependency if any
+      const { userShopApi } = await import('@/api/user-shop')
+      const response = await userShopApi.getMyShops()
+      if (response.code === 200) {
+        accessibleShops.value = response.data || []
+
+        // Verify current shop is still accessible if one is selected
+        if (currentShopId.value) {
+          const exists = accessibleShops.value.find(s => s.id === currentShopId.value)
+          if (!exists) {
+            // If current shop is no longer valid, reset to All Shops (null)
+            // Or auto-select first one? Let's default to All Shops for safety and consistency
+            currentShopId.value = null
+            removeStorageItem('currentShopId')
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load accessible shops:', e)
+    }
+  }
+
+  const switchShop = (shopId) => {
+    currentShopId.value = shopId
+    if (shopId) {
+      setStorageItem('currentShopId', shopId)
+    } else {
+      removeStorageItem('currentShopId')
+    }
+    // Optionally reload page or trigger global refresh if needed
+    // window.location.reload() 
+  }
+
   return {
     token,
     username,
@@ -109,9 +149,13 @@ export const useUserStore = defineStore('user', () => {
     avatar,
     permissions,
     isLoggedIn,
+    currentShopId,
+    accessibleShops,
     login,
     logout,
     setToken,
-    setUserInfo
+    setUserInfo,
+    loadAccessibleShops,
+    switchShop
   }
 })

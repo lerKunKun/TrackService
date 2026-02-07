@@ -73,6 +73,29 @@
             <span>运单管理</span>
           </a-menu-item>
           
+          <a-sub-menu key="product">
+            <template #icon>
+              <AppstoreOutlined />
+            </template>
+            <template #title>产品管理</template>
+            <a-menu-item key="product-development">
+              <ExperimentOutlined />
+              <span>产品开发</span>
+            </a-menu-item>
+            <a-menu-item key="product-procurement">
+              <ShoppingCartOutlined />
+              <span>采购管理</span>
+            </a-menu-item>
+            <a-menu-item key="product-listing">
+              <FileTextOutlined />
+              <span>产品刊登</span>
+            </a-menu-item>
+            <a-menu-item key="product-authorization">
+              <SafetyOutlined />
+              <span>产品可见性</span>
+            </a-menu-item>
+          </a-sub-menu>
+          
           <a-sub-menu key="system">
             <template #icon>
               <SettingOutlined />
@@ -102,6 +125,10 @@
               <SyncOutlined />
               <span>钉钉组织同步</span>
             </a-menu-item>
+            <a-menu-item key="system-canvas">
+              <ApartmentOutlined />
+              <span>系统画布</span>
+            </a-menu-item>
           </a-sub-menu>
         </template>
       </a-menu>
@@ -113,6 +140,7 @@
       class="mobile-mask"
       @click="collapsed = true"
     ></div>
+
 
     <!-- 主内容区域 -->
     <a-layout :style="mainStyle">
@@ -130,45 +158,50 @@
               class="menu-trigger"
               @click="collapsed = true"
             />
-            <div class="page-title">
-              <span class="logo-text">比欧中台</span>
-            </div>
+            <a-breadcrumb style="margin-left: 16px">
+              <a-breadcrumb-item v-for="(route, index) in breadcrumbList" :key="route.path">
+                <span v-if="index === breadcrumbList.length - 1">{{ route.meta.title }}</span>
+                <router-link v-else :to="route.path">{{ route.meta.title }}</router-link>
+              </a-breadcrumb-item>
+            </a-breadcrumb>
           </div>
 
-          <!-- 世界时钟 -->
+          <!-- 世界时钟 (绝对居中) -->
           <div class="world-clock" v-if="!isMobile">
             <span class="clock-item">
-              <span class="clock-label">中国时间 :</span>
+              <span class="clock-label">BeiJingTime :</span>
               <span class="clock-time">{{ chinaTime }}</span>
             </span>
             <span class="clock-item">
-              <span class="clock-label">美国东部时间 :</span>
+              <span class="clock-label">NewYorkTime :</span>
               <span class="clock-time">{{ usTime }}</span>
             </span>
           </div>
 
-          <div class="user-info">
-            <a-space :size="12">
-              <a-tooltip title="个人主页">
-                <a-avatar 
-                  :src="userAvatar" 
-                  :size="36"
-                  @click="goToProfile"
-                  class="user-avatar"
-                >
-                  <template #icon>
-                    <UserOutlined />
-                  </template>
-                </a-avatar>
-              </a-tooltip>
-              <span class="username-text" @click="goToProfile">
-                {{ userStore.displayName }}
-              </span>
-              <a-button type="link" @click="handleLogout" danger>
-                <LogoutOutlined />
-                退出登录
-              </a-button>
-            </a-space>
+          <!-- 右侧功能区 (店铺选择 + 用户信息) -->
+          <div class="header-right">
+             <ShopSelect />
+             
+             <div class="user-info">
+              <a-space :size="12">
+                <a-tooltip title="个人主页">
+                  <a-avatar 
+                    :src="userAvatar" 
+                    :size="36"
+                    @click="goToProfile"
+                    class="user-avatar"
+                  >
+                  </a-avatar>
+                </a-tooltip>
+                <span class="username-text" @click="goToProfile">
+                  {{ userStore.displayName }}
+                </span>
+                <a-button type="link" @click="handleLogout" danger>
+                  <LogoutOutlined />
+                  退出登录
+                </a-button>
+              </a-space>
+            </div>
           </div>
         </div>
       </a-layout-header>
@@ -194,6 +227,10 @@ import {
   ShopOutlined,
   ShoppingOutlined,
   CarOutlined,
+  AppstoreOutlined,
+  ExperimentOutlined,
+  ShoppingCartOutlined,
+  FileTextOutlined,
   TeamOutlined,
   SafetyOutlined,
   SyncOutlined,
@@ -202,10 +239,12 @@ import {
   SettingOutlined,
   UserSwitchOutlined,
   MenuOutlined,
-  IdcardOutlined
+  IdcardOutlined,
+  ApartmentOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { menuApi } from '@/api/menu'
+import ShopSelect from '@/components/ShopSelect.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -219,10 +258,19 @@ const selectedKeys = ref(['dashboard'])
 const openKeys = ref([])
 const menuTree = ref([])
 
-// 移动端自动收起侧边栏
+// 面包屑数据
+const breadcrumbList = computed(() => {
+  const matched = route.matched.filter(item => item.meta && item.meta.title)
+  // console.log('Breadcrumbs calculated:', matched)
+  return matched
+})
+
+// 移动端自动收起侧边栏，PC端默认展开
 watch(isMobile, (val) => {
   if (val) {
-    collapsed.value = true
+    collapsed.value = true  // 移动端收起
+  } else {
+    collapsed.value = false  // PC端展开
   }
 }, { immediate: true })
 
@@ -237,6 +285,13 @@ const mainStyle = computed(() => {
 watch(
   () => route.path,
   (path) => {
+    // 优先尝试从动态菜单树更新
+    if (menuTree.value.length > 0) {
+      updateMenuKeysFromRoute()
+      return
+    }
+
+    // Fallback: 硬编码菜单逻辑
     if (path.includes('dashboard') || path === '/') {
       selectedKeys.value = ['dashboard']
     } else if (path.includes('shops')) {
@@ -263,6 +318,21 @@ watch(
     } else if (path.includes('dingtalk-sync')) {
       selectedKeys.value = ['dingtalk-sync']
       openKeys.value = ['system']
+    } else if (path.includes('system/canvas')) {
+      selectedKeys.value = ['system-canvas']
+      openKeys.value = ['system']
+    } else if (path.includes('product/development')) {
+      selectedKeys.value = ['product-development']
+      openKeys.value = ['product']
+    } else if (path.includes('product/procurement')) {
+      selectedKeys.value = ['product-procurement']
+      openKeys.value = ['product']
+    } else if (path.includes('product/listing')) {
+      selectedKeys.value = ['product-listing']
+      openKeys.value = ['product']
+    } else if (path.includes('product/authorization')) {
+      selectedKeys.value = ['product-authorization']
+      openKeys.value = ['product']
     }
   },
   { immediate: true }
@@ -287,11 +357,25 @@ const handleMenuClick = ({ key }) => {
     const menu = findMenuByCode(menuTree.value, key)
     if (menu && menu.path) {
       router.push(menu.path)
+      // 不改变openKeys状态，让Vue自动管理
       return
     }
   }
   // Fallback: 使用硬编码菜单的key路由
-  router.push(`/${key}`)
+  // 特殊处理product子菜单
+  if (key === 'product-development') {
+    router.push('/product/development')
+  } else if (key === 'product-procurement') {
+    router.push('/product/procurement')
+  } else if (key === 'product-listing') {
+    router.push('/product/listing')
+  } else if (key === 'product-authorization') {
+    router.push('/product/authorization')
+  } else if (key === 'system-canvas') {
+    router.push('/system/canvas')
+  } else {
+    router.push(`/${key}`)
+  }
 }
 
 const handleLogout = () => {
@@ -364,7 +448,10 @@ const updateMenuKeysFromRoute = () => {
       if (menu.children && menu.children.length > 0) {
         const found = findMenuByPath(menu.children, targetPath)
         if (found) {
-          openKeys.value = [menu.menuCode]
+          // 只有当openKeys为空时才设置，避免覆盖用户的展开状态
+          if (openKeys.value.length === 0) {
+            openKeys.value = [menu.menuCode]
+          }
           return found
         }
       }
@@ -512,56 +599,26 @@ onMounted(() => {
   align-items: center;
   padding: 0 24px;
   height: 100%;
+  position: relative; /* Ensure absolute positioning works for children */
 }
 
-.page-title {
+/* ... existing styles ... */
+
+.header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.page-title .logo-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #262626;
-}
-
-.user-info {
-  color: #595959;
-}
-
-.user-info :deep(.ant-btn-link) {
-  color: #595959;
-}
-
-.user-info :deep(.ant-btn-link:hover) {
-  color: #ff4d4f;
-}
-
-.user-avatar {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.user-avatar:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.username-text {
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.username-text:hover {
-  color: #1890ff;
+  gap: 16px; 
 }
 
 /* 世界时钟样式 */
 .world-clock {
   display: flex;
   align-items: center;
-  gap: 200px;
+  gap: 40px; /* Reduced gap for better fit */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 .clock-item {

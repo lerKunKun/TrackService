@@ -337,4 +337,105 @@ public class UserService {
         // 密码字段不会被复制，因为UserDTO中没有password字段
         return dto;
     }
+
+    /**
+     * 获取用户的角色列表
+     */
+    public List<com.logistics.track17.entity.Role> getUserRoles(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.of(404, "用户不存在");
+        }
+        // 通过 RoleMapper 查询用户角色
+        return userMapper.selectRolesByUserId(userId);
+    }
+
+    /**
+     * 更新用户的角色列表
+     */
+    @Transactional
+    public void updateUserRoles(Long userId, List<Long> roleIds) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BusinessException.of(404, "用户不存在");
+        }
+        // 删除用户现有角色
+        userMapper.deleteUserRoles(userId);
+        // 添加新角色
+        if (roleIds != null && !roleIds.isEmpty()) {
+            for (Long roleId : roleIds) {
+                userMapper.insertUserRole(userId, roleId);
+            }
+        }
+        log.info("Updated roles for user {}: {}", userId, roleIds);
+    }
+
+    /**
+     * 获取用户列表（带角色信息）- 优化版，避免 N+1 查询
+     */
+    public java.util.Map<String, Object> getUsersWithRoles(int page, int size) {
+        int offset = (page - 1) * size;
+        List<User> users = userMapper.selectByPage(offset, size);
+        Long total = userMapper.count();
+
+        if (users.isEmpty()) {
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+            result.put("list", java.util.Collections.emptyList());
+            result.put("total", total);
+            result.put("page", page);
+            result.put("size", size);
+            return result;
+        }
+
+        // 批量获取所有用户的角色（单次查询）
+        List<Long> userIds = users.stream().map(User::getId).collect(Collectors.toList());
+        List<java.util.Map<String, Object>> userRoleMappings = userMapper.selectRolesByUserIds(userIds);
+
+        // 构建用户ID到角色列表的映射
+        java.util.Map<Long, List<com.logistics.track17.entity.Role>> userRolesMap = new java.util.HashMap<>();
+        for (java.util.Map<String, Object> mapping : userRoleMappings) {
+            Long userId = ((Number) mapping.get("user_id")).longValue();
+            com.logistics.track17.entity.Role role = new com.logistics.track17.entity.Role();
+            role.setId(((Number) mapping.get("role_id")).longValue());
+            role.setRoleName((String) mapping.get("role_name"));
+            role.setRoleCode((String) mapping.get("role_code"));
+            role.setDescription((String) mapping.get("description"));
+            // 处理 status 字段（可能是 Boolean 或 Number，取决于 JDBC 驱动）
+            Object statusObj = mapping.get("status");
+            if (statusObj instanceof Boolean) {
+                role.setStatus(((Boolean) statusObj) ? 1 : 0);
+            } else if (statusObj instanceof Number) {
+                role.setStatus(((Number) statusObj).intValue());
+            } else {
+                role.setStatus(1);
+            }
+
+            userRolesMap.computeIfAbsent(userId, k -> new java.util.ArrayList<>()).add(role);
+        }
+
+        // 构建返回结果
+        List<java.util.Map<String, Object>> usersWithRoles = users.stream()
+                .map(user -> {
+                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    UserDTO dto = convertToDTO(user);
+                    map.put("id", dto.getId());
+                    map.put("username", dto.getUsername());
+                    map.put("realName", dto.getRealName());
+                    map.put("email", dto.getEmail());
+                    map.put("phone", dto.getPhone());
+                    map.put("avatar", dto.getAvatar());
+                    map.put("status", dto.getStatus());
+                    // 从映射中获取角色，避免 N+1 查询
+                    map.put("roles", userRolesMap.getOrDefault(user.getId(), java.util.Collections.emptyList()));
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("list", usersWithRoles);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
 }

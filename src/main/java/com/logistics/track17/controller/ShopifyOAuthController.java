@@ -1,10 +1,13 @@
 package com.logistics.track17.controller;
 
 import com.logistics.track17.entity.Shop;
+import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyOAuthService;
 import com.logistics.track17.service.ShopifyWebhookService;
+import com.logistics.track17.service.UserService;
+import com.logistics.track17.util.UserContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +17,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +38,7 @@ public class ShopifyOAuthController {
     private final ShopifyOAuthService shopifyOAuthService;
     private final ShopService shopService;
     private final ShopifyWebhookService webhookService;
+    private final UserService userService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -43,10 +52,12 @@ public class ShopifyOAuthController {
 
     public ShopifyOAuthController(ShopifyOAuthService shopifyOAuthService,
             ShopService shopService,
-            ShopifyWebhookService webhookService) {
+            ShopifyWebhookService webhookService,
+            UserService userService) {
         this.shopifyOAuthService = shopifyOAuthService;
         this.shopService = shopService;
         this.webhookService = webhookService;
+        this.userService = userService;
     }
 
     /**
@@ -150,84 +161,61 @@ public class ShopifyOAuthController {
             }
 
             // 5. 保存或更新店铺信息
-            Shop existingShop = shopService.getByShopDomain(shop);
+            // 5. 保存或更新店铺信息
+            Shop shopEntity = new Shop();
+            // 如果已存在将被覆盖，如果不存在将被创建
+            shopEntity.setShopDomain(shop);
 
-            if (existingShop != null) {
-                // 更新现有店铺
-                existingShop.setShopName((String) shopInfo.getOrDefault("name", existingShop.getShopName()));
-                existingShop.setAccessToken(accessToken);
-                existingShop.setTokenType("offline"); // 使用 offline token
-                existingShop.setConnectionStatus("active"); // 连接状态正常
-                existingShop.setLastValidatedAt(LocalDateTime.now());
-                existingShop.setOauthScope(scope);
-                existingShop.setOauthState(state);
-                existingShop.setShopDomain(shop);
-                existingShop.setStoreUrl("https://" + shop);
-                existingShop.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
-                existingShop.setTokenExpiresAt(null); // Offline token 永不过期
-                existingShop.setIsActive(true);
+            // 设置公共字段
+            shopEntity.setShopName((String) shopInfo.getOrDefault("name", shop.replace(".myshopify.com", "")));
+            shopEntity.setPlatform("shopify");
+            shopEntity.setStoreUrl("https://" + shop);
 
-                // 更新完整的店铺详细信息
-                if (shopInfo.get("currency") != null) {
-                    existingShop.setCurrency((String) shopInfo.get("currency"));
-                }
-                if (shopInfo.get("plan_name") != null) {
-                    existingShop.setPlanName((String) shopInfo.get("plan_name"));
-                }
-                if (shopInfo.get("plan_display_name") != null) {
-                    existingShop.setPlanDisplayName((String) shopInfo.get("plan_display_name"));
-                }
-                existingShop.setIsShopifyPlus((Boolean) shopInfo.getOrDefault("shopify_plus", false));
-                if (shopInfo.get("primary_domain") != null) {
-                    existingShop.setPrimaryDomain((String) shopInfo.get("primary_domain"));
-                }
-                if (shopInfo.get("shop_owner") != null) {
-                    existingShop.setShopOwner((String) shopInfo.get("shop_owner"));
-                }
-                if (shopInfo.get("email") != null) {
-                    existingShop.setContactEmail((String) shopInfo.get("email"));
-                    existingShop.setOwnerEmail((String) shopInfo.get("email"));
-                }
-                if (shopInfo.get("iana_timezone") != null) {
-                    existingShop.setIanaTimezone((String) shopInfo.get("iana_timezone"));
-                }
+            // 认证信息
+            shopEntity.setAccessToken(accessToken);
+            shopEntity.setTokenType("offline");
+            shopEntity.setOauthScope(scope);
+            shopEntity.setOauthState(state);
+            shopEntity.setConnectionStatus("active");
+            shopEntity.setLastValidatedAt(LocalDateTime.now());
+            shopEntity.setIsActive(true);
+            shopEntity.setTokenExpiresAt(null);
 
-                shopService.update(existingShop);
-
-                log.info("Updated existing shop: {} with offline token", shop);
-            } else {
-                // 创建新店铺 - 需要设置 userId（临时使用 ID=1 的管理员）
-                Shop newShop = new Shop();
-                newShop.setUserId(1L); // TODO: 从当前登录用户获取
-                newShop.setShopName((String) shopInfo.getOrDefault("name", shop.replace(".myshopify.com", "")));
-                newShop.setPlatform("shopify");
-                newShop.setStoreUrl("https://" + shop);
-                newShop.setShopDomain(shop);
-                newShop.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
-                newShop.setAccessToken(accessToken);
-                newShop.setTokenType("offline"); // 使用 offline token
-                newShop.setConnectionStatus("active"); // 连接状态正常
-                newShop.setLastValidatedAt(LocalDateTime.now());
-                newShop.setOauthScope(scope);
-                newShop.setOauthState(state);
-                newShop.setTokenExpiresAt(null); // Offline token 永不过期
-                newShop.setIsActive(true);
-
-                // 添加完整的店铺详细信息
-                newShop.setCurrency((String) shopInfo.get("currency"));
-                newShop.setPlanName((String) shopInfo.get("plan_name"));
-                newShop.setPlanDisplayName((String) shopInfo.get("plan_display_name"));
-                newShop.setIsShopifyPlus((Boolean) shopInfo.getOrDefault("shopify_plus", false));
-                newShop.setPrimaryDomain((String) shopInfo.get("primary_domain"));
-                newShop.setShopOwner((String) shopInfo.get("shop_owner"));
-                newShop.setContactEmail((String) shopInfo.get("email"));
-                newShop.setOwnerEmail((String) shopInfo.get("email"));
-                newShop.setIanaTimezone((String) shopInfo.get("iana_timezone"));
-
-                shopService.create(newShop);
-
-                log.info("Created new shop: {} with offline token", shop);
+            // 详细信息
+            shopEntity.setTimezone((String) shopInfo.getOrDefault("timezone", "UTC"));
+            shopEntity.setCurrency((String) shopInfo.get("currency"));
+            shopEntity.setPlanName((String) shopInfo.get("plan_name"));
+            shopEntity.setPlanDisplayName((String) shopInfo.get("plan_display_name"));
+            shopEntity.setIsShopifyPlus((Boolean) shopInfo.getOrDefault("shopify_plus", false));
+            shopEntity.setPrimaryDomain((String) shopInfo.get("primary_domain"));
+            shopEntity.setShopOwner((String) shopInfo.get("shop_owner"));
+            shopEntity.setContactEmail((String) shopInfo.get("email"));
+            shopEntity.setOwnerEmail((String) shopInfo.get("email"));
+            if (shopInfo.get("iana_timezone") != null) {
+                shopEntity.setIanaTimezone((String) shopInfo.get("iana_timezone"));
             }
+
+            // 如果是新店铺，需要设置默认UserId
+            Shop existing = shopService.getByShopDomain(shop);
+            if (existing == null) {
+                Long currentUserId = UserContextHolder.getCurrentUserId();
+                if (currentUserId != null) {
+                    shopEntity.setUserId(currentUserId);
+                } else {
+                    User adminUser = userService.getUserByUsername("admin");
+                    if (adminUser != null) {
+                        shopEntity.setUserId(adminUser.getId());
+                        log.info("Assigned Shopify shop to admin user {} due to missing user context.", adminUser.getId());
+                    } else {
+                        throw BusinessException.of("No authenticated user or admin user found for Shopify OAuth callback");
+                    }
+                }
+            }
+
+            // 调用Service层的saveOrUpdateShop方法，统一处理重复逻辑
+            shopService.saveOrUpdateShop(shopEntity);
+
+            log.info("Shop saved successfully: {}", shop);
 
             // 6. 注册Webhooks (异步执行,不阻塞OAuth流程)
             try {
@@ -244,7 +232,8 @@ public class ShopifyOAuthController {
 
         } catch (Exception e) {
             log.error("OAuth callback failed for shop: {}", shop, e);
-            response.sendRedirect(frontendRedirect + "?oauth=error&reason=" + e.getMessage());
+            String reason = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+            response.sendRedirect(frontendRedirect + "?oauth=error&reason=" + reason);
         }
     }
 
@@ -252,9 +241,20 @@ public class ShopifyOAuthController {
      * 从授权URL中提取state参数
      */
     private String extractStateFromUrl(String url) {
-        String[] parts = url.split("state=");
-        if (parts.length > 1) {
-            return parts[1].split("&")[0];
+        try {
+            URI uri = new URI(url);
+            String query = uri.getQuery();
+            if (query == null) {
+                throw BusinessException.of("无法提取OAuth state");
+            }
+            for (String param : query.split("&")) {
+                String[] kv = param.split("=", 2);
+                if (kv.length == 2 && "state".equals(kv[0])) {
+                    return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+                }
+            }
+        } catch (URISyntaxException e) {
+            throw BusinessException.of("无法解析OAuth URL");
         }
         throw BusinessException.of("无法提取OAuth state");
     }

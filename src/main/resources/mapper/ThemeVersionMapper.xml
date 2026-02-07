@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.ThemeVersionMapper">
+    
+    <!-- Result Map -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.ThemeVersion">
+        <id column="id" property="id"/>
+        <result column="theme_name" property="themeName"/>
+        <result column="version" property="version"/>
+        <result column="zip_file_path" property="zipFilePath"/>
+        <result column="zip_file_size" property="zipFileSize"/>
+        <result column="sections_count" property="sectionsCount"/>
+        <result column="is_current" property="isCurrent"/>
+        <result column="uploaded_by" property="uploadedBy"/>
+        <result column="uploaded_at" property="uploadedAt"/>
+        <result column="notes" property="notes"/>
+    </resultMap>
+    
+    <!-- 插入 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.ThemeVersion" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO theme_version_archive (
+            theme_name, version, zip_file_path, zip_file_size, 
+            sections_count, is_current, uploaded_by
+        ) VALUES (
+            #{themeName}, #{version}, #{zipFilePath}, #{zipFileSize},
+            #{sectionsCount}, #{isCurrent}, #{uploadedBy}
+        )
+    </insert>
+    
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM theme_version_archive WHERE id = #{id}
+    </select>
+    
+    <!-- 根据主题名称和版本号查询 -->
+    <select id="selectByThemeAndVersion" resultMap="BaseResultMap">
+        SELECT * FROM theme_version_archive 
+        WHERE theme_name = #{themeName} AND version = #{version}
+    </select>
+    
+    <!-- 获取当前版本 -->
+    <select id="selectCurrentVersion" resultMap="BaseResultMap">
+        SELECT * FROM theme_version_archive 
+        WHERE theme_name = #{themeName} AND is_current = TRUE
+        LIMIT 1
+    </select>
+    
+    <!-- 获取所有版本 -->
+    <select id="selectByThemeName" resultMap="BaseResultMap">
+        SELECT * FROM theme_version_archive 
+        WHERE theme_name = #{themeName}
+        ORDER BY uploaded_at DESC
+    </select>
+    
+    <!-- 更新 -->
+    <update id="update">
+        UPDATE theme_version_archive
+        <set>
+            <if test="zipFilePath != null">zip_file_path = #{zipFilePath},</if>
+            <if test="zipFileSize != null">zip_file_size = #{zipFileSize},</if>
+            <if test="sectionsCount != null">sections_count = #{sectionsCount},</if>
+            <if test="isCurrent != null">is_current = #{isCurrent},</if>
+            <if test="notes != null">notes = #{notes},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    
+    <!-- 清除current标记 -->
+    <update id="clearCurrentFlag">
+        UPDATE theme_version_archive 
+        SET is_current = FALSE 
+        WHERE theme_name = #{themeName}
+    </update>
+    
+    <!-- 设置为当前版本 -->
+    <update id="setAsCurrentVersion">
+        UPDATE theme_version_archive 
+        SET is_current = TRUE 
+        WHERE theme_name = #{themeName} AND version = #{version}
+    </update>
+    
+    <!-- 删除 -->
+    <delete id="deleteById">
+        DELETE FROM theme_version_archive WHERE id = #{id}
+    </delete>
+    
+</mapper>

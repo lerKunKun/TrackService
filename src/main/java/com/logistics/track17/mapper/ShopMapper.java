@@ -16,6 +16,11 @@ public interface ShopMapper {
     int insert(Shop shop);
 
     /**
+     * 查询所有店铺
+     */
+    List<Shop> selectAll();
+
+    /**
      * 根据ID查询店铺
      */
     Shop selectById(@Param("id") Long id);

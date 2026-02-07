@@ -135,9 +135,10 @@ public class AuthenticationAspect {
 
             // 6.3 检查权限码（推荐使用，基于RBAC的细粒度权限控制）
             if (requireAuth.permissions().length > 0) {
-                if (!hasAnyPermission(user.getId(), requireAuth.permissions())) {
-                    log.warn("User {} lacks required permissions {} for resource: {}",
-                            username, Arrays.toString(requireAuth.permissions()), path);
+                if (!checkPermissions(user.getId(), requireAuth.permissions(), requireAuth.permissionMode())) {
+                    log.warn("User {} lacks required permissions {} (mode: {}) for resource: {}",
+                            username, Arrays.toString(requireAuth.permissions()),
+                            requireAuth.permissionMode(), path);
                     throw new BusinessException(403, "权限不足：缺少所需权限");
                 }
             }
@@ -161,17 +162,11 @@ public class AuthenticationAspect {
 
     /**
      * 检查用户是否是管理员
-     * 检查逻辑：
-     * 1. 检查user.role字段是否为ADMIN（向后兼容）
-     * 2. 检查user_roles表中是否有ADMIN或SUPER_ADMIN角色
+     * 检查逻辑：查询 user_roles 表中是否有 ADMIN 或 SUPER_ADMIN 角色
+     * 注意：已移除对 users.role 字段的兼容性检查，统一使用 RBAC 系统
      */
     private boolean isAdminUser(User user) {
-        // 兼容旧代码：检查user.role字段
-        if ("ADMIN".equals(user.getRole()) || "SUPER_ADMIN".equals(user.getRole())) {
-            return true;
-        }
-
-        // 新RBAC系统：检查user_roles表
+        // 查询 user_roles 表
         List<Role> roles = roleService.getRolesByUserId(user.getId());
         return roles.stream()
                 .map(Role::getRoleCode)
@@ -180,19 +175,13 @@ public class AuthenticationAspect {
 
     /**
      * 检查用户是否拥有任一指定角色
-     * 检查逻辑：
-     * 1. 检查user.role字段（向后兼容）
-     * 2. 检查user_roles表（RBAC系统）
+     * 检查逻辑：查询 user_roles 表（RBAC 系统）
+     * 注意：已移除对 users.role 字段的兼容性检查，统一使用 RBAC 系统
      */
     private boolean hasAnyRole(User user, String[] requiredRoles) {
         Set<String> requiredRoleSet = Arrays.stream(requiredRoles).collect(Collectors.toSet());
 
-        // 兼容旧代码：检查user.role字段
-        if (user.getRole() != null && requiredRoleSet.contains(user.getRole())) {
-            return true;
-        }
-
-        // 新RBAC系统：检查user_roles表
+        // 查询 user_roles 表
         List<Role> userRoles = roleService.getRolesByUserId(user.getId());
         return userRoles.stream()
                 .map(Role::getRoleCode)
@@ -200,22 +189,40 @@ public class AuthenticationAspect {
     }
 
     /**
-     * 检查用户是否拥有任一指定权限
+     * 检查用户是否拥有所需权限
+     * 支持 AND 和 OR 两种验证模式
      * 基于RBAC系统，查询user_roles -> role_permissions -> permissions
      */
-    private boolean hasAnyPermission(Long userId, String[] requiredPermissions) {
+    private boolean checkPermissions(Long userId, String[] requiredPermissions, RequireAuth.PermissionMode mode) {
         if (requiredPermissions == null || requiredPermissions.length == 0) {
             return true;
         }
 
-        // 查询用户所有权限
-        List<Permission> userPermissions = permissionService.getPermissionsByUserId(userId);
-        Set<String> permissionCodes = userPermissions.stream()
-                .map(Permission::getPermissionCode)
-                .collect(Collectors.toSet());
+        // 查询用户所有权限码
+        Set<String> userPermissionCodes = permissionService.getUserPermissionCodes(userId);
 
-        // 检查是否拥有任一所需权限（OR逻辑）
-        return Arrays.stream(requiredPermissions)
-                .anyMatch(permissionCodes::contains);
+        if (mode == RequireAuth.PermissionMode.AND) {
+            // AND 逻辑：必须拥有所有权限
+            boolean hasAll = Arrays.stream(requiredPermissions)
+                    .allMatch(userPermissionCodes::contains);
+
+            if (!hasAll) {
+                log.debug("User {} lacks some required permissions (AND mode). Required: {}, Has: {}",
+                        userId, Arrays.toString(requiredPermissions), userPermissionCodes);
+            }
+
+            return hasAll;
+        } else {
+            // OR 逻辑：拥有任一权限即可（默认）
+            boolean hasAny = Arrays.stream(requiredPermissions)
+                    .anyMatch(userPermissionCodes::contains);
+
+            if (!hasAny) {
+                log.debug("User {} lacks all required permissions (OR mode). Required: {}, Has: {}",
+                        userId, Arrays.toString(requiredPermissions), userPermissionCodes);
+            }
+
+            return hasAny;
+        }
     }
 }

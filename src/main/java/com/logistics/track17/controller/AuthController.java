@@ -12,10 +12,14 @@ import com.logistics.track17.service.PermissionService;
 import com.logistics.track17.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 认证控制器
@@ -34,15 +38,25 @@ public class AuthController {
     @Value("${jwt.expiration}")
     private Long expiration;
 
+    @Value("${dingtalk.frontend-redirect:http://localhost:3000}")
+    private String dingtalkFrontendRedirect;
+
+    private static final String DINGTALK_STATE_PREFIX = "dingtalk:state:";
+    private static final long DINGTALK_STATE_EXPIRE_SECONDS = 300;
+
+    private final RedisTemplate<String, Object> redisTemplate;
+
     public AuthController(JwtUtil jwtUtil, UserService userService,
             DingTalkService dingTalkService,
             PermissionService permissionService,
-            com.logistics.track17.config.DingTalkConfig dingTalkConfig) {
+            com.logistics.track17.config.DingTalkConfig dingTalkConfig,
+            RedisTemplate<String, Object> redisTemplate) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
         this.dingTalkService = dingTalkService;
         this.permissionService = permissionService;
         this.dingTalkConfig = dingTalkConfig;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
@@ -137,7 +151,8 @@ public class AuthController {
     public Result<String> getDingTalkLoginUrl() {
         // 使用更快的UUID生成方法
         String state = generateFastUUID();
-        // TODO: 可以将state存入Redis，5分钟过期，用于验证回调
+        String key = DINGTALK_STATE_PREFIX + state;
+        redisTemplate.opsForValue().set(key, Boolean.TRUE, DINGTALK_STATE_EXPIRE_SECONDS, TimeUnit.SECONDS);
         String loginUrl = dingTalkConfig.getLoginUrl(state);
         return Result.success(loginUrl);
     }
@@ -164,6 +179,18 @@ public class AuthController {
         log.info("DingTalk OAuth callback (GET) with code: {}, state: {}", code, state);
 
         try {
+            if (state == null || state.isBlank()) {
+                httpResponse.sendRedirect(buildDingtalkErrorRedirect("缺少或无效的state参数"));
+                return;
+            }
+            String key = DINGTALK_STATE_PREFIX + state;
+            Object storedState = redisTemplate.opsForValue().get(key);
+            if (storedState == null) {
+                httpResponse.sendRedirect(buildDingtalkErrorRedirect("state已过期或无效"));
+                return;
+            }
+            redisTemplate.delete(key);
+
             // 1. 用authCode换取accessToken
             String accessToken = dingTalkService.getAccessToken(code);
 
@@ -180,8 +207,7 @@ public class AuthController {
             if (!isAdmin && !isCorpIdAllowed) {
                 log.warn("User {} from corpId {} is not allowed to login. Not admin and corpId not in whitelist.",
                         user.getUsername(), user.getCorpId());
-                httpResponse.sendRedirect("http://localhost:3000/login?error=" +
-                        java.net.URLEncoder.encode("您的企业暂无登录权限，请联系管理员", "UTF-8"));
+                httpResponse.sendRedirect(buildDingtalkErrorRedirect("您的企业暂无登录权限，请联系管理员"));
                 return;
             }
 
@@ -196,18 +222,30 @@ public class AuthController {
 
             // 7. 重定向到前端，携带token和用户信息
             String redirectUrl = String.format(
-                    "http://localhost:3000/dingtalk/callback?token=%s&username=%s&realName=%s",
-                    java.net.URLEncoder.encode(token, "UTF-8"),
-                    java.net.URLEncoder.encode(user.getUsername(), "UTF-8"),
-                    java.net.URLEncoder.encode(user.getRealName() != null ? user.getRealName() : user.getUsername(),
-                            "UTF-8"));
+                    "%s/dingtalk/callback?token=%s&username=%s&realName=%s",
+                    normalizeFrontendBase(),
+                    URLEncoder.encode(token, StandardCharsets.UTF_8),
+                    URLEncoder.encode(user.getUsername(), StandardCharsets.UTF_8),
+                    URLEncoder.encode(user.getRealName() != null ? user.getRealName() : user.getUsername(),
+                            StandardCharsets.UTF_8));
             httpResponse.sendRedirect(redirectUrl);
 
         } catch (Exception e) {
             log.error("DingTalk OAuth callback failed", e);
-            httpResponse.sendRedirect("http://localhost:3000/login?error="
-                    + java.net.URLEncoder.encode("钉钉登录失败: " + e.getMessage(), "UTF-8"));
+            httpResponse.sendRedirect(buildDingtalkErrorRedirect("钉钉登录失败: " + e.getMessage()));
         }
+    }
+
+    private String buildDingtalkErrorRedirect(String errorMessage) {
+        String normalizedBase = normalizeFrontendBase();
+        String encodedMessage = URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
+        return normalizedBase + "/login?error=" + encodedMessage;
+    }
+
+    private String normalizeFrontendBase() {
+        return dingtalkFrontendRedirect.endsWith("/")
+                ? dingtalkFrontendRedirect.substring(0, dingtalkFrontendRedirect.length() - 1)
+                : dingtalkFrontendRedirect;
     }
 
     /**

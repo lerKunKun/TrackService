@@ -17,9 +17,6 @@
         <!-- 头像区域 -->
         <div class="avatar-section">
           <a-avatar :src="userAvatar" :size="120">
-            <template #icon>
-              <UserOutlined />
-            </template>
           </a-avatar>
         </div>
 

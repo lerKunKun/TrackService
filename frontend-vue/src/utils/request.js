@@ -14,6 +14,13 @@ request.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // Add Shop Context Header
+    const shopId = localStorage.getItem('currentShopId')
+    if (shopId) {
+      config.headers['X-Shop-Id'] = shopId
+    }
+
     return config
   },
   error => {

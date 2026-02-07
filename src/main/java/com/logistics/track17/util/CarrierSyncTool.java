@@ -17,7 +17,7 @@ import java.util.List;
 @Slf4j
 public class CarrierSyncTool {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/logistics_system?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/logistics_system?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "123456";
     private static final String JSON_FILE_PATH = "docs/apicarrier.all.json";
@@ -92,10 +92,10 @@ public class CarrierSyncTool {
 
         // 移除特殊字符，转小写，空格替换为短横线
         String code = carrierName.toLowerCase()
-            .replaceAll("[^a-z0-9\\s-]", "")
-            .replaceAll("\\s+", "-")
-            .replaceAll("-+", "-")
-            .replaceAll("^-|-$", "");
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-|-$", "");
 
         // 如果处理后为空，使用carrier-{id}
         if (code.isEmpty()) {
@@ -120,8 +120,8 @@ public class CarrierSyncTool {
 
     private void batchInsertCarriers(Connection conn, List<CarrierData> carriers) throws SQLException {
         String sql = "INSERT INTO carriers (carrier_id, carrier_code, carrier_name, carrier_name_cn, " +
-                     "country_id, country_iso, email, tel, url, is_active, sort_order) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "country_id, country_iso, email, tel, url, is_active, sort_order) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             conn.setAutoCommit(false);

@@ -1,5 +1,7 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.AuditLog;
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.*;
 import com.logistics.track17.entity.User;
 import com.logistics.track17.service.UserService;
@@ -29,6 +31,7 @@ public class UserController {
      * 获取用户列表（分页）
      */
     @GetMapping
+    @RequireAuth(permissions = "system:user:view")
     public Result<Map<String, Object>> getUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -50,6 +53,7 @@ public class UserController {
      * 获取所有用户列表（不分页）
      */
     @GetMapping("/all")
+    @RequireAuth(permissions = "system:user:view")
     public Result<List<UserDTO>> getAllUsers() {
         log.info("Get all users");
         List<UserDTO> users = userService.getAllUsers();
@@ -60,6 +64,7 @@ public class UserController {
      * 根据ID获取用户详情
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = "system:user:view")
     public Result<UserDTO> getUserById(@PathVariable Long id) {
         log.info("Get user by id: {}", id);
         UserDTO user = userService.getUserById(id);
@@ -70,6 +75,8 @@ public class UserController {
      * 创建用户
      */
     @PostMapping
+    @RequireAuth(permissions = "system:user:create")
+    @AuditLog(operation = "创建用户", module = "用户管理")
     public Result<UserDTO> createUser(@Validated @RequestBody CreateUserRequest request) {
         log.info("Create user: {}", request.getUsername());
         UserDTO user = userService.createUser(request);
@@ -80,6 +87,8 @@ public class UserController {
      * 更新用户信息
      */
     @PutMapping("/{id}")
+    @RequireAuth(permissions = "system:user:update")
+    @AuditLog(operation = "更新用户信息", module = "用户管理")
     public Result<UserDTO> updateUser(
             @PathVariable Long id,
             @Validated @RequestBody UpdateUserRequest request) {
@@ -92,6 +101,8 @@ public class UserController {
      * 修改密码
      */
     @PostMapping("/{id}/password")
+    @RequireAuth(permissions = "system:user:update")
+    @AuditLog(operation = "修改用户密码", module = "用户管理", logParams = false)
     public Result<Object> changePassword(
             @PathVariable Long id,
             @Validated @RequestBody ChangePasswordRequest request) {
@@ -104,6 +115,7 @@ public class UserController {
      * 启用/禁用用户
      */
     @PutMapping("/{id}/status")
+    @RequireAuth(permissions = "system:user:update")
     public Result<Object> updateUserStatus(
             @PathVariable Long id,
             @RequestParam Integer status) {
@@ -116,9 +128,50 @@ public class UserController {
      * 删除用户
      */
     @DeleteMapping("/{id}")
+    @RequireAuth(permissions = "system:user:delete")
+    @AuditLog(operation = "删除用户", module = "用户管理")
     public Result<Object> deleteUser(@PathVariable Long id) {
         log.info("Delete user: {}", id);
         userService.deleteUser(id);
         return Result.success("用户删除成功", null);
+    }
+
+    /**
+     * 获取用户的角色列表
+     */
+    @GetMapping("/{id}/roles")
+    @RequireAuth(permissions = "system:user:view")
+    public Result<List<com.logistics.track17.entity.Role>> getUserRoles(@PathVariable Long id) {
+        log.info("Get roles for user: {}", id);
+        List<com.logistics.track17.entity.Role> roles = userService.getUserRoles(id);
+        return Result.success(roles);
+    }
+
+    /**
+     * 更新用户的角色列表
+     */
+    @PutMapping("/{id}/roles")
+    @RequireAuth(permissions = "system:role:assign")
+    @AuditLog(operation = "更新用户角色", module = "用户管理")
+    public Result<Object> updateUserRoles(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<Long>> request) {
+        log.info("Update roles for user: {}, roles: {}", id, request.get("roleIds"));
+        List<Long> roleIds = request.get("roleIds");
+        userService.updateUserRoles(id, roleIds);
+        return Result.success("角色更新成功", null);
+    }
+
+    /**
+     * 获取用户列表（带角色信息）
+     */
+    @GetMapping("/with-roles")
+    @RequireAuth(permissions = "system:user:view")
+    public Result<Map<String, Object>> getUsersWithRoles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        log.info("Get users with roles, page: {}, size: {}", page, size);
+        Map<String, Object> data = userService.getUsersWithRoles(page, size);
+        return Result.success(data);
     }
 }

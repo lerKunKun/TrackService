@@ -1,0 +1,110 @@
+-- 修复所有数据库表和字段注释乱码
+-- 执行命令: docker exec mysql mysql -uroot -p123456 logistics_system --default-character-set=utf8mb4 < sql/fix_all_comments.sql
+
+-- ========== 表注释修复 ==========
+
+-- 产品相关表
+ALTER TABLE products COMMENT '产品主表';
+ALTER TABLE product_variants COMMENT '产品变体表';
+ALTER TABLE product_shops COMMENT '产品商店关联表';
+ALTER TABLE product_imports COMMENT '产品导入记录表';
+ALTER TABLE product_images COMMENT '产品图片表';
+ALTER TABLE sku_applications COMMENT 'SKU申请表';
+
+-- 用户和权限相关表
+ALTER TABLE users COMMENT '用户表';
+ALTER TABLE roles COMMENT '角色表';
+ALTER TABLE permissions COMMENT '权限表';
+ALTER TABLE user_roles COMMENT '用户角色关联表';
+ALTER TABLE role_permissions COMMENT '角色权限关联表';
+ALTER TABLE menus COMMENT '菜单表';
+ALTER TABLE role_menus COMMENT '角色菜单关联表';
+
+-- 店铺和订单相关表
+ALTER TABLE shops COMMENT '店铺表';
+ALTER TABLE orders COMMENT '订单表';
+ALTER TABLE order_items COMMENT '订单明细表';
+
+-- 钉钉相关表
+ALTER TABLE dingtalk_departments COMMENT '钉钉部门表';
+ALTER TABLE dingtalk_users COMMENT '钉钉用户表';
+ALTER TABLE allowed_corp_ids COMMENT '允许的企业CorpID表';
+
+-- 主题迁移相关表
+ALTER TABLE theme_versions COMMENT '主题版本表';
+ALTER TABLE theme_migration_rules COMMENT '主题迁移规则表';
+ALTER TABLE liquid_schema_cache COMMENT 'Liquid模式缓存表';
+
+-- 系统日志表
+ALTER TABLE audit_logs COMMENT '审计日志表';
+
+-- ========== 字段注释修复 ==========
+
+-- products 表字段
+ALTER TABLE products MODIFY COLUMN handle VARCHAR(255) NOT NULL COMMENT '产品唯一标识';
+ALTER TABLE products MODIFY COLUMN title VARCHAR(500) NOT NULL COMMENT '产品标题';
+ALTER TABLE products MODIFY COLUMN body_html TEXT COMMENT '产品描述HTML';
+ALTER TABLE products MODIFY COLUMN vendor VARCHAR(255) COMMENT '品牌/制造商';
+ALTER TABLE products MODIFY COLUMN tags VARCHAR(1000) COMMENT '标签（逗号分隔）';
+ALTER TABLE products MODIFY COLUMN published TINYINT DEFAULT 0 COMMENT '上架状态 0-草稿 1-已上架';
+ALTER TABLE products MODIFY COLUMN product_url VARCHAR(500) COMMENT '产品链接';
+ALTER TABLE products MODIFY COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+ALTER TABLE products MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- product_variants 表字段
+ALTER TABLE product_variants MODIFY COLUMN product_id BIGINT NOT NULL COMMENT '产品ID';
+ALTER TABLE product_variants MODIFY COLUMN title VARCHAR(255) COMMENT '变体标题';
+ALTER TABLE product_variants MODIFY COLUMN price DECIMAL(10,2) COMMENT '价格';
+ALTER TABLE product_variants MODIFY COLUMN compare_at_price DECIMAL(10,2) COMMENT '原价';
+ALTER TABLE product_variants MODIFY COLUMN image_url VARCHAR(500) COMMENT '变体图片URL';
+ALTER TABLE product_variants MODIFY COLUMN inventory_quantity INT COMMENT '库存数量';
+ALTER TABLE product_variants MODIFY COLUMN weight DECIMAL(10,2) COMMENT '重量';
+ALTER TABLE product_variants MODIFY COLUMN barcode VARCHAR(100) COMMENT '条形码';
+ALTER TABLE product_variants MODIFY COLUMN option1_name VARCHAR(100) COMMENT '选项1名称';
+ALTER TABLE product_variants MODIFY COLUMN option1_value VARCHAR(255) COMMENT '选项1值';
+ALTER TABLE product_variants MODIFY COLUMN option2_name VARCHAR(100) COMMENT '选项2名称';
+ALTER TABLE product_variants MODIFY COLUMN option2_value VARCHAR(255) COMMENT '选项2值';
+ALTER TABLE product_variants MODIFY COLUMN option3_name VARCHAR(100) COMMENT '选项3名称';
+ALTER TABLE product_variants MODIFY COLUMN option3_value VARCHAR(255) COMMENT '选项3值';
+ALTER TABLE product_variants MODIFY COLUMN sku VARCHAR(100) COMMENT 'SKU编码';
+ALTER TABLE product_variants MODIFY COLUMN procurement_url VARCHAR(500) COMMENT '采购链接';
+ALTER TABLE product_variants MODIFY COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+ALTER TABLE product_variants MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- product_shops 表字段
+ALTER TABLE product_shops MODIFY COLUMN product_id BIGINT NOT NULL COMMENT '产品ID';
+ALTER TABLE product_shops MODIFY COLUMN shop_id BIGINT NOT NULL COMMENT '商店ID';
+
+-- users 表字段  
+ALTER TABLE users MODIFY COLUMN username VARCHAR(50) NOT NULL COMMENT '用户名';
+ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NOT NULL COMMENT '密码';
+ALTER TABLE users MODIFY COLUMN real_name VARCHAR(100) COMMENT '真实姓名';
+ALTER TABLE users MODIFY COLUMN email VARCHAR(100) COMMENT '邮箱';
+ALTER TABLE users MODIFY COLUMN phone VARCHAR(20) COMMENT '电话';
+ALTER TABLE users MODIFY COLUMN avatar VARCHAR(500) COMMENT '头像URL';
+ALTER TABLE users MODIFY COLUMN status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用';
+ALTER TABLE users MODIFY COLUMN ding_union_id VARCHAR(100) COMMENT '钉钉UnionID';
+ALTER TABLE users MODIFY COLUMN ding_user_id VARCHAR(100) COMMENT '钉钉UserID';
+ALTER TABLE users MODIFY COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+ALTER TABLE users MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- shops 表字段
+ALTER TABLE shops MODIFY COLUMN shop_name VARCHAR(200) NOT NULL COMMENT '店铺名称';
+ALTER TABLE shops MODIFY COLUMN shop_url VARCHAR(500) COMMENT '店铺URL';
+ALTER TABLE shops MODIFY COLUMN access_token VARCHAR(500) COMMENT '访问令牌';
+ALTER TABLE shops MODIFY COLUMN api_key VARCHAR(100) COMMENT 'API密钥';
+ALTER TABLE shops MODIFY COLUMN api_secret VARCHAR(100) COMMENT 'API密钥（加密）';
+ALTER TABLE shops MODIFY COLUMN status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用';
+ALTER TABLE shops MODIFY COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+ALTER TABLE shops MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';
+
+-- menus 表字段
+ALTER TABLE menus MODIFY COLUMN menu_code VARCHAR(50) NOT NULL COMMENT '菜单编码';
+ALTER TABLE menus MODIFY COLUMN menu_name VARCHAR(100) NOT NULL COMMENT '菜单名称';
+ALTER TABLE menus MODIFY COLUMN menu_type VARCHAR(20) NOT NULL COMMENT '菜单类型';
+ALTER TABLE menus MODIFY COLUMN parent_id BIGINT DEFAULT 0 COMMENT '父菜单ID';
+ALTER TABLE menus MODIFY COLUMN path VARCHAR(200) COMMENT '路由路径';
+ALTER TABLE menus MODIFY COLUMN icon VARCHAR(100) COMMENT '图标';
+ALTER TABLE menus MODIFY COLUMN sort_order INT DEFAULT 0 COMMENT '排序';
+ALTER TABLE menus MODIFY COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+ALTER TABLE menus MODIFY COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间';

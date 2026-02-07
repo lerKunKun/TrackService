@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ProductVariantMapper">
+
+    <!-- Result Map -->
+    <resultMap id="ProductVariantResultMap" type="com.logistics.track17.entity.ProductVariant">
+        <id property="id" column="id"/>
+        <result property="productId" column="product_id"/>
+        <result property="title" column="title"/>
+        <result property="price" column="price"/>
+        <result property="compareAtPrice" column="compare_at_price"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="inventoryQuantity" column="inventory_quantity"/>
+        <result property="weight" column="weight"/>
+        <result property="barcode" column="barcode"/>
+        <result property="option1Name" column="option1_name"/>
+        <result property="option1Value" column="option1_value"/>
+        <result property="option2Name" column="option2_name"/>
+        <result property="option2Value" column="option2_value"/>
+        <result property="option3Name" column="option3_name"/>
+        <result property="option3Value" column="option3_value"/>
+        <result property="sku" column="sku"/>
+        <result property="procurementUrl" column="procurement_url"/>
+        <result property="procurementPrice" column="procurement_price"/>
+        <result property="supplier" column="supplier"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 插入变体 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.ProductVariant" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product_variants (
+            product_id, title, price, compare_at_price, image_url,
+            inventory_quantity, weight, barcode,
+            option1_name, option1_value, option2_name, option2_value, option3_name, option3_value,
+            sku
+        )
+        VALUES (
+            #{productId}, #{title}, #{price}, #{compareAtPrice}, #{imageUrl},
+            #{inventoryQuantity}, #{weight}, #{barcode},
+            #{option1Name}, #{option1Value}, #{option2Name}, #{option2Value}, #{option3Name}, #{option3Value},
+            #{sku}
+        )
+    </insert>
+
+    <!-- 批量插入变体 -->
+    <insert id="batchInsert">
+        INSERT INTO product_variants (
+            product_id, title, price, compare_at_price, image_url,
+            inventory_quantity, weight, barcode,
+            option1_name, option1_value, option2_name, option2_value, option3_name, option3_value,
+            sku
+        )
+        VALUES
+        <foreach collection="variants" item="item" separator=",">
+            (
+                #{item.productId}, #{item.title}, #{item.price}, #{item.compareAtPrice}, #{item.imageUrl},
+                #{item.inventoryQuantity}, #{item.weight}, #{item.barcode},
+                #{item.option1Name}, #{item.option1Value}, #{item.option2Name}, #{item.option2Value},
+                #{item.option3Name}, #{item.option3Value}, #{item.sku}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="ProductVariantResultMap">
+        SELECT * FROM product_variants WHERE id = #{id}
+    </select>
+
+    <!-- 根据产品ID查询所有变体 -->
+    <select id="selectByProductId" resultMap="ProductVariantResultMap">
+        SELECT * FROM product_variants WHERE product_id = #{productId} ORDER BY id ASC
+    </select>
+
+    <!-- 根据产品ID查询第一个变体 -->
+    <select id="selectFirstByProductId" resultMap="ProductVariantResultMap">
+        SELECT * FROM product_variants WHERE product_id = #{productId} ORDER BY id ASC LIMIT 1
+    </select>
+
+    <!-- 批量查询产品的第一个变体 -->
+    <select id="selectFirstVariantsByProductIds" resultMap="ProductVariantResultMap">
+        SELECT v.* 
+        FROM product_variants v
+        INNER JOIN (
+            SELECT product_id, MIN(id) as min_id
+            FROM product_variants
+            WHERE product_id IN
+            <foreach collection="productIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            GROUP BY product_id
+        ) first_ids ON v.id = first_ids.min_id
+    </select>
+
+    <!-- 批量统计产品的变体数量 -->
+    <select id="countVariantsByProductIds" resultType="java.util.Map">
+        SELECT product_id, COUNT(*) as count
+        FROM product_variants
+        WHERE product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY product_id
+    </select>
+
+    <!-- 更新变体 -->
+    <update id="update">
+        UPDATE product_variants
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="compareAtPrice != null">compare_at_price = #{compareAtPrice},</if>
+            <if test="imageUrl != null">image_url = #{imageUrl},</if>
+            <if test="inventoryQuantity != null">inventory_quantity = #{inventoryQuantity},</if>
+            <if test="weight != null">weight = #{weight},</if>
+            <if test="barcode != null">barcode = #{barcode},</if>
+            <if test="option1Name != null">option1_name = #{option1Name},</if>
+            <if test="option1Value != null">option1_value = #{option1Value},</if>
+            <if test="option2Name != null">option2_name = #{option2Name},</if>
+            <if test="option2Value != null">option2_value = #{option2Value},</if>
+            <if test="option3Name != null">option3_name = #{option3Name},</if>
+            <if test="option3Value != null">option3_value = #{option3Value},</if>
+            <if test="sku != null">sku = #{sku},</if>
+            <if test="procurementUrl != null">procurement_url = #{procurementUrl},</if>
+            <if test="procurementPrice != null">procurement_price = #{procurementPrice},</if>
+            <if test="supplier != null">supplier = #{supplier},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除变体 -->
+    <delete id="deleteById">
+        DELETE FROM product_variants WHERE id = #{id}
+    </delete>
+
+    <!-- 删除产品的所有变体 -->
+    <delete id="deleteByProductId">
+        DELETE FROM product_variants WHERE product_id = #{productId}
+    </delete>
+
+    <!-- 根据SKU查询 -->
+    <select id="selectBySku" resultMap="ProductVariantResultMap">
+        SELECT * FROM product_variants WHERE sku = #{sku}
+    </select>
+
+    <!-- 更新变体价格和原价 -->
+    <update id="updatePrice">
+        UPDATE product_variants
+        SET price = #{price},
+        compare_at_price = #{compareAtPrice},
+        updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+</mapper>

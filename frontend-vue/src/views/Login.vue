@@ -371,7 +371,8 @@ const renderQRCodeWithSDK = (loginUrl) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  background: url('@/assets/log-in-bg.jpg') no-repeat center center;
+  background-size: cover;
   padding: 20px;
 }
 

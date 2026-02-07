@@ -54,5 +54,20 @@ export const userApi = {
   // 删除用户
   delete(id) {
     return handleResponse(request.delete(`/users/${id}`))
+  },
+
+  // 获取用户的角色列表
+  getRoles(userId) {
+    return handleResponse(request.get(`/users/${userId}/roles`))
+  },
+
+  // 更新用户的角色列表
+  updateRoles(userId, roleIds) {
+    return handleResponse(request.put(`/users/${userId}/roles`, { roleIds }))
+  },
+
+  // 获取用户列表（带角色信息）
+  getListWithRoles(params) {
+    return handleResponse(request.get('/users/with-roles', { params }))
   }
 }

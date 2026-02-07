@@ -140,4 +140,34 @@
         UPDATE users SET deleted_at = NOW() WHERE id = #{id}
     </update>
 
+    <!-- 查询用户的角色列表 -->
+    <select id="selectRolesByUserId" resultType="com.logistics.track17.entity.Role">
+        SELECT r.id, r.role_name, r.role_code, r.description, r.status, r.created_at, r.updated_at
+        FROM roles r
+        INNER JOIN user_roles ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId}
+    </select>
+
+    <!-- 删除用户的所有角色 -->
+    <delete id="deleteUserRoles">
+        DELETE FROM user_roles WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 为用户添加角色 -->
+    <insert id="insertUserRole">
+        INSERT INTO user_roles (user_id, role_id) VALUES (#{userId}, #{roleId})
+    </insert>
+
+    <!-- 批量查询多个用户的角色（避免 N+1 查询） -->
+    <select id="selectRolesByUserIds" resultType="java.util.HashMap">
+        SELECT ur.user_id, r.id AS role_id, r.role_name, r.role_code, r.description, r.status
+        FROM user_roles ur
+        INNER JOIN roles r ON ur.role_id = r.id
+        WHERE ur.user_id IN
+        <foreach item="userId" collection="userIds" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        ORDER BY ur.user_id, r.id
+    </select>
+
 </mapper>

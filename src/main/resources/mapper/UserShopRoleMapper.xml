@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.UserShopRoleMapper">
+
+    <!-- Result Map -->
+    <resultMap id="BaseResultMap" type="com.logistics.track17.entity.UserShopRole">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="shop_id" property="shopId"/>
+        <result column="role_id" property="roleId"/>
+        <result column="granted_by" property="grantedBy"/>
+        <result column="granted_at" property="grantedAt"/>
+        <result column="expires_at" property="expiresAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- Base Columns -->
+    <sql id="Base_Column_List">
+        id, user_id, shop_id, role_id, granted_by, granted_at, expires_at, created_at, updated_at
+    </sql>
+
+    <!-- Insert -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.UserShopRole" 
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_shop_roles (
+            user_id, shop_id, role_id, granted_by, granted_at, expires_at
+        ) VALUES (
+            #{userId}, #{shopId}, #{roleId}, #{grantedBy}, #{grantedAt}, #{expiresAt}
+        )
+    </insert>
+
+    <!-- Batch Insert -->
+    <insert id="batchInsert">
+        INSERT INTO user_shop_roles (
+            user_id, shop_id, role_id, granted_by, granted_at, expires_at
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.shopId}, #{item.roleId}, 
+             #{item.grantedBy}, #{item.grantedAt}, #{item.expiresAt})
+        </foreach>
+    </insert>
+
+    <!-- Delete by ID -->
+    <delete id="deleteById">
+        DELETE FROM user_shop_roles WHERE id = #{id}
+    </delete>
+
+    <!-- Delete by user-shop-role -->
+    <delete id="deleteByUserShopRole">
+        DELETE FROM user_shop_roles 
+        WHERE user_id = #{userId} 
+          AND shop_id = #{shopId} 
+          AND role_id = #{roleId}
+    </delete>
+
+    <!-- Select by ID -->
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user_shop_roles
+        WHERE id = #{id}
+    </select>
+
+    <!-- Count by user and shop -->
+    <select id="countByUserAndShop" resultType="int">
+        SELECT COUNT(*)
+        FROM user_shop_roles
+        WHERE user_id = #{userId}
+          AND shop_id = #{shopId}
+          AND (expires_at IS NULL OR expires_at > NOW())
+    </select>
+
+    <!-- Select shops by user ID -->
+    <select id="selectShopsByUserId" resultType="com.logistics.track17.entity.Shop">
+        SELECT DISTINCT s.*
+        FROM shops s
+        INNER JOIN user_shop_roles usr ON s.id = usr.shop_id
+        WHERE usr.user_id = #{userId}
+          AND (usr.expires_at IS NULL OR usr.expires_at > NOW())
+        ORDER BY s.id
+    </select>
+
+    <!-- Select by user ID -->
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user_shop_roles
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Select by shop ID -->
+    <select id="selectByShopId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user_shop_roles
+        WHERE shop_id = #{shopId}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- Select role IDs by user -->
+    <select id="selectRoleIdsByUserId" resultType="long">
+        SELECT DISTINCT role_id
+        FROM user_shop_roles
+        WHERE user_id = #{userId}
+          AND (expires_at IS NULL OR expires_at > NOW())
+    </select>
+
+    <!-- Select role IDs by user and shop -->
+    <select id="selectRoleIdsByUserAndShop" resultType="long">
+        SELECT DISTINCT role_id
+        FROM user_shop_roles
+        WHERE user_id = #{userId}
+          AND shop_id = #{shopId}
+          AND (expires_at IS NULL OR expires_at > NOW())
+    </select>
+
+</mapper>

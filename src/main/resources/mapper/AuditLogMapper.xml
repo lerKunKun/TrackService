@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.AuditLogMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="AuditLogResultMap" type="com.logistics.track17.entity.AuditLogEntity">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="operation" column="operation"/>
+        <result property="module" column="module"/>
+        <result property="method" column="method"/>
+        <result property="params" column="params"/>
+        <result property="result" column="result"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="userAgent" column="user_agent"/>
+        <result property="executionTime" column="execution_time"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 插入审计日志 -->
+    <insert id="insert" parameterType="com.logistics.track17.entity.AuditLogEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_logs (
+            user_id, username, operation, module, method,
+            params, result, error_msg, ip_address, user_agent, execution_time
+        ) VALUES (
+            #{userId}, #{username}, #{operation}, #{module}, #{method},
+            #{params}, #{result}, #{errorMsg}, #{ipAddress}, #{userAgent}, #{executionTime}
+        )
+    </insert>
+
+    <!-- 根据ID查询 -->
+    <select id="selectById" resultMap="AuditLogResultMap">
+        SELECT * FROM audit_logs WHERE id = #{id}
+    </select>
+
+    <!-- 分页查询 -->
+    <select id="selectByPage" resultMap="AuditLogResultMap">
+        SELECT * FROM audit_logs
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation LIKE CONCAT('%', #{operation}, '%')
+            </if>
+            <if test="module != null and module != ''">
+                AND module = #{module}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计总数 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM audit_logs
+        <where>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation LIKE CONCAT('%', #{operation}, '%')
+            </if>
+            <if test="module != null and module != ''">
+                AND module = #{module}
+            </if>
+        </where>
+    </select>
+
+</mapper>
