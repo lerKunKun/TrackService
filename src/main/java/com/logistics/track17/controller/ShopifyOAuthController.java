@@ -5,6 +5,7 @@ import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyOAuthService;
 import com.logistics.track17.service.ShopifyWebhookService;
+import com.logistics.track17.util.UserContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -187,7 +193,12 @@ public class ShopifyOAuthController {
             // 如果是新店铺，需要设置默认UserId
             Shop existing = shopService.getByShopDomain(shop);
             if (existing == null) {
-                shopEntity.setUserId(1L); // TODO: Replace with current user context if available
+                Long currentUserId = UserContextHolder.getCurrentUserId();
+                if (currentUserId != null) {
+                    shopEntity.setUserId(currentUserId);
+                } else {
+                    log.warn("No authenticated user found for Shopify OAuth callback; userId will remain unset.");
+                }
             }
 
             // 调用Service层的saveOrUpdateShop方法，统一处理重复逻辑
@@ -210,7 +221,8 @@ public class ShopifyOAuthController {
 
         } catch (Exception e) {
             log.error("OAuth callback failed for shop: {}", shop, e);
-            response.sendRedirect(frontendRedirect + "?oauth=error&reason=" + e.getMessage());
+            String reason = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+            response.sendRedirect(frontendRedirect + "?oauth=error&reason=" + reason);
         }
     }
 
@@ -218,9 +230,20 @@ public class ShopifyOAuthController {
      * 从授权URL中提取state参数
      */
     private String extractStateFromUrl(String url) {
-        String[] parts = url.split("state=");
-        if (parts.length > 1) {
-            return parts[1].split("&")[0];
+        try {
+            URI uri = new URI(url);
+            String query = uri.getQuery();
+            if (query == null) {
+                throw BusinessException.of("无法提取OAuth state");
+            }
+            for (String param : query.split("&")) {
+                String[] kv = param.split("=", 2);
+                if (kv.length == 2 && "state".equals(kv[0])) {
+                    return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+                }
+            }
+        } catch (URISyntaxException e) {
+            throw BusinessException.of("无法解析OAuth URL");
         }
         throw BusinessException.of("无法提取OAuth state");
     }

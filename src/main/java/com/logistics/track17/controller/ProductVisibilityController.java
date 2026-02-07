@@ -2,7 +2,9 @@ package com.logistics.track17.controller;
 
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Product;
+import com.logistics.track17.entity.Role;
 import com.logistics.track17.service.ProductVisibilityService;
+import com.logistics.track17.service.RoleService;
 import com.logistics.track17.util.ShopContext;
 import com.logistics.track17.util.UserContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,9 @@ public class ProductVisibilityController {
 
     @Autowired
     private ProductVisibilityService productVisibilityService;
+
+    @Autowired
+    private RoleService roleService;
 
     /**
      * Get authorized products for current user
@@ -152,9 +157,22 @@ public class ProductVisibilityController {
     @GetMapping("/products/{productId}/authorizations")
     public Result<List<com.logistics.track17.entity.ProductVisibility>> getProductAuthorizations(
             @PathVariable Long productId) {
-        // TODO: Add permission check (e.g. only PRODUCT_MANAGER or ADMIN can view)
+        Long userId = UserContextHolder.getCurrentUserId();
+        if (userId == null) {
+            return Result.error(401, "未授权");
+        }
+        if (!isGlobalAdmin(userId)) {
+            return Result.error(403, "无权限查看商品授权信息");
+        }
         List<com.logistics.track17.entity.ProductVisibility> list = productVisibilityService
                 .getProductAuthorizations(productId);
         return Result.success(list);
+    }
+
+    private boolean isGlobalAdmin(Long userId) {
+        List<Role> roles = roleService.getRolesByUserId(userId);
+        return roles.stream()
+                .map(Role::getRoleCode)
+                .anyMatch(code -> "SUPER_ADMIN".equals(code) || "ADMIN".equals(code));
     }
 }
