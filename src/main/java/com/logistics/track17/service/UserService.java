@@ -37,6 +37,23 @@ public class UserService {
     }
 
     /**
+     * 获取用于系统回退的用户ID（优先 admin，其次任意存在的用户）
+     */
+    public Long getFallbackUserId() {
+        User adminUser = getUserByUsername("admin");
+        if (adminUser != null) {
+            return adminUser.getId();
+        }
+
+        List<User> users = userMapper.selectAll();
+        if (users == null || users.isEmpty()) {
+            return null;
+        }
+
+        return users.get(0).getId();
+    }
+
+    /**
      * 根据ID查询用户
      */
     public UserDTO getUserById(Long id) {

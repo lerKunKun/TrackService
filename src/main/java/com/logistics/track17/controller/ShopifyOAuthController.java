@@ -1,7 +1,6 @@
 package com.logistics.track17.controller;
 
 import com.logistics.track17.entity.Shop;
-import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyOAuthService;
@@ -202,12 +201,12 @@ public class ShopifyOAuthController {
                 if (currentUserId != null) {
                     shopEntity.setUserId(currentUserId);
                 } else {
-                    User adminUser = userService.getUserByUsername("admin");
-                    if (adminUser != null) {
-                        shopEntity.setUserId(adminUser.getId());
-                        log.info("Assigned Shopify shop to admin user {} due to missing user context.", adminUser.getId());
+                    Long fallbackUserId = userService.getFallbackUserId();
+                    if (fallbackUserId != null) {
+                        shopEntity.setUserId(fallbackUserId);
+                        log.info("Assigned Shopify shop to fallback user {} due to missing user context.", fallbackUserId);
                     } else {
-                        throw BusinessException.of("No authenticated user or admin user found for Shopify OAuth callback");
+                        throw BusinessException.of("No authenticated user available for Shopify OAuth callback");
                     }
                 }
             }
