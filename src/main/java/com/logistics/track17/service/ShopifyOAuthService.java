@@ -3,6 +3,7 @@ package com.logistics.track17.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.track17.exception.BusinessException;
+import com.logistics.track17.repository.RedisStateRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -38,10 +39,12 @@ public class ShopifyOAuthService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final RedisStateRepository redisStateRepository;
 
-    public ShopifyOAuthService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public ShopifyOAuthService(RestTemplate restTemplate, ObjectMapper objectMapper, RedisStateRepository redisStateRepository) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.redisStateRepository = redisStateRepository;
     }
 
     /**
@@ -53,8 +56,9 @@ public class ShopifyOAuthService {
     public String generateAuthorizationUrl(String shopDomain) {
         log.info("Generating OAuth authorization URL for shop: {}", shopDomain);
 
-        // 生成随机state用于防止CSRF攻击
-        String state = generateState();
+        // 使用 RedisStateRepository 生成和存储 state
+        String state = redisStateRepository.generateAndStoreState(shopDomain);
+        log.info("Stored OAuth state in Redis for shop: {}", shopDomain);
 
         // Shopify推荐的scopes（根据需求调整）
         // 根据实际需求请求必要的权限
@@ -76,6 +80,32 @@ public class ShopifyOAuthService {
 
         log.info("Authorization URL generated with offline access: {}", authUrl);
         return authUrl;
+    }
+
+    /**
+     * 验证 OAuth state
+     *
+     * @param state The state from the callback
+     * @param shop  The shop domain from the callback
+     * @return true if the state is valid, false otherwise
+     */
+    public boolean validateState(String state, String shop) {
+        String storedShop = redisStateRepository.getShopDomainForState(state);
+
+        if (storedShop == null) {
+            log.warn("Invalid or expired OAuth state: {}", state);
+            return false;
+        }
+
+        if (!storedShop.equals(shop)) {
+            log.warn("OAuth state mismatch. Stored: {}, Received: {}", storedShop, shop);
+            return false;
+        }
+
+        // 删除已使用的state
+        redisStateRepository.deleteState(state);
+        log.info("OAuth state validated and removed from Redis: {}", state);
+        return true;
     }
 
     /**
