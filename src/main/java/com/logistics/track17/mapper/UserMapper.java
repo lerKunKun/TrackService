@@ -83,4 +83,24 @@ public interface UserMapper {
      * 删除用户
      */
     int deleteById(@Param("id") Long id);
+
+    /**
+     * 查询所有钉钉用户
+     */
+    List<User> selectAllDingtalkUsers();
+
+    /**
+     * 批量插入用户
+     */
+    void batchInsert(@Param("users") List<User> users);
+
+    /**
+     * 批量更新用户
+     */
+    void batchUpdate(@Param("users") List<User> users);
+
+    /**
+     * 查询所有启用同步的用户
+     */
+    List<User> selectAllSyncEnabledUsers();
 }
