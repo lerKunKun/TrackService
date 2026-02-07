@@ -1,10 +1,12 @@
 package com.logistics.track17.controller;
 
 import com.logistics.track17.entity.Shop;
+import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyOAuthService;
 import com.logistics.track17.service.ShopifyWebhookService;
+import com.logistics.track17.service.UserService;
 import com.logistics.track17.util.UserContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,7 @@ public class ShopifyOAuthController {
     private final ShopifyOAuthService shopifyOAuthService;
     private final ShopService shopService;
     private final ShopifyWebhookService webhookService;
+    private final UserService userService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -49,10 +52,12 @@ public class ShopifyOAuthController {
 
     public ShopifyOAuthController(ShopifyOAuthService shopifyOAuthService,
             ShopService shopService,
-            ShopifyWebhookService webhookService) {
+            ShopifyWebhookService webhookService,
+            UserService userService) {
         this.shopifyOAuthService = shopifyOAuthService;
         this.shopService = shopService;
         this.webhookService = webhookService;
+        this.userService = userService;
     }
 
     /**
@@ -197,7 +202,13 @@ public class ShopifyOAuthController {
                 if (currentUserId != null) {
                     shopEntity.setUserId(currentUserId);
                 } else {
-                    log.warn("No authenticated user found for Shopify OAuth callback; userId will remain unset.");
+                    User adminUser = userService.getUserByUsername("admin");
+                    if (adminUser != null) {
+                        shopEntity.setUserId(adminUser.getId());
+                        log.info("Assigned Shopify shop to admin user {} due to missing user context.", adminUser.getId());
+                    } else {
+                        throw BusinessException.of("No authenticated user or admin user found for Shopify OAuth callback");
+                    }
                 }
             }
 
