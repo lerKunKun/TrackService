@@ -2,6 +2,8 @@ package com.logistics.track17.dto;
 
 import lombok.Data;
 
+import javax.validation.constraints.Min;
+
 /**
  * 产品搜索请求DTO
  */
@@ -30,11 +32,13 @@ public class ProductSearchRequest {
     /**
      * 当前页码 (从1开始)
      */
+    @Min(value = 1, message = "页码必须大于0")
     private Integer page = 1;
 
     /**
      * 每页数量
      */
+    @Min(value = 1, message = "每页数量必须大于0")
     private Integer pageSize = 20;
 
     /**

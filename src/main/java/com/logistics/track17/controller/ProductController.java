@@ -13,6 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -28,6 +32,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/product")
 @CrossOrigin(origins = "*")
+@Validated
 public class ProductController {
 
     @Autowired
@@ -123,7 +128,7 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateProduct(
             @PathVariable Long id,
-            @RequestBody ProductUpdateRequest updateRequest) {
+            @Valid @RequestBody ProductUpdateRequest updateRequest) {
         try {
             // 更新产品基本信息
             Product product = new Product();
@@ -173,7 +178,7 @@ public class ProductController {
     @PostMapping("/batch/delete")
     @RequireAuth(permissions = "product:delete")
     @AuditLog(operation = "批量删除产品", module = "产品管理")
-    public ResponseEntity<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
+    public ResponseEntity<Map<String, Object>> batchDelete(@Valid @RequestBody BatchDeleteRequest request) {
         try {
             productService.batchDeleteProducts(request.getIds());
             return ResponseEntity.ok(responseSuccess("批量删除成功"));
@@ -192,7 +197,7 @@ public class ProductController {
     @PostMapping("/batch/update")
     @RequireAuth(permissions = "product:update")
     @AuditLog(operation = "批量更新产品", module = "产品管理")
-    public ResponseEntity<Map<String, Object>> batchUpdate(@RequestBody BatchUpdateRequest request) {
+    public ResponseEntity<Map<String, Object>> batchUpdate(@Valid @RequestBody BatchUpdateRequest request) {
         try {
             productService.batchUpdateProducts(request.getIds(), request.getTags(), request.getPublished());
             return ResponseEntity.ok(responseSuccess("批量更新成功"));
@@ -211,7 +216,7 @@ public class ProductController {
     @PostMapping("/batch/shops")
     @RequireAuth(permissions = "product:shops:update")
     @AuditLog(operation = "批量更新产品商店", module = "产品管理")
-    public ResponseEntity<Map<String, Object>> batchUpdateShops(@RequestBody BatchShopUpdateRequest request) {
+    public ResponseEntity<Map<String, Object>> batchUpdateShops(@Valid @RequestBody BatchShopUpdateRequest request) {
         try {
             productService.batchUpdateProductShops(request.getProductIds(), request.getShopIds());
             return ResponseEntity.ok(responseSuccess("批量更新商店关联成功"));
@@ -246,7 +251,9 @@ public class ProductController {
      */
     @lombok.Data
     public static class ProductUpdateRequest {
+        @NotEmpty(message = "Handle为空！")
         private String handle;
+        @NotEmpty(message = "title为空！")
         private String title;
         private String vendor;
         private String tags;
@@ -283,7 +290,7 @@ public class ProductController {
     @AuditLog(operation = "修改产品价格", module = "产品管理")
     public ResponseEntity<Map<String, Object>> updateVariantPrice(
             @PathVariable Long variantId,
-            @RequestBody PriceUpdateRequest request) {
+            @Valid @RequestBody PriceUpdateRequest request) {
         try {
             productService.updateVariantPrice(variantId, request.getPrice(), request.getCompareAtPrice());
             return ResponseEntity.ok(responseSuccess("价格更新成功"));
@@ -305,7 +312,7 @@ public class ProductController {
     @AuditLog(operation = "批量修改产品价格", module = "产品管理")
     public ResponseEntity<Map<String, Object>> updateAllVariantsPrice(
             @PathVariable Long productId,
-            @RequestBody PriceUpdateRequest request) {
+            @Valid @RequestBody PriceUpdateRequest request) {
         try {
             productService.updateAllVariantsPrice(productId, request.getPrice(), request.getCompareAtPrice());
             return ResponseEntity.ok(responseSuccess("批量价格更新成功"));
@@ -320,6 +327,7 @@ public class ProductController {
      */
     @lombok.Data
     public static class PriceUpdateRequest {
+        @NotNull(message = "价格为空！")
         private BigDecimal price; // 销售价格
         private BigDecimal compareAtPrice; // 原价（划线价）
     }
@@ -335,7 +343,7 @@ public class ProductController {
     @PutMapping("/variants/{variantId}/procurement")
     public ResponseEntity<Map<String, Object>> updateVariantProcurement(
             @PathVariable Long variantId,
-            @RequestBody VariantProcurementUpdateRequest request) {
+            @Valid @RequestBody VariantProcurementUpdateRequest request) {
         try {
             productService.updateVariantProcurement(
                     variantId,
@@ -473,6 +481,7 @@ public class ProductController {
      */
     @lombok.Data
     public static class BatchDeleteRequest {
+        @NotEmpty(message = "ID为空！")
         private List<Long> ids;
     }
 
@@ -481,6 +490,7 @@ public class ProductController {
      */
     @lombok.Data
     public static class BatchUpdateRequest {
+        @NotEmpty(message = "id为空！")
         private List<Long> ids;
         private String tags;
         private Integer published;
@@ -491,6 +501,7 @@ public class ProductController {
      */
     @lombok.Data
     public static class BatchShopUpdateRequest {
+        @NotEmpty(message = "id为空！")
         private List<Long> productIds;
         private List<Long> shopIds;
     }

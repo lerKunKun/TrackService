@@ -37,14 +37,6 @@
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
-          <a-button 
-            type="primary" 
-            @click="handleBatchProcurement"
-            :disabled="selectedVariantKeys.length === 0"
-          >
-            <template #icon><EditOutlined /></template>
-            批量编辑 ({{ selectedVariantKeys.length }})
-          </a-button>
         </a-space>
       </div>
     </div>
@@ -103,22 +95,6 @@
           </a-button>
         </a-form-item>
       </a-form>
-
-      <!-- 快捷操作栏 -->
-      <div class="quick-actions" v-if="selectedVariantKeys.length > 0">
-        <div class="selection-info">
-          <CheckCircleOutlined />
-          已选择 {{ selectedVariantKeys.length }} 个变体
-        </div>
-        <a-space size="small">
-          <a-button size="small" @click="handleClearSelection">
-            取消选择
-          </a-button>
-          <a-button size="small" type="primary" @click="handleBatchProcurement">
-            批量编辑
-          </a-button>
-        </a-space>
-      </div>
     </div>
 
     <!-- 产品列表 -->
@@ -309,6 +285,32 @@
         />
       </div>
     </div>
+
+    <!-- 浮动批量操作栏 -->
+    <transition name="slide-up">
+      <div v-if="selectedVariantKeys.length > 0" class="floating-action-bar">
+        <div class="floating-bar-content">
+          <div class="selection-summary">
+            <CheckCircleOutlined class="check-icon" />
+            <span class="selection-text">已选择 <strong>{{ selectedVariantKeys.length }}</strong> 个变体</span>
+          </div>
+          
+          <a-space size="middle">
+            <a-button size="large" @click="handleClearSelection">
+              取消选择
+            </a-button>
+            <a-button 
+              type="primary" 
+              size="large"
+              @click="handleBatchProcurement"
+            >
+              <template #icon><EditOutlined /></template>
+              批量编辑
+            </a-button>
+          </a-space>
+        </div>
+      </div>
+    </transition>
 
     <!-- 编辑模态框 -->
     <a-modal
@@ -542,7 +544,6 @@ const batchForm = ref({
 
 // 计算属性
 
-// 统计数据
 // 统计数据
 const stats = computed(() => {
   return {
@@ -976,7 +977,6 @@ const filterSupplier = (input, option) => {
 }
 
 // 页面挂载时加载数据
-// 页面挂载时加载数据
 onMounted(() => {
   fetchProcurementList()
   fetchStats()
@@ -984,14 +984,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* existing styles */
-
-/* New status style */
-.status-badge.status-exported {
-  background-color: #52c41a;
-  color: #fff;
-}
-
 /* 使用更现代的配色方案 */
 .procurement-page {
   min-height: 100vh;
@@ -1035,6 +1027,19 @@ onMounted(() => {
   background: #f5f7fa;
   border-radius: 20px;
   font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 1px solid transparent;
+}
+
+.stat-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-pill.active {
+  background: #e6f7ff;
+  border-color: #1890ff;
 }
 
 .stat-label {
@@ -1076,27 +1081,6 @@ onMounted(() => {
   border-radius: 8px;
 }
 
-/* 快捷操作栏 */
-.quick-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 16px;
-  padding: 12px 16px;
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
-  border-radius: 8px;
-}
-
-.selection-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #0958d9;
-  font-weight: 500;
-  font-size: 14px;
-}
-
 /* 产品容器 */
 .products-container {
   background: white;
@@ -1104,6 +1088,8 @@ onMounted(() => {
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   min-height: 400px;
+  padding-bottom: 100px; /* 为浮动栏留出空间 */
+  transition: padding-bottom 0.3s;
 }
 
 /* 空状态 */
@@ -1246,6 +1232,11 @@ onMounted(() => {
   border: 1px solid #d9d9d9;
 }
 
+.status-badge.status-exported {
+  background-color: #52c41a;
+  color: #fff;
+}
+
 .product-actions {
   display: flex;
   align-items: center;
@@ -1333,6 +1324,33 @@ onMounted(() => {
   gap: 8px;
 }
 
+.variant-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.variant-option-item {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.opt-name {
+  color: #666;
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+.opt-value {
+  color: #111;
+  font-weight: 600;
+}
+
+.sku-tag-wrapper {
+  margin-top: 4px;
+}
+
 .variant-name {
   font-weight: 500;
   color: #1a1a1a;
@@ -1406,11 +1424,70 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.delete-button {
+  flex-shrink: 0;
+}
+
 /* 分页 */
 .pagination-wrapper {
   margin-top: 24px;
   display: flex;
   justify-content: center;
+}
+
+/* 浮动操作栏 */
+.floating-action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e8e8e8;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  padding: 16px 24px;
+}
+
+.floating-bar-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selection-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  color: #1a1a1a;
+}
+
+.check-icon {
+  font-size: 20px;
+  color: #1890ff;
+}
+
+.selection-text strong {
+  color: #1890ff;
+  font-size: 16px;
+}
+
+/* 滑入动画 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 /* 模态框样式 */
@@ -1520,48 +1597,27 @@ onMounted(() => {
   .product-title {
     white-space: normal;
   }
-}
-  .variant-options-list {
-    display: flex;
+
+  .floating-action-bar {
+    padding: 12px 16px;
+  }
+
+  .floating-bar-content {
     flex-direction: column;
-    gap: 2px;
-  }
-  
-  .variant-option-item {
-    font-size: 13px;
-    line-height: 1.4;
-    color: #333;
-  }
-  
-  .opt-name {
-    color: #666;
-    margin-right: 4px;
-    font-weight: 500;
-  }
-  
-  .opt-value {
-    color: #111;
-    font-weight: 600;
-  }
-  
-  .sku-tag-wrapper {
-    margin-top: 4px;
-  }
-  
-  /* Stat Pills Interactive */
-  .stat-pill {
-    cursor: pointer;
-    transition: all 0.3s;
-    border: 1px solid transparent;
+    gap: 12px;
   }
 
-  .stat-pill:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  .selection-summary {
+    width: 100%;
+    justify-content: center;
   }
 
-  .stat-pill.active {
-    background: #e6f7ff;
-    border-color: #1890ff;
+  .floating-bar-content .ant-space {
+    width: 100%;
   }
+
+  .floating-bar-content .ant-space :deep(.ant-btn) {
+    flex: 1;
+  }
+}
 </style>

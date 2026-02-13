@@ -4,8 +4,8 @@
       <a-input v-model:value="formData.username" disabled />
     </a-form-item>
     
-    <a-form-item label="真实姓名">
-      <a-input v-model:value="formData.realName" placeholder="输入真实姓名" @change="handleChange" />
+    <a-form-item label="花名">
+      <a-input v-model:value="formData.realName" placeholder="输入花名" @change="handleChange" />
     </a-form-item>
     
     <a-form-item label="邮箱">
