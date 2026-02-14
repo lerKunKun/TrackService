@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.logistics.track17.entity.Order;
 import com.logistics.track17.entity.Shop;
 import com.logistics.track17.dto.TrackingRequest;
+import com.logistics.track17.enums.AlertType;
 import com.logistics.track17.exception.BusinessException;
+import com.logistics.track17.service.DingtalkNotificationService;
 import com.logistics.track17.service.OrderService;
 import com.logistics.track17.service.ShopService;
 import com.logistics.track17.service.ShopifyWebhookService;
@@ -31,6 +33,7 @@ public class ShopifyWebhookController {
     private final ShopService shopService;
     private final OrderService orderService;
     private final TrackingService trackingService;
+    private final DingtalkNotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -38,11 +41,13 @@ public class ShopifyWebhookController {
             ShopService shopService,
             OrderService orderService,
             TrackingService trackingService,
+            DingtalkNotificationService notificationService,
             ObjectMapper objectMapper) {
         this.webhookService = webhookService;
         this.shopService = shopService;
         this.orderService = orderService;
         this.trackingService = trackingService;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
@@ -138,7 +143,17 @@ public class ShopifyWebhookController {
 
             log.info("Marked shop as uninstalled: {}", shopDomain);
 
-            // TODO: 发送通知给管理员或店铺所有者
+            // 发送钉钉通知
+            try {
+                String content = notificationService.formatAppUninstalledMessage(
+                        shop.getShopName(), shopDomain);
+                notificationService.sendAlert(AlertType.APP_UNINSTALLED,
+                        "应用被卸载 - " + shopDomain, content,
+                        shop.getId(), "WEBHOOK",
+                        "APP_UNINSTALLED:" + shop.getId());
+            } catch (Exception notifyEx) {
+                log.error("发送应用卸载通知失败: {}", shopDomain, notifyEx);
+            }
 
             return ResponseEntity.ok().build();
 
@@ -279,8 +294,112 @@ public class ShopifyWebhookController {
     }
 
     /**
+     * 处理支付争议创建webhook
+     * Topic: disputes/create
+     */
+    @PostMapping("/disputes-create")
+    public ResponseEntity<Void> handleDisputeCreate(
+            @RequestBody String payload,
+            @RequestHeader("X-Shopify-Shop-Domain") String shopDomain,
+            @RequestHeader("X-Shopify-Hmac-SHA256") String hmac,
+            @RequestHeader(value = "X-Shopify-Topic", required = false) String topic) {
+
+        log.info("Received webhook: disputes/create from: {}", shopDomain);
+
+        if (!webhookService.verifyWebhookSignature(payload, hmac)) {
+            log.warn("Invalid webhook signature for disputes/create from: {}", shopDomain);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            JsonNode disputeData = objectMapper.readTree(payload);
+
+            Shop shop = shopService.getByShopDomain(shopDomain);
+            String shopName = shop != null ? shop.getShopName() : shopDomain;
+            Long shopId = shop != null ? shop.getId() : null;
+
+            // 提取争议信息
+            String amount = disputeData.has("amount") ? disputeData.get("amount").asText() : "未知";
+            String currency = disputeData.has("currency") ? disputeData.get("currency").asText() : "";
+            String reason = disputeData.has("reason") ? disputeData.get("reason").asText() : "未知";
+            String type = disputeData.has("type") ? disputeData.get("type").asText() : "dispute";
+            String status = disputeData.has("status") ? disputeData.get("status").asText() : "unknown";
+            String evidenceDueBy = disputeData.has("evidence_due_by") ? disputeData.get("evidence_due_by").asText()
+                    : null;
+            long disputeId = disputeData.has("id") ? disputeData.get("id").asLong() : 0;
+            String orderId = disputeData.has("order_id") ? disputeData.get("order_id").asText() : null;
+
+            // 格式化并发送通知
+            String content = notificationService.formatDisputeMessage(
+                    shopName, amount, currency, reason, type, status, orderId, evidenceDueBy);
+            notificationService.sendAlert(AlertType.DISPUTE,
+                    "🚨 支付争议 - " + shopName, content,
+                    shopId, "WEBHOOK",
+                    "DISPUTE_CREATE:" + disputeId);
+
+            log.info("Dispute create notification sent for: {}, disputeId: {}", shopDomain, disputeId);
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+            log.error("Error processing disputes/create webhook for: {}", shopDomain, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * 处理支付争议更新webhook
+     * Topic: disputes/update
+     */
+    @PostMapping("/disputes-update")
+    public ResponseEntity<Void> handleDisputeUpdate(
+            @RequestBody String payload,
+            @RequestHeader("X-Shopify-Shop-Domain") String shopDomain,
+            @RequestHeader("X-Shopify-Hmac-SHA256") String hmac,
+            @RequestHeader(value = "X-Shopify-Topic", required = false) String topic) {
+
+        log.info("Received webhook: disputes/update from: {}", shopDomain);
+
+        if (!webhookService.verifyWebhookSignature(payload, hmac)) {
+            log.warn("Invalid webhook signature for disputes/update from: {}", shopDomain);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            JsonNode disputeData = objectMapper.readTree(payload);
+
+            Shop shop = shopService.getByShopDomain(shopDomain);
+            String shopName = shop != null ? shop.getShopName() : shopDomain;
+            Long shopId = shop != null ? shop.getId() : null;
+
+            String amount = disputeData.has("amount") ? disputeData.get("amount").asText() : "未知";
+            String currency = disputeData.has("currency") ? disputeData.get("currency").asText() : "";
+            String reason = disputeData.has("reason") ? disputeData.get("reason").asText() : "未知";
+            String type = disputeData.has("type") ? disputeData.get("type").asText() : "dispute";
+            String status = disputeData.has("status") ? disputeData.get("status").asText() : "unknown";
+            String evidenceDueBy = disputeData.has("evidence_due_by") ? disputeData.get("evidence_due_by").asText()
+                    : null;
+            long disputeId = disputeData.has("id") ? disputeData.get("id").asLong() : 0;
+            String orderId = disputeData.has("order_id") ? disputeData.get("order_id").asText() : null;
+
+            String content = notificationService.formatDisputeMessage(
+                    shopName, amount, currency, reason, type, status, orderId, evidenceDueBy);
+            notificationService.sendAlert(AlertType.DISPUTE,
+                    "⚠️ 争议状态更新 - " + shopName, content,
+                    shopId, "WEBHOOK",
+                    "DISPUTE_UPDATE:" + disputeId + ":" + status);
+
+            log.info("Dispute update notification sent for: {}, disputeId: {}, status: {}",
+                    shopDomain, disputeId, status);
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+            log.error("Error processing disputes/update webhook for: {}", shopDomain, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
      * Webhook健康检查端点
-     * 用于测试webhook配置是否正确
      */
     @GetMapping("/health")
     public ResponseEntity<String> health() {

@@ -30,6 +30,12 @@ public class DingtalkApiService {
     @Value("${dingtalk.app-secret}")
     private String appSecret;
 
+    @Value("${dingtalk.agent-id:}")
+    private String agentId;
+
+    @Value("${dingtalk.notification.enabled:false}")
+    private boolean notificationEnabled;
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
@@ -267,6 +273,65 @@ public class DingtalkApiService {
         } catch (Exception e) {
             log.error("获取用户详情异常，userid: {}", userid, e);
             throw new RuntimeException("获取用户详情异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 发送工作通知（Markdown格式）
+     * API: POST /topapi/message/corpconversation/asyncsend_v2
+     *
+     * @param useridList 接收人userid（逗号分隔，支持多人）
+     * @param title      消息标题
+     * @param content    Markdown内容
+     * @return 是否发送成功
+     */
+    public boolean sendWorkNotification(String useridList, String title, String content) {
+        if (!notificationEnabled) {
+            log.info("钉钉通知功能未启用，跳过发送: {}", title);
+            return false;
+        }
+
+        if (agentId == null || agentId.isEmpty()) {
+            log.error("钉钉AgentId未配置，无法发送工作通知");
+            return false;
+        }
+
+        try {
+            String token = getAccessToken();
+            String url = "https://oapi.dingtalk.com/topapi/message/corpconversation/asyncsend_v2?access_token=" + token;
+
+            // 构建消息体
+            Map<String, Object> msg = new HashMap<>();
+            msg.put("msgtype", "markdown");
+            Map<String, String> markdown = new HashMap<>();
+            markdown.put("title", title);
+            markdown.put("text", content);
+            msg.put("markdown", markdown);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("agent_id", Long.parseLong(agentId));
+            requestBody.put("userid_list", useridList);
+            requestBody.put("msg", msg);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+
+            if (root.get("errcode").asInt() == 0) {
+                long taskId = root.has("task_id") ? root.get("task_id").asLong() : 0;
+                log.info("钉钉工作通知发送成功, title={}, 接收人={}, taskId={}", title, useridList, taskId);
+                return true;
+            } else {
+                String errorMsg = root.get("errmsg").asText();
+                log.error("钉钉工作通知发送失败: errcode={}, errmsg={}", root.get("errcode").asInt(), errorMsg);
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("钉钉工作通知发送异常, title={}", title, e);
+            return false;
         }
     }
 }

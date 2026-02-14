@@ -564,15 +564,40 @@ const handleSaveChanges = async () => {
 }
 
 // 撤销关联
-const handleRevokeAccess = () => {
-  message.warning('撤销关联功能开发中')
+const handleRevokeAccess = async () => {
+  if (!selectedRelation.value) return
+  
+  // 确认撤销
+  // message.confirm?? No, use AntDV Modal.confirm if needed, but for now direct action
+  
+  if (selectedRelationType.value === 'role') {
+    // 移除角色
+    const roleId = selectedRelation.value.id
+    const index = pendingChanges.value.roleIds.indexOf(roleId)
+    if (index > -1) {
+      pendingChanges.value.roleIds.splice(index, 1)
+      await handleSaveChanges()
+    } else {
+      message.warning('该关联已不在列表中')
+    }
+  } else if (selectedRelationType.value === 'permission') {
+    // 移除权限
+    const permId = selectedRelation.value.id
+    const index = pendingChanges.value.permissionIds.indexOf(permId)
+    if (index > -1) {
+      pendingChanges.value.permissionIds.splice(index, 1)
+      await handleSaveChanges()
+    } else {
+      message.warning('该关联已不在列表中')
+    }
+  }
 }
 
 // 加载数据
 const loadData = async () => {
   try {
     // 加载用户列表（带角色信息）
-    const usersRes = await userApi.getListWithRoles({ page: 1, size: 500 })
+    const usersRes = await userApi.getAllWithRoles()
     users.value = usersRes?.list || []
 
     // 加载角色列表

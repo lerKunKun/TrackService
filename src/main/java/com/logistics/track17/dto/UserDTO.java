@@ -67,4 +67,14 @@ public class UserDTO {
      * 更新时间
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 钉钉unionId
+     */
+    private String dingUnionId;
+
+    /**
+     * 钉钉userId
+     */
+    private String dingUserId;
 }

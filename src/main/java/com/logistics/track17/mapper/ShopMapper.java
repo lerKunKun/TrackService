@@ -56,4 +56,10 @@ public interface ShopMapper {
      * 统计店铺关联的订单数量
      */
     Long countOrdersByShopId(@Param("shopId") Long shopId);
+
+    /**
+     * 按活跃状态查询店铺
+     */
+    List<Shop> findByIsActive(@Param("isActive") boolean isActive);
+
 }

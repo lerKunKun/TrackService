@@ -128,6 +128,12 @@ const routes = [
         name: 'SystemCanvas',
         component: () => import('@/views/system/SystemCanvas.vue'),
         meta: { title: '系统管理画布', requiresAdmin: true }
+      },
+      {
+        path: 'system/alert-settings',
+        name: 'AlertSettings',
+        component: () => import('@/views/system/AlertSettings.vue'),
+        meta: { title: '通知配置', requiresAdmin: true }
       }
     ]
   }

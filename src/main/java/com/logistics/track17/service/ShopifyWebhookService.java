@@ -65,6 +65,9 @@ public class ShopifyWebhookService {
         webhookTopics.put("app/uninstalled", webhookBaseUrl + "/webhooks/shopify/app-uninstalled");
         webhookTopics.put("orders/create", webhookBaseUrl + "/webhooks/shopify/orders-create");
         webhookTopics.put("orders/updated", webhookBaseUrl + "/webhooks/shopify/orders-updated");
+        // 支付争议 webhook
+        webhookTopics.put("disputes/create", webhookBaseUrl + "/webhooks/shopify/disputes-create");
+        webhookTopics.put("disputes/update", webhookBaseUrl + "/webhooks/shopify/disputes-update");
 
         // 注册每个webhook
         for (Map.Entry<String, String> entry : webhookTopics.entrySet()) {

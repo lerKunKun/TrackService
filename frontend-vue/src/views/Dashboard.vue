@@ -1,216 +1,211 @@
 <template>
-  <div class="page-container">
-    <!-- 统计卡片区域 -->
+  <div class="dashboard-container">
+    <!-- 顶部统计卡片 -->
     <a-row :gutter="16" class="stats-row">
-      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
-        <div class="stat-card" @click="goToPage('/tracking')">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%)">
-            <FileTextOutlined />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">
-              <a-spin v-if="loading" size="small" />
-              <span v-else>{{ stats.totalTrackings || 0 }}</span>
-            </div>
-            <div class="stat-label">运单总数</div>
-          </div>
-          <div class="stat-footer">
-            <span class="stat-today">今日新增 {{ stats.todayTrackings || 0 }}</span>
-            <RightOutlined class="stat-arrow" />
-          </div>
-        </div>
-      </a-col>
-
-      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
+      <a-col :xs="24" :sm="12" :md="6">
         <div class="stat-card" @click="goToPage('/shops')">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%)">
+          <div class="stat-icon icon-shops">
             <ShopOutlined />
           </div>
           <div class="stat-content">
             <div class="stat-value">
               <a-spin v-if="loading" size="small" />
-              <span v-else>{{ stats.totalShops || 0 }}</span>
+              <span v-else>{{ stats.activeShops || 0 }}<small>/{{ stats.totalShops || 0 }}</small></span>
             </div>
-            <div class="stat-label">店铺总数</div>
-          </div>
-          <div class="stat-footer">
-            <span class="stat-today">已授权店铺</span>
-            <RightOutlined class="stat-arrow" />
+            <div class="stat-label">活跃店铺 / 总计</div>
           </div>
         </div>
       </a-col>
 
-      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
-        <div class="stat-card" @click="goToPage('/users')">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #722ed1 0%, #531dab 100%)">
-            <TeamOutlined />
+      <a-col :xs="24" :sm="12" :md="6">
+        <div class="stat-card" @click="goToPage('/orders')">
+          <div class="stat-icon icon-orders">
+            <ShoppingCartOutlined />
           </div>
           <div class="stat-content">
             <div class="stat-value">
               <a-spin v-if="loading" size="small" />
-              <span v-else>{{ stats.totalUsers || 0 }}</span>
+              <span v-else>{{ formatNumber(stats.totalOrders) }}</span>
             </div>
-            <div class="stat-label">用户总数</div>
+            <div class="stat-label">总订单数</div>
           </div>
           <div class="stat-footer">
-            <span class="stat-today">系统用户</span>
-            <RightOutlined class="stat-arrow" />
+            <span class="stat-today">
+              <RiseOutlined class="trend-up" /> 今日 +{{ stats.todayOrders || 0 }}
+            </span>
           </div>
         </div>
       </a-col>
 
-      <a-col :xs="24" :sm="12" :md="6" :lg="6" :xl="6">
-        <div class="stat-card stat-card-exception" @click="goToTracking('Exception')">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%)">
-            <WarningOutlined />
+      <a-col :xs="24" :sm="12" :md="6">
+        <div class="stat-card">
+          <div class="stat-icon icon-revenue">
+            <DollarCircleOutlined />
           </div>
           <div class="stat-content">
             <div class="stat-value">
               <a-spin v-if="loading" size="small" />
-              <span v-else>{{ stats.statusStats?.exception || 0 }}</span>
+              <span v-else>{{ formatCurrency(stats.totalRevenue) }}</span>
             </div>
-            <div class="stat-label">异常运单</div>
+            <div class="stat-label">总销售额</div>
           </div>
           <div class="stat-footer">
-            <span class="stat-today">需要关注</span>
+            <span class="stat-today">
+              <RiseOutlined class="trend-up" /> 今日 {{ formatCurrency(stats.todayRevenue) }}
+            </span>
+          </div>
+        </div>
+      </a-col>
+
+      <a-col :xs="24" :sm="12" :md="6">
+        <div class="stat-card stat-card-alert" @click="goToPage('/system/alert-settings')">
+          <div class="stat-icon icon-alerts">
+            <BellOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">
+              <a-spin v-if="loading" size="small" />
+              <span v-else>{{ stats.pendingAlerts || 0 }}</span>
+            </div>
+            <div class="stat-label">待处理告警</div>
+          </div>
+          <div class="stat-footer">
+            <span class="stat-today">最近20条通知</span>
             <RightOutlined class="stat-arrow" />
           </div>
         </div>
       </a-col>
     </a-row>
 
-    <!-- 详细统计区域 -->
-    <a-row :gutter="16" class="detail-row">
-      <!-- 运单状态分布 -->
-      <!-- 运单状态分布 -->
-      <a-col :xs="24" :md="12" style="margin-bottom: 16px">
+    <!-- 店铺概览 + 告警面板 -->
+    <a-row :gutter="16" class="main-row">
+      <!-- 店铺列表 -->
+      <a-col :xs="24" :lg="14" style="margin-bottom: 16px">
         <div class="content-card">
           <div class="card-header">
-            <h3>运单状态分布</h3>
+            <h3><ShopOutlined /> 店铺概览</h3>
+            <a-button type="link" size="small" @click="goToPage('/shops')">
+              查看全部 <RightOutlined />
+            </a-button>
           </div>
-          <div class="status-list">
-            <div class="status-item" @click="goToTracking('InfoReceived')">
-              <div class="status-info">
-                <a-tag color="default">信息收录</a-tag>
-                <span class="status-count">{{ stats.statusStats?.infoReceived || 0 }}</span>
-              </div>
-              <a-progress
-                :percent="getStatusPercent('infoReceived')"
-                :show-info="false"
-                stroke-color="#d9d9d9"
-              />
-            </div>
-            <div class="status-item" @click="goToTracking('InTransit')">
-              <div class="status-info">
-                <a-tag color="processing">运输中</a-tag>
-                <span class="status-count">{{ stats.statusStats?.inTransit || 0 }}</span>
-              </div>
-              <a-progress
-                :percent="getStatusPercent('inTransit')"
-                :show-info="false"
-                stroke-color="#1890ff"
-              />
-            </div>
-            <div class="status-item" @click="goToTracking('Delivered')">
-              <div class="status-info">
-                <a-tag color="success">已送达</a-tag>
-                <span class="status-count">{{ stats.statusStats?.delivered || 0 }}</span>
-              </div>
-              <a-progress
-                :percent="getStatusPercent('delivered')"
-                :show-info="false"
-                stroke-color="#52c41a"
-              />
-            </div>
-            <div class="status-item" @click="goToTracking('Exception')">
-              <div class="status-info">
-                <a-tag color="error">异常</a-tag>
-                <span class="status-count">{{ stats.statusStats?.exception || 0 }}</span>
-              </div>
-              <a-progress
-                :percent="getStatusPercent('exception')"
-                :show-info="false"
-                stroke-color="#ff4d4f"
-              />
-            </div>
-          </div>
-        </div>
-      </a-col>
-
-      <!-- 承运商排行 -->
-      <a-col :xs="24" :md="12" style="margin-bottom: 16px">
-        <div class="content-card">
-          <div class="card-header">
-            <h3>承运商排行 (Top 10)</h3>
-          </div>
-          <div class="carrier-list" v-if="stats.carrierStats && stats.carrierStats.length > 0">
+          <div class="shop-list" v-if="stats.shops && stats.shops.length > 0">
             <div
-              class="carrier-item"
-              v-for="(carrier, index) in stats.carrierStats"
-              :key="carrier.carrierCode"
-              @click="goToCarrier(carrier.carrierCode)"
+              class="shop-item"
+              v-for="shop in stats.shops"
+              :key="shop.id"
             >
-              <div class="carrier-rank" :class="'rank-' + (index + 1)">
-                {{ index + 1 }}
+              <div class="shop-header">
+                <div class="shop-name-row">
+                  <span class="shop-name">{{ shop.shopName || shop.shopDomain || '-' }}</span>
+                  <a-tag :color="shop.isActive ? 'green' : 'default'" size="small">
+                    {{ shop.isActive ? '活跃' : '未激活' }}
+                  </a-tag>
+                  <a-tag v-if="shop.connectionStatus" :color="getConnectionColor(shop.connectionStatus)" size="small">
+                    {{ shop.connectionStatus }}
+                  </a-tag>
+                </div>
+                <div class="shop-meta">
+                  <span v-if="shop.platform" class="meta-item">
+                    <GlobalOutlined /> {{ shop.platform }}
+                  </span>
+                  <span v-if="shop.planDisplayName" class="meta-item">
+                    <CrownOutlined /> {{ shop.planDisplayName }}
+                  </span>
+                  <span v-if="shop.shopDomain" class="meta-item domain-text">
+                    {{ shop.shopDomain }}
+                  </span>
+                </div>
               </div>
-              <div class="carrier-info">
-                <span class="carrier-name">{{ carrier.carrierCode?.toUpperCase() || '-' }}</span>
-                <span class="carrier-count">{{ carrier.count }} 单</span>
+
+              <div class="shop-stats">
+                <div class="shop-stat">
+                  <div class="shop-stat-value">{{ formatNumber(shop.orderCount) }}</div>
+                  <div class="shop-stat-label">订单</div>
+                </div>
+                <div class="shop-stat-divider"></div>
+                <div class="shop-stat">
+                  <div class="shop-stat-value">{{ formatCurrency(shop.revenue, shop.currency) }}</div>
+                  <div class="shop-stat-label">销售额</div>
+                </div>
+                <div class="shop-stat-divider"></div>
+                <div class="shop-stat">
+                  <div class="shop-stat-value sync-time">{{ shop.lastSyncTime || '未同步' }}</div>
+                  <div class="shop-stat-label">最近同步</div>
+                </div>
               </div>
-              <a-progress
-                :percent="getCarrierPercent(carrier.count)"
-                :show-info="false"
-                size="small"
-                stroke-color="#1890ff"
-              />
             </div>
           </div>
-          <a-empty v-else description="暂无数据" />
+          <a-empty v-else description="暂无店铺数据" />
+        </div>
+      </a-col>
+
+      <!-- 告警列表 -->
+      <a-col :xs="24" :lg="10" style="margin-bottom: 16px">
+        <div class="content-card alert-card">
+          <div class="card-header">
+            <h3><BellOutlined /> 最近告警</h3>
+            <a-tag v-if="stats.pendingAlerts > 0" color="red">
+              {{ stats.pendingAlerts }} 待处理
+            </a-tag>
+          </div>
+          <div class="alert-list" v-if="stats.recentAlerts && stats.recentAlerts.length > 0">
+            <div
+              class="alert-item"
+              v-for="alert in stats.recentAlerts"
+              :key="alert.id"
+              :class="'alert-severity-' + (alert.severity || 'INFO').toLowerCase()"
+            >
+              <div class="alert-indicator"></div>
+              <div class="alert-body">
+                <div class="alert-title-row">
+                  <span class="alert-title">{{ alert.title }}</span>
+                  <a-tag :color="getAlertTypeColor(alert.alertType)" size="small">
+                    {{ getAlertTypeLabel(alert.alertType) }}
+                  </a-tag>
+                </div>
+                <div class="alert-meta">
+                  <span v-if="alert.shopName" class="meta-item">
+                    <ShopOutlined /> {{ alert.shopName }}
+                  </span>
+                  <span class="meta-item">
+                    <ClockCircleOutlined /> {{ alert.createdTime }}
+                  </span>
+                </div>
+                <div class="alert-status">
+                  <a-tag :color="alert.sendStatus === 'SENT' ? 'green' : alert.sendStatus === 'FAILED' ? 'red' : 'default'" size="small">
+                    {{ getStatusLabel(alert.sendStatus) }}
+                  </a-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+          <a-empty v-else description="暂无告警记录，系统运行正常 🎉" />
         </div>
       </a-col>
     </a-row>
-
-    <!-- 趋势图表 -->
-    <div class="content-card trend-card">
-      <div class="card-header">
-        <h3>近7天运单趋势</h3>
-      </div>
-      <div class="trend-chart">
-        <div class="chart-bars" v-if="stats.dailyStats && stats.dailyStats.length > 0">
-          <div
-            class="chart-bar-item"
-            v-for="day in stats.dailyStats"
-            :key="day.date"
-          >
-            <div class="bar-value">{{ day.count }}</div>
-            <div
-              class="bar"
-              :style="{ height: getBarHeight(day.count) + 'px' }"
-            ></div>
-            <div class="bar-label">{{ formatDate(day.date) }}</div>
-          </div>
-        </div>
-        <a-empty v-else description="暂无数据" />
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  FileTextOutlined,
   ShopOutlined,
-  TeamOutlined,
-  WarningOutlined,
-  RightOutlined
+  ShoppingCartOutlined,
+  DollarCircleOutlined,
+  BellOutlined,
+  RightOutlined,
+  RiseOutlined,
+  GlobalOutlined,
+  CrownOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue'
 import { statsApi } from '@/api/stats'
 
 const router = useRouter()
 const loading = ref(true)
 const stats = ref({})
+let refreshTimer = null
 
 // 获取统计数据
 const fetchStats = async () => {
@@ -224,42 +219,51 @@ const fetchStats = async () => {
   }
 }
 
-// 计算状态百分比
-const totalTrackings = computed(() => stats.value.totalTrackings || 1)
-
-const getStatusPercent = (status) => {
-  const statusStats = stats.value.statusStats
-  if (!statusStats) return 0
-  const count = statusStats[status] || 0
-  return Math.round((count / totalTrackings.value) * 100)
+// 格式化数字
+const formatNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万'
+  }
+  return num.toLocaleString()
 }
 
-// 计算承运商百分比
-const maxCarrierCount = computed(() => {
-  if (!stats.value.carrierStats || stats.value.carrierStats.length === 0) return 1
-  return stats.value.carrierStats[0].count || 1
-})
-
-const getCarrierPercent = (count) => {
-  return Math.round((count / maxCarrierCount.value) * 100)
+// 格式化金额
+const formatCurrency = (amount, currency = 'USD') => {
+  if (!amount || amount === 0) return '$0.00'
+  const num = parseFloat(amount)
+  if (num >= 10000) {
+    return '$' + (num / 1000).toFixed(1) + 'K'
+  }
+  return '$' + num.toFixed(2)
 }
 
-// 计算柱状图高度
-const maxDailyCount = computed(() => {
-  if (!stats.value.dailyStats || stats.value.dailyStats.length === 0) return 1
-  return Math.max(...stats.value.dailyStats.map(d => d.count), 1)
-})
-
-const getBarHeight = (count) => {
-  const maxHeight = 120
-  return Math.max((count / maxDailyCount.value) * maxHeight, 4)
+// 连接状态颜色
+const getConnectionColor = (status) => {
+  const map = { CONNECTED: 'green', PENDING: 'orange', DISCONNECTED: 'red' }
+  return map[status] || 'default'
 }
 
-// 格式化日期
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return `${date.getMonth() + 1}/${date.getDate()}`
+// 告警类型标签
+const alertTypeMap = {
+  DISPUTE: { label: '支付争议', color: 'red' },
+  INFRINGEMENT: { label: '侵权', color: 'volcano' },
+  ACCOUNT_RESTRICTED: { label: '账号受限', color: 'red' },
+  PAYMENT_HOLD: { label: '资金冻结', color: 'orange' },
+  APP_UNINSTALLED: { label: '应用卸载', color: 'gold' },
+  SHOP_ALERT: { label: '店铺提示', color: 'blue' },
+  DAILY_SUMMARY: { label: '日报', color: 'cyan' },
+  MONTHLY_SUMMARY: { label: '月报', color: 'geekblue' },
+  QUARTERLY_SUMMARY: { label: '季报', color: 'purple' },
+  YEARLY_SUMMARY: { label: '年报', color: 'purple' }
+}
+
+const getAlertTypeLabel = (type) => alertTypeMap[type]?.label || type
+const getAlertTypeColor = (type) => alertTypeMap[type]?.color || 'default'
+
+const getStatusLabel = (status) => {
+  const map = { SENT: '已发送', FAILED: '失败', PENDING: '待发送' }
+  return map[status] || status
 }
 
 // 页面跳转
@@ -267,68 +271,87 @@ const goToPage = (path) => {
   router.push(path)
 }
 
-const goToTracking = (status) => {
-  router.push({ path: '/tracking', query: { status } })
-}
-
-const goToCarrier = (carrierCode) => {
-  router.push({ path: '/tracking', query: { carrierCode } })
-}
-
 onMounted(() => {
   fetchStats()
+  // 每5分钟自动刷新
+  refreshTimer = setInterval(fetchStats, 5 * 60 * 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+  }
 })
 </script>
 
 <style scoped>
-.page-container {
+.dashboard-container {
   padding: 24px;
+  background: #f5f7fa;
+  min-height: calc(100vh - 64px);
 }
 
+/* ===== 统计卡片 ===== */
 .stats-row {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
   background: white;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 22px;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  border: 1px solid #f0f0f0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   color: white;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
+.icon-shops { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.icon-orders { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+.icon-revenue { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.icon-alerts { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
 .stat-content {
-  margin-bottom: 12px;
+  flex: 1;
+  margin-bottom: 8px;
 }
 
 .stat-value {
   font-size: 28px;
-  font-weight: 600;
-  color: #262626;
+  font-weight: 700;
+  color: #1a1a2e;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value small {
+  font-size: 16px;
+  font-weight: 400;
+  color: #8c8c8c;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #8c8c8c;
   margin-top: 4px;
 }
@@ -337,182 +360,246 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 10px;
+  border-top: 1px solid #f5f5f5;
 }
 
 .stat-today {
-  font-size: 13px;
+  font-size: 12px;
   color: #8c8c8c;
+}
+
+.trend-up {
+  color: #52c41a;
+  margin-right: 2px;
 }
 
 .stat-arrow {
   color: #bfbfbf;
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.detail-row {
-  margin-bottom: 16px;
+.stat-card-alert .stat-value {
+  color: #fa541c;
 }
 
+/* ===== 内容卡片 ===== */
 .content-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   height: 100%;
+  max-height: 600px;
+  overflow-y: auto;
 }
 
 .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  position: sticky;
+  top: -24px;
+  background: white;
+  padding: 0 0 12px;
+  z-index: 1;
+  border-bottom: 1px solid #f5f5f5;
 }
 
 .card-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #262626;
-}
-
-.status-list {
+  color: #1a1a2e;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.status-item {
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.status-item:hover {
-  background: #fafafa;
-}
-
-.status-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.status-count {
-  font-size: 16px;
-  font-weight: 500;
-  color: #262626;
-}
-
-.carrier-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.carrier-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.carrier-item:hover {
-  background: #fafafa;
-}
-
-.carrier-rank {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #8c8c8c;
-}
-
-.carrier-rank.rank-1 {
-  background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
-  color: white;
-}
-
-.carrier-rank.rank-2 {
-  background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%);
-  color: white;
-}
-
-.carrier-rank.rank-3 {
-  background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
-  color: white;
-}
-
-.carrier-info {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-width: 0;
-}
-
-.carrier-name {
-  font-weight: 500;
-  color: #262626;
-}
-
-.carrier-count {
-  font-size: 13px;
-  color: #8c8c8c;
-  margin-left: 8px;
-}
-
-.carrier-item .ant-progress {
-  width: 80px;
-  flex-shrink: 0;
-}
-
-.trend-card {
-  margin-top: 16px;
-}
-
-.trend-chart {
-  padding: 20px 0;
-}
-
-.chart-bars {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end;
-  height: 180px;
-  padding: 0 20px;
-}
-
-.chart-bar-item {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
 }
 
-.bar-value {
+/* ===== 店铺列表 ===== */
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shop-item {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.shop-item:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.shop-header {
+  margin-bottom: 14px;
+}
+
+.shop-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.shop-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.shop-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  font-size: 12px;
+  color: #8c8c8c;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.domain-text {
+  color: #1890ff;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+.shop-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #fafbfc;
+  border-radius: 8px;
+  padding: 12px 0;
+}
+
+.shop-stat {
+  flex: 1;
+  text-align: center;
+}
+
+.shop-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-stat-value.sync-time {
+  font-size: 11px;
+  font-weight: 400;
+  color: #8c8c8c;
+}
+
+.shop-stat-label {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-top: 2px;
+}
+
+.shop-stat-divider {
+  width: 1px;
+  height: 30px;
+  background: #e8e8e8;
+}
+
+/* ===== 告警列表 ===== */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.2s;
+}
+
+.alert-item:hover {
+  background: #fafafa;
+}
+
+.alert-indicator {
+  width: 4px;
+  min-height: 100%;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.alert-severity-critical .alert-indicator { background: #ff4d4f; }
+.alert-severity-high .alert-indicator { background: #fa8c16; }
+.alert-severity-medium .alert-indicator { background: #1890ff; }
+.alert-severity-info .alert-indicator { background: #52c41a; }
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.alert-title {
   font-size: 13px;
   font-weight: 500;
   color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
-.bar {
-  width: 40px;
-  background: linear-gradient(180deg, #1890ff 0%, #096dd9 100%);
-  border-radius: 4px 4px 0 0;
-  transition: height 0.3s;
+.alert-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
 }
 
-.bar-label {
-  font-size: 12px;
-  color: #8c8c8c;
+.alert-meta .meta-item {
+  font-size: 11px;
+}
+
+.alert-status {
+  margin-top: 4px;
+}
+
+/* 响应式 */
+@media (max-width: 576px) {
+  .dashboard-container {
+    padding: 12px;
+  }
+
+  .stat-card {
+    margin-bottom: 12px;
+  }
+
+  .shop-stats {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .shop-stat-divider {
+    display: none;
+  }
 }
 </style>

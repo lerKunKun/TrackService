@@ -42,4 +42,18 @@ public interface OrderMapper {
      * 更新订单
      */
     void update(Order order);
+
+    /**
+     * 按日期范围统计订单数量
+     */
+    Long countByDateRange(@Param("shopId") Long shopId,
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate);
+
+    /**
+     * 按日期范围统计销售额
+     */
+    java.math.BigDecimal sumRevenueByDateRange(@Param("shopId") Long shopId,
+            @Param("startDate") String startDate,
+            @Param("endDate") String endDate);
 }

@@ -174,4 +174,15 @@ public class UserController {
         Map<String, Object> data = userService.getUsersWithRoles(page, size);
         return Result.success(data);
     }
+
+    /**
+     * 获取所有用户列表（带角色信息）- 不分页
+     */
+    @GetMapping("/all-with-roles")
+    @RequireAuth(permissions = "system:user:view")
+    public Result<Map<String, Object>> getAllUsersWithRoles() {
+        log.info("Get all users with roles");
+        Map<String, Object> data = userService.getAllUsersWithRoles();
+        return Result.success(data);
+    }
 }

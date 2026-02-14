@@ -79,12 +79,7 @@
         WHERE id = #{id}
     </select>
 
-    <!-- 查询所有店铺 -->
-    <select id="selectAll" resultMap="BaseResultMap">
-        SELECT <include refid="Base_Column_List"/>
-        FROM shops
-        ORDER BY id DESC
-    </select>
+
 
     <select id="selectByShopDomain" resultMap="BaseResultMap">
         SELECT <include refid="Detail_Column_List"/>
@@ -158,6 +153,22 @@
 
     <select id="countOrdersByShopId" resultType="java.lang.Long">
         SELECT COUNT(*) FROM orders WHERE shop_id = #{shopId}
+    </select>
+
+    <!-- 按活跃状态查询店铺 -->
+    <select id="findByIsActive" resultMap="BaseResultMap">
+        SELECT <include refid="Detail_Column_List"/>
+        FROM shops
+        WHERE is_active = #{isActive} AND deleted_at IS NULL
+        ORDER BY id ASC
+    </select>
+
+    <!-- 查询所有店铺 -->
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM shops
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
     </select>
 
 </mapper>
