@@ -33,11 +33,12 @@ public class ShopifyAlertService {
 
     public ShopifyAlertService(ShopMapper shopMapper,
             DingtalkNotificationService notificationService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            RestTemplate restTemplate) {
         this.shopMapper = shopMapper;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = restTemplate;
     }
 
     /**

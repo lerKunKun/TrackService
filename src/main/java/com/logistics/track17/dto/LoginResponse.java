@@ -19,4 +19,5 @@ public class LoginResponse {
     private String avatar; // 用户头像URL
     private Long expiresIn; // 过期时间（毫秒）
     private List<String> permissions; // 用户权限列表
+    private List<com.logistics.track17.entity.Role> roles; // 用户角色列表
 }

@@ -29,6 +29,17 @@ export const useUserStore = defineStore('user', () => {
     }
   })())
 
+  // 角色列表从localStorage读取并解析
+  const roles = ref((() => {
+    try {
+      const stored = getStorageItem('roles')
+      return stored ? JSON.parse(stored) : []
+    } catch (e) {
+      console.warn('Failed to parse roles from localStorage:', e)
+      return []
+    }
+  })())
+
   const isLoggedIn = computed(() => !!token.value)
 
   // 安全地设置localStorage
@@ -58,14 +69,16 @@ export const useUserStore = defineStore('user', () => {
     // 优先使用真实姓名，如果没有则使用用户名
     displayName.value = data.realName || data.username
     avatar.value = data.avatar || ''
-    // 保存权限列表
+    // 保存权限和角色列表
     permissions.value = data.permissions || []
+    roles.value = data.roles || []
 
     setStorageItem('token', data.token)
     setStorageItem('username', data.username)
     setStorageItem('displayName', data.realName || data.username)
     setStorageItem('avatar', data.avatar || '')
     setStorageItem('permissions', JSON.stringify(data.permissions || []))
+    setStorageItem('roles', JSON.stringify(data.roles || []))
 
     return response
   }
@@ -76,11 +89,13 @@ export const useUserStore = defineStore('user', () => {
     displayName.value = ''
     avatar.value = ''
     permissions.value = []
+    roles.value = []
     removeStorageItem('token')
     removeStorageItem('username')
     removeStorageItem('displayName')
     removeStorageItem('avatar')
     removeStorageItem('permissions')
+    removeStorageItem('roles')
   }
 
   const setToken = (newToken) => {
@@ -92,10 +107,14 @@ export const useUserStore = defineStore('user', () => {
     username.value = userInfo.username
     displayName.value = userInfo.realName || userInfo.username
     avatar.value = userInfo.avatar || ''
-    // 如果userInfo包含permissions，也保存它
+    // 如果userInfo包含permissions和roles，也保存它
     if (userInfo.permissions) {
       permissions.value = userInfo.permissions
       setStorageItem('permissions', JSON.stringify(userInfo.permissions))
+    }
+    if (userInfo.roles) {
+      roles.value = userInfo.roles
+      setStorageItem('roles', JSON.stringify(userInfo.roles))
     }
     setStorageItem('username', userInfo.username)
     setStorageItem('displayName', userInfo.realName || userInfo.username)
@@ -148,6 +167,7 @@ export const useUserStore = defineStore('user', () => {
     displayName,
     avatar,
     permissions,
+    roles,
     isLoggedIn,
     currentShopId,
     accessibleShops,

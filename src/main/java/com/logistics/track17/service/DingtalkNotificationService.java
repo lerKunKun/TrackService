@@ -168,11 +168,10 @@ public class DingtalkNotificationService {
         String title = "🔔 测试通知";
         StringBuilder content = new StringBuilder();
         content.append("## 🔔 测试通知\n\n");
-        content.append("这是一条来自 ** System ** 的测试消息。\n\n");
+        content.append("这是一条来自 ** BIOU EMP SYSTEM ** 的测试消息。\n\n");
         content.append("**发送时间**: ").append(LocalDateTime.now()).append("\n\n");
         content.append("**接收人**: ").append(dingUserId).append("\n\n");
         content.append("> 如果您收到此消息，说明钉钉通知配置正确。 ✅\n");
-        content.append("> 夺舍成功！ 👻👻👻\n");
 
         try {
             return dingtalkApiService.sendWorkNotification(dingUserId, title, content.toString());

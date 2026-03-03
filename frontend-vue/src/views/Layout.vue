@@ -96,7 +96,7 @@
             </a-menu-item>
           </a-sub-menu>
           
-          <a-sub-menu key="system">
+          <a-sub-menu key="system" v-if="isAdmin">
             <template #icon>
               <SettingOutlined />
             </template>
@@ -257,6 +257,12 @@ const collapsed = ref(false)
 const selectedKeys = ref(['dashboard'])
 const openKeys = ref([])
 const menuTree = ref([])
+
+// 判断是否为管理员
+const isAdmin = computed(() => {
+  const roles = userStore.roles || []
+  return roles.some(role => role.roleCode === 'admin' || role.roleCode === 'super_admin' || role.roleCode === 'ADMIN')
+})
 
 // 面包屑数据
 const breadcrumbList = computed(() => {

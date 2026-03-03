@@ -34,6 +34,7 @@ public class AuthController {
     private final DingTalkService dingTalkService;
     private final PermissionService permissionService;
     private final com.logistics.track17.config.DingTalkConfig dingTalkConfig;
+    private final com.logistics.track17.service.RoleService roleService;
 
     @Value("${jwt.expiration}")
     private Long expiration;
@@ -50,12 +51,14 @@ public class AuthController {
             DingTalkService dingTalkService,
             PermissionService permissionService,
             com.logistics.track17.config.DingTalkConfig dingTalkConfig,
+            com.logistics.track17.service.RoleService roleService,
             RedisTemplate<String, Object> redisTemplate) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
         this.dingTalkService = dingTalkService;
         this.permissionService = permissionService;
         this.dingTalkConfig = dingTalkConfig;
+        this.roleService = roleService;
         this.redisTemplate = redisTemplate;
     }
 
@@ -92,12 +95,15 @@ public class AuthController {
         java.util.List<String> permissions = new java.util.ArrayList<>(
                 permissionService.getUserPermissionCodes(user.getId()));
 
+        // 获取用户角色
+        java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
+
         // 更新最后登录信息
         String loginIp = getClientIp(httpRequest);
         userService.updateLastLogin(user.getId(), loginIp);
 
         LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                expiration, permissions);
+                expiration, permissions, roles);
 
         log.info("User {} logged in successfully from IP: {}", user.getUsername(), loginIp);
         return Result.success("登录成功", response);
@@ -275,16 +281,17 @@ public class AuthController {
             // 5. 生成JWT Token
             String token = jwtUtil.generateToken(user.getUsername());
 
-            // 6. 获取用户权限
+            // 6. 获取用户权限和角色
             java.util.List<String> permissions = new java.util.ArrayList<>(
                     permissionService.getUserPermissionCodes(user.getId()));
+            java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
 
             // 7. 更新最后登录信息
             String loginIp = getClientIp(httpRequest);
             userService.updateLastLogin(user.getId(), loginIp);
 
             LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                    expiration, permissions);
+                    expiration, permissions, roles);
 
             log.info("User {} logged in via DingTalk from IP: {}", user.getUsername(), loginIp);
             return Result.success("登录成功", response);

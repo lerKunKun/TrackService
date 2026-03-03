@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import Layout from '@/views/Layout.vue'
+import { message } from 'ant-design-vue'
 
 const routes = [
   {
@@ -152,6 +153,19 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (to.path === '/login' && userStore.isLoggedIn) {
     next('/')
+  } else if (to.meta.requiresAdmin) {
+    // 检查用户是否拥有 admin 或相关特权角色
+    // 这里假设 userStore 中存在 roles 数组, 根据实际情况调整
+    const userRoles = userStore.roles || []
+    const isAdmin = userRoles.some(role => role.roleCode === 'admin' || role.roleCode === 'super_admin' || role.roleCode === 'ADMIN')
+
+    if (!isAdmin) {
+      console.warn('访问被拒绝：需要管理员权限')
+      message.error('无权访问该页面')
+      next('/')
+    } else {
+      next()
+    }
   } else {
     next()
   }
