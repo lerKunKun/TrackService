@@ -44,11 +44,11 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- MyBatis -->
+        <!-- MyBatis Plus -->
         <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>${mybatis-spring-boot.version}</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-boot-starter</artifactId>
+            <version>3.5.3.1</version>
         </dependency>
 
         <!-- MySQL Driver -->
@@ -136,6 +136,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Swagger 2 Annotations -->
+        <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>1.6.8</version>
         </dependency>
 
         <!-- Spring Boot Test -->

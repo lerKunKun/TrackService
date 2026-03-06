@@ -6,11 +6,13 @@ import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+
 /**
  * 产品主体数据访问层
  */
 @Mapper
-public interface ProductMapper {
+public interface ProductMapper extends BaseMapper<Product> {
 
         /**
          * 插入产品
@@ -147,4 +149,15 @@ public interface ProductMapper {
          * 查询所有标签
          */
         List<String> selectAllTags();
+
+        /**
+         * 查询某产品下所有图片 URL（去重）
+         * 来源：product_images.src （产品主图） + product_variants.image_url （变体图）
+         */
+        @org.apache.ibatis.annotations.Select("SELECT src AS url FROM product_images " +
+                        "WHERE product_id = #{productId} AND src IS NOT NULL AND src != '' " +
+                        "UNION " +
+                        "SELECT image_url AS url FROM product_variants " +
+                        "WHERE product_id = #{productId} AND image_url IS NOT NULL AND image_url != '' ")
+        List<String> selectVariantImageUrls(@Param("productId") Long productId);
 }

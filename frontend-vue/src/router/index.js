@@ -71,6 +71,18 @@ const routes = [
         meta: { title: '产品可见性' }
       },
       {
+        path: 'product/media',
+        name: 'ProductMedia',
+        component: () => import('@/views/product/ProductMedia.vue'),
+        meta: { title: '产品媒体' }
+      },
+      {
+        path: 'product/template',
+        name: 'ProductTemplate',
+        component: () => import('@/views/product/ProductTemplate.vue'),
+        meta: { title: '产品模板' }
+      },
+      {
         path: 'system/users',
         name: 'Users',
         component: () => import('@/views/Users.vue'),

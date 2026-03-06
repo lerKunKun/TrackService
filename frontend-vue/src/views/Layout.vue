@@ -94,6 +94,14 @@
               <SafetyOutlined />
               <span>产品可见性</span>
             </a-menu-item>
+            <a-menu-item key="product-media">
+              <PictureOutlined />
+              <span>产品媒体</span>
+            </a-menu-item>
+            <a-menu-item key="product-template">
+              <LayoutOutlined />
+              <span>产品模板</span>
+            </a-menu-item>
           </a-sub-menu>
           
           <a-sub-menu key="system" v-if="isAdmin">
@@ -240,7 +248,9 @@ import {
   UserSwitchOutlined,
   MenuOutlined,
   IdcardOutlined,
-  ApartmentOutlined
+  ApartmentOutlined,
+  PictureOutlined,
+  LayoutOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { menuApi } from '@/api/menu'
@@ -339,6 +349,12 @@ watch(
     } else if (path.includes('product/authorization')) {
       selectedKeys.value = ['product-authorization']
       openKeys.value = ['product']
+    } else if (path.includes('product/media')) {
+      selectedKeys.value = ['product-media']
+      openKeys.value = ['product']
+    } else if (path.includes('product/template')) {
+      selectedKeys.value = ['product-template']
+      openKeys.value = ['product']
     }
   },
   { immediate: true }
@@ -377,6 +393,10 @@ const handleMenuClick = ({ key }) => {
     router.push('/product/listing')
   } else if (key === 'product-authorization') {
     router.push('/product/authorization')
+  } else if (key === 'product-media') {
+    router.push('/product/media')
+  } else if (key === 'product-template') {
+    router.push('/product/template')
   } else if (key === 'system-canvas') {
     router.push('/system/canvas')
   } else {

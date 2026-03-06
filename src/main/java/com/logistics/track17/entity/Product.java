@@ -1,5 +1,7 @@
 package com.logistics.track17.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
  * P3: 添加产品刊登链接
  */
 @Data
+@TableName("products")
 public class Product {
     /**
      * 产品ID
@@ -63,15 +66,18 @@ public class Product {
     /**
      * 刊登状态 (非数据库字段, 聚合自 product_shops)
      */
+    @TableField(exist = false)
     private Integer publishStatus;
 
     /**
      * 最后导出时间 (非数据库字段, 聚合自 product_shops)
      */
+    @TableField(exist = false)
     private LocalDateTime lastExportTime;
 
     /**
      * 产品主图URL (非数据库字段, 取自第一个变体)
      */
+    @TableField(exist = false)
     private String imageUrl;
 }
