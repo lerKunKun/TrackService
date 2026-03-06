@@ -5,20 +5,26 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.logistics.track17.dto.ProductTemplateDTO;
 import com.logistics.track17.entity.ProductTemplate;
 
+import java.util.Map;
+
 public interface ProductTemplateService extends IService<ProductTemplate> {
 
-    /**
-     * 分页查询产品模板列表
-     */
     Page<ProductTemplateDTO> getProductTemplatePage(Page<ProductTemplate> page);
 
-    /**
-     * 更新模板名称和店铺标识符
-     */
-    boolean updateTemplateInfo(Long productId, String templateName, String storeIdentifier);
+    boolean updateTemplateInfo(Long productId, String templateName, Long sourceShopId);
 
     /**
-     * 预览: 推送媒体/CSV/JSON, 并返回预览链接
+     * 从源店铺拉取主题文件（settings_data / footer-group / product.xxx.json）
+     */
+    Map<String, Object> pullThemeFiles(Long productId);
+
+    /**
+     * 推送产品+媒体+主题文件到开发者店铺，返回预览 URL
      */
     String generatePreviewUrl(Long productId);
+
+    /**
+     * 查看已缓存的主题文件概要
+     */
+    Map<String, Object> getThemeFilesInfo(Long productId);
 }

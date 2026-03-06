@@ -40,12 +40,13 @@ public class DingtalkSyncService {
     @Autowired
     private RoleService roleService;
 
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     /**
      * 全量同步（部门 + 用户 + 角色映射）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public DingtalkSyncLog fullSync() {
         DingtalkSyncLog syncLog = createSyncLog("FULL", "MANUAL");
         syncLog.setStartedAt(LocalDateTime.now());
@@ -89,7 +90,7 @@ public class DingtalkSyncService {
     /**
      * 同步部门
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int syncDepartments() {
         log.info("开始同步钉钉部门...");
 
@@ -136,7 +137,7 @@ public class DingtalkSyncService {
     /**
      * 同步用户
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int syncUsers() {
         log.info("开始同步钉钉用户...");
 
@@ -180,86 +181,128 @@ public class DingtalkSyncService {
      * 同步单个用户
      */
     private void syncSingleUser(DingtalkUserDTO dingUser) {
-        // 1. 优先通过unionId查找用户（与扫码登录保持一致）
-        User existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
-
-        // 2. 如果通过unionId找不到，尝试通过dingUserId查找（兼容旧数据）
-        if (existingUser == null && dingUser.getUserid() != null) {
-            existingUser = userMapper.selectByDingUserId(dingUser.getUserid());
-            // 如果找到了，更新unionId
-            if (existingUser != null && existingUser.getDingUnionId() == null) {
-                existingUser.setDingUnionId(dingUser.getUnionid());
-                log.info("为用户 {} 补充unionId: {}", existingUser.getUsername(), dingUser.getUnionid());
-            }
-        }
+        User existingUser = findExistingUser(dingUser);
 
         if (existingUser == null) {
-            // 新建用户
-            User newUser = new User();
-            newUser.setUsername(generateUniqueUsername(dingUser));
-            newUser.setDingUserId(dingUser.getUserid());
-            newUser.setDingUnionId(dingUser.getUnionid());
-            newUser.setRealName(dingUser.getName());
-            newUser.setPhone(dingUser.getMobile());
-            newUser.setEmail(dingUser.getEmail());
-            newUser.setTitle(dingUser.getTitle());
-            newUser.setJobNumber(dingUser.getJobNumber());
-            newUser.setAvatar(dingUser.getAvatar());
-            newUser.setLoginSource("DINGTALK");
+            createUserFromDingtalk(dingUser);
+        } else {
+            updateUserFromDingtalk(existingUser, dingUser);
+        }
+    }
 
-            // 根据钉钉active状态设置用户状态（active=true启用，active=false禁用）
-            newUser.setStatus(dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
-            newUser.setSyncEnabled(1); // 默认启用自动同步
-            newUser.setRole("USER"); // 默认角色
-            newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+    /**
+     * 多策略查找已有用户：unionId -> dingUserId -> username（含软删除）
+     */
+    private User findExistingUser(DingtalkUserDTO dingUser) {
+        User user = userMapper.selectByDingUnionId(dingUser.getUnionid());
 
-            try {
-                userMapper.insert(newUser);
-                log.debug("创建新用户: {} (钉钉ID: {}), 状态: {}",
-                        dingUser.getName(),
-                        dingUser.getUserid(),
-                        newUser.getStatus() == 1 ? "启用" : "禁用");
-            } catch (org.springframework.dao.DuplicateKeyException e) {
-                // 可能是并发创建或username冲突，尝试再次查找
-                log.warn("用户创建失败，可能已存在: {}", dingUser.getName());
-                existingUser = userMapper.selectByDingUnionId(dingUser.getUnionid());
-                if (existingUser != null) {
-                    log.info("找到已存在用户: {}", existingUser.getUsername());
-                    // 继续执行更新逻辑
-                } else {
-                    throw e; // 如果还是找不到，抛出异常
-                }
+        if (user == null && dingUser.getUserid() != null) {
+            user = userMapper.selectByDingUserId(dingUser.getUserid());
+            if (user != null && user.getDingUnionId() == null) {
+                user.setDingUnionId(dingUser.getUnionid());
+                log.info("为用户 {} 补充unionId: {}", user.getUsername(), dingUser.getUnionid());
             }
-
         }
 
-        if (existingUser != null) {
-            // 更新用户信息
-            Integer oldStatus = existingUser.getStatus();
-            Integer newStatus = dingUser.getActive() != null && dingUser.getActive() ? 1 : 0;
+        if (user == null && dingUser.getUserid() != null) {
+            User deletedUser = userMapper.selectByUsernameIncludeDeleted(dingUser.getUserid());
+            if (deletedUser != null && deletedUser.getDeletedAt() != null) {
+                log.info("发现已软删除的用户 {} (id={}), 将恢复并更新", deletedUser.getUsername(), deletedUser.getId());
+                reactivateUser(deletedUser, dingUser);
+                user = deletedUser;
+            }
+        }
 
-            existingUser.setDingUserId(dingUser.getUserid()); // 更新dingUserId
-            existingUser.setDingUnionId(dingUser.getUnionid()); // 确保unionId存在
-            existingUser.setRealName(dingUser.getName());
-            existingUser.setPhone(dingUser.getMobile());
-            existingUser.setEmail(dingUser.getEmail());
-            existingUser.setTitle(dingUser.getTitle());
-            existingUser.setJobNumber(dingUser.getJobNumber());
-            existingUser.setAvatar(dingUser.getAvatar());
-            existingUser.setStatus(newStatus);
+        return user;
+    }
 
-            userMapper.update(existingUser);
+    /**
+     * 恢复软删除用户并更新钉钉信息
+     */
+    private void reactivateUser(User user, DingtalkUserDTO dingUser) {
+        user.setDingUserId(dingUser.getUserid());
+        user.setDingUnionId(dingUser.getUnionid());
+        user.setRealName(dingUser.getName());
+        user.setPhone(dingUser.getMobile());
+        user.setEmail(dingUser.getEmail());
+        user.setTitle(dingUser.getTitle());
+        user.setJobNumber(dingUser.getJobNumber());
+        user.setAvatar(dingUser.getAvatar());
+        user.setStatus(dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
+        user.setSyncEnabled(1);
+        user.setLoginSource("DINGTALK");
+        userMapper.reactivate(user);
+    }
 
-            // 如果状态发生变化，记录详细日志
-            if (!oldStatus.equals(newStatus)) {
-                if (newStatus == 0) {
-                    log.info("员工离职 - 禁用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
+    /**
+     * 从钉钉信息创建新用户
+     */
+    private void createUserFromDingtalk(DingtalkUserDTO dingUser) {
+        User newUser = new User();
+        newUser.setUsername(generateUniqueUsername(dingUser));
+        newUser.setDingUserId(dingUser.getUserid());
+        newUser.setDingUnionId(dingUser.getUnionid());
+        newUser.setRealName(dingUser.getName());
+        newUser.setPhone(dingUser.getMobile());
+        newUser.setEmail(dingUser.getEmail());
+        newUser.setTitle(dingUser.getTitle());
+        newUser.setJobNumber(dingUser.getJobNumber());
+        newUser.setAvatar(dingUser.getAvatar());
+        newUser.setLoginSource("DINGTALK");
+        newUser.setStatus(dingUser.getActive() != null && dingUser.getActive() ? 1 : 0);
+        newUser.setSyncEnabled(1);
+        newUser.setRole("USER");
+        newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+
+        try {
+            userMapper.insert(newUser);
+            log.debug("创建新用户: {} (钉钉ID: {}), 状态: {}",
+                    dingUser.getName(), dingUser.getUserid(),
+                    newUser.getStatus() == 1 ? "启用" : "禁用");
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            log.warn("用户创建冲突: {}, 尝试回退查找", dingUser.getName());
+            User fallback = userMapper.selectByUsernameIncludeDeleted(newUser.getUsername());
+            if (fallback != null) {
+                if (fallback.getDeletedAt() != null) {
+                    reactivateUser(fallback, dingUser);
+                    log.info("通过username回退恢复用户: {} (id={})", fallback.getUsername(), fallback.getId());
                 } else {
-                    log.info("员工复职 - 启用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
+                    updateUserFromDingtalk(fallback, dingUser);
+                    log.info("通过username回退更新用户: {} (id={})", fallback.getUsername(), fallback.getId());
                 }
             } else {
-                log.debug("更新用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
+                throw e;
             }
+        }
+    }
+
+    /**
+     * 用钉钉信息更新已有用户
+     */
+    private void updateUserFromDingtalk(User existingUser, DingtalkUserDTO dingUser) {
+        Integer oldStatus = existingUser.getStatus();
+        Integer newStatus = dingUser.getActive() != null && dingUser.getActive() ? 1 : 0;
+
+        existingUser.setDingUserId(dingUser.getUserid());
+        existingUser.setDingUnionId(dingUser.getUnionid());
+        existingUser.setRealName(dingUser.getName());
+        existingUser.setPhone(dingUser.getMobile());
+        existingUser.setEmail(dingUser.getEmail());
+        existingUser.setTitle(dingUser.getTitle());
+        existingUser.setJobNumber(dingUser.getJobNumber());
+        existingUser.setAvatar(dingUser.getAvatar());
+        existingUser.setStatus(newStatus);
+
+        userMapper.update(existingUser);
+
+        if (!Objects.equals(oldStatus, newStatus)) {
+            if (newStatus == 0) {
+                log.info("员工离职 - 禁用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
+            } else {
+                log.info("员工复职 - 启用用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
+            }
+        } else {
+            log.debug("更新用户: {} (钉钉ID: {})", dingUser.getName(), dingUser.getUserid());
         }
     }
 
@@ -267,7 +310,7 @@ public class DingtalkSyncService {
      * 应用角色映射规则
      * 只处理 sync_enabled=1 的用户
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int applyRoleMappingRules() {
         log.info("开始应用角色映射规则...");
 
@@ -296,9 +339,13 @@ public class DingtalkSyncService {
                 List<Long> matchedRoleIds = matchRolesForUser(user, rules);
 
                 if (!matchedRoleIds.isEmpty()) {
-                    // 使用RoleService为用户分配角色
-                    roleService.assignRolesToUser(user.getId(), matchedRoleIds);
-                    log.info("为用户 {} 分配 {} 个角色", user.getUsername(), matchedRoleIds.size());
+                    List<Long> existingRoleIds = roleService.getRolesByUserId(user.getId())
+                            .stream().map(com.logistics.track17.entity.Role::getId).collect(Collectors.toList());
+                    java.util.Set<Long> mergedRoleIds = new java.util.LinkedHashSet<>(existingRoleIds);
+                    mergedRoleIds.addAll(matchedRoleIds);
+                    roleService.assignRolesToUser(user.getId(), new java.util.ArrayList<>(mergedRoleIds));
+                    log.info("为用户 {} 合并分配角色: 已有{}个 + 同步{}个 = 共{}个",
+                            user.getUsername(), existingRoleIds.size(), matchedRoleIds.size(), mergedRoleIds.size());
                     assignedCount++;
                 }
             } catch (Exception e) {

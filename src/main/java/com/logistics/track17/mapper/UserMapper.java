@@ -80,6 +80,16 @@ public interface UserMapper {
     User selectByDingUserId(@Param("dingUserId") String dingUserId);
 
     /**
+     * 根据用户名查询用户（包含软删除记录，用于同步去重）
+     */
+    User selectByUsernameIncludeDeleted(@Param("username") String username);
+
+    /**
+     * 恢复软删除的用户（清除 deleted_at 并更新关键字段）
+     */
+    int reactivate(User user);
+
+    /**
      * 删除用户
      */
     int deleteById(@Param("id") Long id);

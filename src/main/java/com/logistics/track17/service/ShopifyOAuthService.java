@@ -58,7 +58,7 @@ public class ShopifyOAuthService {
 
         // Shopify推荐的scopes（根据需求调整）
         // 根据实际需求请求必要的权限
-        String scopes = "read_orders,write_orders,read_products,write_products";
+        String scopes = "read_orders,write_orders,read_products,write_products,read_themes,write_themes";
 
         // 构建OAuth授权URL
         // 关键：添加 grant_options[]=offline 以获取永久有效的 offline access token

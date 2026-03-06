@@ -1,26 +1,26 @@
 import request from '@/utils/request'
 
-// ========== 产品媒体（MinIO 版）==========
+// ========== 产品媒体 ==========
 
-/** 分页获取产品列表（带各 tag 文件数量统计） */
+/** 分页获取产品列表（带各分类文件数量统计） */
 export function getProductMediaList(params) {
     return request({ url: '/product-media/list', method: 'get', params })
 }
 
-/** 获取某产品某 tag 下的文件列表 */
-export function getProductMediaFiles(productId, tag) {
+/** 获取某产品某分类下的文件列表 */
+export function getProductMediaFiles(productId, category) {
     return request({
         url: `/product-media/${productId}/files`,
         method: 'get',
-        params: tag ? { tag } : {}
+        params: category ? { category } : {}
     })
 }
 
-/** 上传文件到 MinIO（multipart） */
-export function uploadProductMediaFile(productId, tag, file, onUploadProgress) {
+/** 上传文件（multipart） */
+export function uploadProductMediaFile(productId, category, file, onUploadProgress) {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('tag', tag)
+    formData.append('category', category)
     return request({
         url: `/product-media/${productId}/upload`,
         method: 'post',
@@ -30,21 +30,48 @@ export function uploadProductMediaFile(productId, tag, file, onUploadProgress) {
     })
 }
 
-/** 删除文件 */
-export function deleteProductMediaFile(objectName) {
+/** 删除单个文件 */
+export function deleteProductMediaFile(fileId) {
     return request({
-        url: '/product-media/file',
-        method: 'delete',
-        params: { objectName }
+        url: `/product-media/files/${fileId}`,
+        method: 'delete'
     })
 }
 
-/** 获取对标页链接列表 */
+/** 批量删除文件 */
+export function batchDeleteFiles(productId, fileIds) {
+    return request({
+        url: `/product-media/${productId}/files/batch`,
+        method: 'delete',
+        data: fileIds
+    })
+}
+
+/** 更新排序（接收有序 ID 列表） */
+export function updateFilesSort(productId, category, sortedIds) {
+    return request({
+        url: `/product-media/${productId}/files/sort`,
+        method: 'put',
+        params: { category },
+        data: sortedIds
+    })
+}
+
+/** 移动文件到其他分类 */
+export function moveFileCategory(fileId, category) {
+    return request({
+        url: `/product-media/files/${fileId}/category`,
+        method: 'put',
+        params: { category }
+    })
+}
+
+/** 获取对标页链接 */
 export function getReferenceLink(productId) {
     return request({ url: `/product-media/${productId}/reference-link`, method: 'get' })
 }
 
-/** 更新对标页链接列表（数组） */
+/** 更新对标页链接（数组） */
 export function updateReferenceLink(productId, referenceLinks) {
     return request({
         url: `/product-media/${productId}/reference-link`,
@@ -62,10 +89,18 @@ export function downloadFromUrls(productId, tag, urls) {
     })
 }
 
-/** 静默拉取产品变体主图到 MinIO（幂等，已存在自动跳过） */
+/** 同步产品主图到 MinIO */
 export function syncProductImages(productId) {
     return request({
         url: `/product-media/${productId}/sync-images`,
+        method: 'post'
+    })
+}
+
+/** 数据迁移（一次性，管理员） */
+export function migrateProductMedia() {
+    return request({
+        url: '/product-media/migrate',
         method: 'post'
     })
 }
@@ -81,6 +116,22 @@ export function updateProductTemplateInfo(productId, params) {
     return request({ url: `/product-templates/${productId}`, method: 'put', params })
 }
 
+export function pullThemeFiles(productId) {
+    return request({ url: `/product-templates/${productId}/pull-theme`, method: 'post' })
+}
+
 export function previewProductTemplate(productId) {
     return request({ url: `/product-templates/${productId}/preview`, method: 'post' })
+}
+
+export function getThemeFiles(productId) {
+    return request({ url: `/product-templates/${productId}/theme-files`, method: 'get' })
+}
+
+export function getDevStore() {
+    return request({ url: '/product-templates/dev-store', method: 'get' })
+}
+
+export function setDevStore(shopId) {
+    return request({ url: `/product-templates/dev-store/${shopId}`, method: 'put' })
 }

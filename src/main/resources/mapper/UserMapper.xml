@@ -2,7 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.logistics.track17.mapper.UserMapper">
 
-    <!-- 结果映射 -->
     <resultMap id="BaseResultMap" type="com.logistics.track17.entity.User">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="username" property="username" jdbcType="VARCHAR"/>
@@ -12,6 +11,7 @@
         <result column="real_name" property="realName" jdbcType="VARCHAR"/>
         <result column="role" property="role" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="TINYINT"/>
+        <result column="sync_enabled" property="syncEnabled" jdbcType="TINYINT"/>
         <result column="avatar" property="avatar" jdbcType="VARCHAR"/>
         <result column="last_login_time" property="lastLoginTime" jdbcType="TIMESTAMP"/>
         <result column="last_login_ip" property="lastLoginIp" jdbcType="VARCHAR"/>
@@ -20,15 +20,16 @@
         <result column="deleted_at" property="deletedAt" jdbcType="TIMESTAMP"/>
         <result column="ding_union_id" property="dingUnionId" jdbcType="VARCHAR"/>
         <result column="ding_user_id" property="dingUserId" jdbcType="VARCHAR"/>
+        <result column="job_number" property="jobNumber" jdbcType="VARCHAR"/>
+        <result column="title" property="title" jdbcType="VARCHAR"/>
         <result column="corp_id" property="corpId" jdbcType="VARCHAR"/>
         <result column="login_source" property="loginSource" jdbcType="VARCHAR"/>
     </resultMap>
 
-    <!-- 基础列 -->
     <sql id="Base_Column_List">
-        id, username, password, email, phone, real_name, role, status, avatar,
+        id, username, password, email, phone, real_name, role, status, sync_enabled, avatar,
         last_login_time, last_login_ip, created_at, updated_at, deleted_at,
-        ding_union_id, ding_user_id, corp_id, login_source
+        ding_union_id, ding_user_id, job_number, title, corp_id, login_source
     </sql>
 
     <!-- 根据ID查询用户 -->
@@ -63,7 +64,16 @@
     <select id="selectByDingUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM users
-        WHERE ding_userid = #{dingUserId} AND deleted_at IS NULL
+        WHERE ding_user_id = #{dingUserId} AND deleted_at IS NULL
+    </select>
+
+    <!-- 根据用户名查询用户（包含软删除的记录，用于同步去重） -->
+    <select id="selectByUsernameIncludeDeleted" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM users
+        WHERE username = #{username}
+        ORDER BY deleted_at IS NULL DESC, id ASC
+        LIMIT 1
     </select>
 
     <!-- 查询所有用户列表 -->
@@ -91,11 +101,11 @@
     <!-- 插入用户 -->
     <insert id="insert" parameterType="com.logistics.track17.entity.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (
-            username, password, email, phone, real_name, role, status, avatar,
-            ding_union_id, ding_user_id, corp_id, login_source
+            username, password, email, phone, real_name, role, status, sync_enabled, avatar,
+            ding_union_id, ding_user_id, job_number, title, corp_id, login_source
         ) VALUES (
-            #{username}, #{password}, #{email}, #{phone}, #{realName}, #{role}, #{status}, #{avatar},
-            #{dingUnionId}, #{dingUserId}, #{corpId}, #{loginSource}
+            #{username}, #{password}, #{email}, #{phone}, #{realName}, #{role}, #{status}, #{syncEnabled}, #{avatar},
+            #{dingUnionId}, #{dingUserId}, #{jobNumber}, #{title}, #{corpId}, #{loginSource}
         )
     </insert>
 
@@ -109,6 +119,12 @@
             <if test="avatar != null">avatar = #{avatar},</if>
             <if test="role != null">role = #{role},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="syncEnabled != null">sync_enabled = #{syncEnabled},</if>
+            <if test="dingUserId != null">ding_user_id = #{dingUserId},</if>
+            <if test="dingUnionId != null">ding_union_id = #{dingUnionId},</if>
+            <if test="jobNumber != null">job_number = #{jobNumber},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="corpId != null">corp_id = #{corpId},</if>
         </set>
         WHERE id = #{id}
     </update>
@@ -138,6 +154,24 @@
     <!-- 软删除用户 -->
     <update id="deleteById">
         UPDATE users SET deleted_at = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 恢复软删除的用户 -->
+    <update id="reactivate" parameterType="com.logistics.track17.entity.User">
+        UPDATE users
+        SET deleted_at = NULL,
+            status = #{status},
+            ding_union_id = #{dingUnionId},
+            ding_user_id = #{dingUserId},
+            real_name = #{realName},
+            phone = #{phone},
+            email = #{email},
+            avatar = #{avatar},
+            title = #{title},
+            job_number = #{jobNumber},
+            sync_enabled = #{syncEnabled},
+            login_source = #{loginSource}
+        WHERE id = #{id}
     </update>
 
     <!-- 查询用户的角色列表 -->

@@ -30,6 +30,21 @@
           </a-tag>
         </template>
 
+        <!-- 开发店铺标记 -->
+        <template #devStore="{ record }">
+          <a-tooltip :title="record.id === devStoreId ? '当前开发店铺' : '设为开发店铺'">
+            <a-button
+              type="text"
+              size="small"
+              :loading="record._settingDev"
+              @click="handleToggleDevStore(record)"
+            >
+              <StarFilled v-if="record.id === devStoreId" style="color: #faad14; font-size: 18px;" />
+              <StarOutlined v-else style="color: #d9d9d9; font-size: 18px;" />
+            </a-button>
+          </a-tooltip>
+        </template>
+
         <!-- 操作列 -->
         <template #action="{ record }">
           <a-space :size="4">
@@ -91,6 +106,15 @@
                 </div>
               </div>
               <div class="card-actions">
+                <a-button
+                  type="text"
+                  size="small"
+                  @click="handleToggleDevStore(item)"
+                >
+                  <StarFilled v-if="item.id === devStoreId" style="color: #faad14;" />
+                  <StarOutlined v-else style="color: #d9d9d9;" />
+                  {{ item.id === devStoreId ? '开发店铺' : '设为开发' }}
+                </a-button>
                 <a-button type="link" size="small" @click="handleViewDetails(item)">
                   查看
                 </a-button>
@@ -226,9 +250,12 @@ import {
   EyeOutlined, 
   ReloadOutlined, 
   ApiOutlined, 
-  DeleteOutlined 
+  DeleteOutlined,
+  StarOutlined,
+  StarFilled
 } from '@ant-design/icons-vue'
 import { shopApi } from '@/api/shop'
+import { setDevStore, getDevStore } from '@/api/product-media-template'
 import dayjs from 'dayjs'
 
 const columns = [
@@ -277,6 +304,13 @@ const columns = [
     slots: { customRender: 'createdAt' }
   },
   {
+    title: '开发店铺',
+    key: 'devStore',
+    width: 90,
+    align: 'center',
+    slots: { customRender: 'devStore' }
+  },
+  {
     title: '操作',
     key: 'action',
     width: 200,
@@ -287,6 +321,7 @@ const columns = [
 
 const loading = ref(false)
 const tableData = ref([])
+const devStoreId = ref(null)
 
 const pagination = reactive({
   current: 1,
@@ -440,8 +475,33 @@ const handleRegisterWebhooks = async (shopId) => {
   }
 }
 
+const fetchDevStoreInfo = async () => {
+  try {
+    const res = await getDevStore()
+    devStoreId.value = res.code === 200 && res.data ? res.data.id : null
+  } catch { devStoreId.value = null }
+}
+
+const handleToggleDevStore = async (record) => {
+  record._settingDev = true
+  try {
+    const res = await setDevStore(record.id)
+    if (res.code === 200) {
+      devStoreId.value = record.id
+      message.success(`已将 "${record.shopName}" 设为开发店铺`)
+    } else {
+      message.error(res.message || '设置失败')
+    }
+  } catch (err) {
+    message.error('设置失败: ' + (err.message || '网络错误'))
+  } finally {
+    record._settingDev = false
+  }
+}
+
 onMounted(() => {
   fetchShops()
+  fetchDevStoreInfo()
 
   // 检查URL中是否有OAuth回调参数
   const urlParams = new URLSearchParams(window.location.search)

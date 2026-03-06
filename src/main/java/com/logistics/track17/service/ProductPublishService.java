@@ -37,7 +37,7 @@ public class ProductPublishService {
      * @param shopIds    List of shop IDs to publish to
      * @return Number of successful publications
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int publishProducts(List<Long> productIds, List<Long> shopIds) {
         Long userId = UserContextHolder.getCurrentUserId();
         if (userId == null) {
@@ -104,7 +104,7 @@ public class ProductPublishService {
      * @param productIds List of product IDs
      * @param shopIds    List of shop IDs
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void unpublishProducts(List<Long> productIds, List<Long> shopIds) {
         Long userId = UserContextHolder.getCurrentUserId();
         if (userId == null) {

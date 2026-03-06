@@ -81,7 +81,7 @@ public class RoleService {
     /**
      * 删除角色
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteRole(Long id) {
         Role existing = roleMapper.selectById(id);
         if (existing == null) {
@@ -105,7 +105,7 @@ public class RoleService {
      * 为角色分配菜单
      * 分配后不需要清除权限缓存（菜单和权限独立）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void assignMenusToRole(Long roleId, List<Long> menuIds) {
         // 先删除旧的关联
         roleMapper.deleteMenusByRoleId(roleId);
@@ -122,7 +122,7 @@ public class RoleService {
      * 为角色分配权限
      * 分配后清除所有用户的权限缓存（因为角色权限变更会影响用户权限）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "user:permissions", "user:permissions:codes" }, allEntries = true)
     public void assignPermissionsToRole(Long roleId, List<Long> permissionIds) {
         // 先删除旧的关联
@@ -141,7 +141,7 @@ public class RoleService {
      * 注意：允许传入空列表清空所有角色（用于离职员工、临时禁用等场景）
      * 分配后清除该用户的角色和权限缓存
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "user:roles", "user:permissions", "user:permissions:codes" }, key = "#userId")
     public void assignRolesToUser(Long userId, List<Long> roleIds) {
         // 先删除旧的关联

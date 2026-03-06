@@ -20,6 +20,9 @@ public class MinioService {
 
     private final MinioClient minioClient;
 
+    @org.springframework.beans.factory.annotation.Value("${minio.endpoint}")
+    private String endpoint;
+
     /**
      * 确保 bucket 存在，若不存在则创建并设置公开读策略
      */
@@ -85,6 +88,23 @@ public class MinioService {
         } catch (Exception e) {
             log.error("Failed to upload stream: {}", objectName, e);
             throw new RuntimeException("Stream upload failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 复制对象（用于分类移动）
+     */
+    public void copyObject(String srcBucket, String srcObject, String destBucket, String destObject) {
+        try {
+            minioClient.copyObject(CopyObjectArgs.builder()
+                    .bucket(destBucket)
+                    .object(destObject)
+                    .source(CopySource.builder().bucket(srcBucket).object(srcObject).build())
+                    .build());
+            log.info("Object copied: {}/{} -> {}/{}", srcBucket, srcObject, destBucket, destObject);
+        } catch (Exception e) {
+            log.error("Failed to copy object: {}", srcObject, e);
+            throw new RuntimeException("Object copy failed: " + e.getMessage(), e);
         }
     }
 
@@ -158,23 +178,11 @@ public class MinioService {
     }
 
     /**
-     * 对于公开 bucket，生成直接访问 URL
+     * 对于公开 bucket，直接拼接 URL（无需签名计算）
      */
     public String getDirectUrl(String bucket, String objectName) {
-        try {
-            // 获取 MinioClient 的 endpoint
-            String endpoint = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(objectName)
-                    .expiry(7, TimeUnit.DAYS)
-                    .build());
-            // 截取 endpoint 部分（去掉签名参数）作为公开 URL
-            return endpoint.split("\\?")[0];
-        } catch (Exception e) {
-            log.warn("Failed to get direct URL for: {}", objectName);
-            return "";
-        }
+        String base = endpoint.endsWith("/") ? endpoint : endpoint + "/";
+        return base + bucket + "/" + objectName;
     }
 
     private String detectMediaType(String fileName) {
@@ -186,25 +194,14 @@ public class MinioService {
         return "image";
     }
 
-    /**
-     * 文件信息 DTO
-     */
+    @lombok.Data
+    @lombok.AllArgsConstructor
     public static class MinioFileInfo {
-        public String objectName;
-        public String fileName;
-        public String tag;
-        public String mediaType;
-        public long size;
-        public String url;
-
-        public MinioFileInfo(String objectName, String fileName, String tag,
-                String mediaType, long size, String url) {
-            this.objectName = objectName;
-            this.fileName = fileName;
-            this.tag = tag;
-            this.mediaType = mediaType;
-            this.size = size;
-            this.url = url;
-        }
+        private String objectName;
+        private String fileName;
+        private String tag;
+        private String mediaType;
+        private long size;
+        private String url;
     }
 }

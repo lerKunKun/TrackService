@@ -62,4 +62,11 @@ public interface ShopMapper {
      */
     List<Shop> findByIsActive(@Param("isActive") boolean isActive);
 
+    Shop selectDevStore();
+
+    int clearDevStoreFlag();
+
+    int setDevStoreFlag(@Param("id") Long id);
+
+    Shop selectDetailById(@Param("id") Long id);
 }

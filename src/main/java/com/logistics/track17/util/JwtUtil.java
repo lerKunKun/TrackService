@@ -5,18 +5,19 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-/**
- * JWT工具类
- */
 @Slf4j
 @Component
 public class JwtUtil {
+
+    private static final String TOKEN_BLACKLIST_PREFIX = "jwt:blacklist:";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -24,18 +25,18 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private Long expiration;
 
-    /**
-     * 生成Token
-     */
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public JwtUtil(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
     public String generateToken(String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", username);
         return createToken(claims, username);
     }
 
-    /**
-     * 创建Token
-     */
     private String createToken(Map<String, Object> claims, String subject) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
@@ -49,9 +50,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * 从Token中获取用户名
-     */
     public String getUsernameFromToken(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
@@ -62,9 +60,6 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * 获取Token中的Claims
-     */
     private Claims getClaimsFromToken(String token) {
         return Jwts.parser()
                 .setSigningKey(secret)
@@ -72,16 +67,42 @@ public class JwtUtil {
                 .getBody();
     }
 
-    /**
-     * 验证Token是否有效
-     */
     public boolean validateToken(String token) {
         try {
+            if (isTokenBlacklisted(token)) {
+                return false;
+            }
             Claims claims = getClaimsFromToken(token);
             Date expiration = claims.getExpiration();
             return expiration.after(new Date());
         } catch (Exception e) {
             log.error("Token validation failed", e);
+            return false;
+        }
+    }
+
+    /**
+     * 将 Token 加入黑名单（登出时调用），TTL 为 Token 剩余有效期
+     */
+    public void blacklistToken(String token) {
+        try {
+            Claims claims = getClaimsFromToken(token);
+            long remainingMs = claims.getExpiration().getTime() - System.currentTimeMillis();
+            if (remainingMs > 0) {
+                redisTemplate.opsForValue().set(
+                        TOKEN_BLACKLIST_PREFIX + token, Boolean.TRUE,
+                        remainingMs, TimeUnit.MILLISECONDS);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to blacklist token: {}", e.getMessage());
+        }
+    }
+
+    private boolean isTokenBlacklisted(String token) {
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(TOKEN_BLACKLIST_PREFIX + token));
+        } catch (Exception e) {
+            log.warn("Failed to check token blacklist: {}", e.getMessage());
             return false;
         }
     }

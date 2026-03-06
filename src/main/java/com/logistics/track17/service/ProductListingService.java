@@ -39,7 +39,7 @@ public class ProductListingService {
      * @param productIds 产品ID列表
      * @return CSV文件内容字节数组
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public byte[] exportShopifyCsv(List<Long> productIds) {
         StringBuilder csv = new StringBuilder();
 

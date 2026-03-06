@@ -57,8 +57,25 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 系统异常
+     * 权限不足异常
      */
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Result<Void> handleForbiddenException(ForbiddenException e, HttpServletRequest request) {
+        log.warn("Forbidden: {} - {}", request.getRequestURI(), e.getMessage());
+        return Result.error(403, e.getMessage());
+    }
+
+    /**
+     * 非法参数异常
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
+        log.warn("Illegal argument: {} - {}", request.getRequestURI(), e.getMessage());
+        return Result.error(400, e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e, HttpServletRequest request) {

@@ -31,7 +31,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/product")
-@CrossOrigin(origins = "*")
+@RequireAuth
 @Validated
 public class ProductController {
 

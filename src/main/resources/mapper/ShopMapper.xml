@@ -32,6 +32,7 @@
         <result column="shop_owner" property="shopOwner"/>
         <result column="iana_timezone" property="ianaTimezone"/>
         <result column="shop_info_json" property="shopInfoJson"/>
+        <result column="is_dev_store" property="isDevStore"/>
         <result column="is_active" property="isActive"/>
         <result column="last_sync_time" property="lastSyncTime"/>
         <result column="created_at" property="createdAt"/>
@@ -43,7 +44,7 @@
     <sql id="Base_Column_List">
         id, user_id, shop_name, platform, shop_url, shop_domain, primary_domain, timezone,
         currency, plan_display_name, contact_email,
-        connection_status, is_active, last_sync_time, created_at, updated_at, deleted_at
+        connection_status, is_dev_store, is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>
 
     <!-- 详细列表（用于详情查询，包含所有字段） -->
@@ -54,7 +55,7 @@
         token_expires_at,
         contact_email, owner_email, currency, plan_name, plan_display_name,
         is_shopify_plus, primary_domain, shop_owner, iana_timezone, shop_info_json,
-        is_active, last_sync_time, created_at, updated_at, deleted_at
+        is_dev_store, is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.Shop" useGeneratedKeys="true" keyProperty="id">
@@ -63,13 +64,13 @@
                            webhook_secret, oauth_state, oauth_scope, token_expires_at,
                            contact_email, owner_email, currency, plan_name, plan_display_name,
                            is_shopify_plus, primary_domain, shop_owner, iana_timezone, shop_info_json,
-                           is_active, last_sync_time)
+                           is_dev_store, is_active, last_sync_time)
         VALUES (#{userId}, #{shopName}, #{platform}, #{storeUrl}, #{shopDomain}, #{timezone},
                 #{apiKey}, #{apiSecret}, #{accessToken}, #{tokenType}, #{connectionStatus}, #{lastValidatedAt},
                 #{webhookSecret}, #{oauthState}, #{oauthScope}, #{tokenExpiresAt},
                 #{contactEmail}, #{ownerEmail}, #{currency}, #{planName}, #{planDisplayName},
                 #{isShopifyPlus}, #{primaryDomain}, #{shopOwner}, #{ianaTimezone}, #{shopInfoJson},
-                #{isActive}, #{lastSyncTime})
+                #{isDevStore}, #{isActive}, #{lastSyncTime})
     </insert>
 
     <!-- 根据ID查询店铺 -->
@@ -130,6 +131,7 @@
             <if test="oauthState != null">oauth_state = #{oauthState},</if>
             <if test="oauthScope != null">oauth_scope = #{oauthScope},</if>
             <if test="tokenExpiresAt != null">token_expires_at = #{tokenExpiresAt},</if>
+            <if test="isDevStore != null">is_dev_store = #{isDevStore},</if>
             <if test="isActive != null">is_active = #{isActive},</if>
             <if test="lastSyncTime != null">last_sync_time = #{lastSyncTime},</if>
             <if test="contactEmail != null">contact_email = #{contactEmail},</if>
@@ -169,6 +171,30 @@
         FROM shops
         WHERE deleted_at IS NULL
         ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询开发者店铺 -->
+    <select id="selectDevStore" resultMap="BaseResultMap">
+        SELECT <include refid="Detail_Column_List"/>
+        FROM shops
+        WHERE is_dev_store = 1 AND deleted_at IS NULL
+        LIMIT 1
+    </select>
+
+    <!-- 设置开发者店铺（先清除旧标记再设新标记） -->
+    <update id="clearDevStoreFlag">
+        UPDATE shops SET is_dev_store = 0 WHERE is_dev_store = 1
+    </update>
+
+    <update id="setDevStoreFlag">
+        UPDATE shops SET is_dev_store = 1 WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <!-- 根据 ID 查询店铺详情（含 access_token） -->
+    <select id="selectDetailById" resultMap="BaseResultMap">
+        SELECT <include refid="Detail_Column_List"/>
+        FROM shops
+        WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
 </mapper>

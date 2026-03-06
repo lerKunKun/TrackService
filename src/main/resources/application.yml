@@ -11,9 +11,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    url: ${DB_URL:jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -24,7 +24,7 @@ spring:
   redis:
     host: localhost
     port: 6379
-    password:
+    password: ${REDIS_PASSWORD:Track17Redis@2026}
     database: 0
     timeout: 5000
     lettuce:
@@ -45,7 +45,7 @@ mybatis:
   type-aliases-package: com.logistics.track17.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 server:
   port: 8080
@@ -54,14 +54,14 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: track17-logistics-secret-key-change-in-production
-  expiration: 86400000  # 24 hours
+  secret: ${JWT_SECRET:track17-logistics-secret-key-change-in-production}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 # 17Track API Configuration
 track17:
   api:
     url: https://api.17track.net/track/v2.4
-    token: 872063955E597617098184FDD971DD16
+    token: ${TRACK17_TOKEN:872063955E597617098184FDD971DD16}
     register-endpoint: /register
     query-endpoint: /gettrackinfo
     timeout: 10000
@@ -69,8 +69,8 @@ track17:
 # Shopify OAuth Configuration
 shopify:
   api:
-    key: fb439dc379d34cca96383be85a8eebbf
-    secret: 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
+    key: ${SHOPIFY_API_KEY:fb439dc379d34cca96383be85a8eebbf}
+    secret: ${SHOPIFY_API_SECRET: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}
   oauth:
     redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback
     frontend-redirect: http://localhost:3000/shops
@@ -79,10 +79,10 @@ shopify:
 
 # DingTalk OAuth Configuration
 dingtalk:
-  corp-id: ding5a2a2426f8bfaff7a1320dcb25e91351  # 企业CorpId
-  app-key: ding2o5exqttk4d9vjqq  # AppKey (Client ID)
-  app-secret: atE27kNpKYUlwHy9jGHL1T5sPfZUn0gDe3q87uT9kDPF5TWySizUPX-lf0JIHJdP  # AppSecret (Client Secret)
-  agent-id: 3875497210  # 工作通知AgentId
+  corp-id: ${DINGTALK_CORP_ID:ding5a2a2426f8bfaff7a1320dcb25e91351}
+  app-key: ${DINGTALK_APP_KEY:ding2o5exqttk4d9vjqq}
+  app-secret: ${DINGTALK_APP_SECRET:atE27kNpKYUlwHy9jGHL1T5sPfZUn0gDe3q87uT9kDPF5TWySizUPX-lf0JIHJdP}
+  agent-id: ${DINGTALK_AGENT_ID:3875497210}
   redirect-uri: http://localhost:3000/api/v1/auth/dingtalk/callback
   qr-connect-url: https://login.dingtalk.com/oauth2/auth  # OAuth 2.0 授权地址
   token-url: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
@@ -117,4 +117,5 @@ minio:
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket-name: ${MINIO_BUCKET:shopify-themes}
+  product-media-bucket: ${MINIO_PRODUCT_MEDIA_BUCKET:product-media}
 

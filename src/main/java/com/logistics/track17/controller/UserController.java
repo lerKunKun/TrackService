@@ -156,8 +156,11 @@ public class UserController {
     public Result<Object> updateUserRoles(
             @PathVariable Long id,
             @RequestBody Map<String, List<Long>> request) {
-        log.info("Update roles for user: {}, roles: {}", id, request.get("roleIds"));
         List<Long> roleIds = request.get("roleIds");
+        if (roleIds == null) {
+            roleIds = java.util.Collections.emptyList();
+        }
+        log.info("Update roles for user: {}, roles: {}", id, roleIds);
         userService.updateUserRoles(id, roleIds);
         return Result.success("角色更新成功", null);
     }

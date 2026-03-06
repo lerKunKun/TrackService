@@ -7,6 +7,7 @@ import com.logistics.track17.mapper.ShopMapper;
 import com.logistics.track17.mapper.UserShopRoleMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,7 +86,8 @@ public class UserShopService {
      * @param grantedBy Who grants this permission
      * @param expiresAt Expiration time (null for permanent)
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"user:shop:access", "user:shops"}, allEntries = true)
     public void grantShopAccess(Long userId, Long shopId, Long roleId,
             Long grantedBy, LocalDateTime expiresAt) {
         UserShopRole usr = new UserShopRole();
@@ -107,7 +109,8 @@ public class UserShopService {
      * @param shopId Shop ID
      * @param roleId Role ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"user:shop:access", "user:shops"}, allEntries = true)
     public void revokeShopAccess(Long userId, Long shopId, Long roleId) {
         userShopRoleMapper.deleteByUserShopRole(userId, shopId, roleId);
         log.info("Revoked shop access: userId={}, shopId={}, roleId={}", userId, shopId, roleId);

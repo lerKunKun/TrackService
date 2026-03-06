@@ -223,9 +223,9 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Modal, Grid, message } from 'ant-design-vue'
+import { Modal, Grid } from 'ant-design-vue'
 import * as Icons from '@ant-design/icons-vue'
 import {
   RocketOutlined,
@@ -429,29 +429,21 @@ const userAvatar = computed(() => {
 
 // 导航到个人主页
 const goToProfile = () => {
-  console.log('Navigating to profile...')
   router.push({ name: 'Profile' })
 }
 
 // 加载用户菜单
 const loadUserMenu = async () => {
   try {
-    console.log('开始加载用户菜单...')
     const response = await menuApi.getUserMenuTree()
-    console.log('菜单API响应:', response)
     
     if (response.code === 200 && response.data) {
       menuTree.value = response.data
-      console.log('菜单加载成功，数量:', menuTree.value.length)
-      // 更新路由选中状态
       updateMenuKeysFromRoute()
     } else {
-      console.warn('菜单加载失败，使用硬编码菜单:', response.message)
-      // 保持menuTree为空数组，触发fallback
       menuTree.value = []
     }
   } catch (error) {
-    console.error('加载菜单异常，使用硬编码菜单fallback:', error)
     // 发生错误时使用fallback
     menuTree.value = []
   }
@@ -519,12 +511,19 @@ const updateTime = () => {
   usTime.value = usFormatter.format(now)
 }
 
-// 初始化时钟并每秒更新
+let clockTimer = null
+
 onMounted(() => {
   updateTime()
-  setInterval(updateTime, 1000)
-  // 加载用户菜单（静默失败，使用fallback）
+  clockTimer = setInterval(updateTime, 1000)
   loadUserMenu()
+})
+
+onUnmounted(() => {
+  if (clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
 })
 </script>
 

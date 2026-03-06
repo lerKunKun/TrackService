@@ -39,6 +39,7 @@ public class Shop {
     private String ianaTimezone; // IANA时区标识
     private String shopInfoJson; // 完整商店信息JSON（用于扩展存储）
 
+    private Boolean isDevStore; // 是否为开发者店铺(预览推送目标)
     private Boolean isActive; // 是否激活
     private LocalDateTime lastSyncTime; // 最后同步时间
     private LocalDateTime createdAt;

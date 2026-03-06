@@ -24,20 +24,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        // OPTIONS请求直接放行
         if ("OPTIONS".equals(request.getMethod())) {
-            return true;
-        }
-
-        String path = request.getRequestURI();
-
-        // 放行 OAuth 授权 + 回调
-        if (path.startsWith("/api/v1/oauth/shopify")) {
-            return true;
-        }
-
-        // 放行 Shopify Webhooks
-        if (path.startsWith("/api/v1/webhooks/shopify")) {
             return true;
         }
 

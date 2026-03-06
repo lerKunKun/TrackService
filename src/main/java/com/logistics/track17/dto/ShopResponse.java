@@ -29,6 +29,7 @@ public class ShopResponse {
     private String planName; // 计划名称
     private String planDisplayName; // 计划显示名称
     private Boolean isShopifyPlus; // 是否Plus
+    private Boolean isDevStore; // 是否为开发者店铺
     private String primaryDomain; // 主域名
     private String shopOwner; // 店主姓名
     private String ianaTimezone; // IANA时区

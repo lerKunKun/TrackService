@@ -24,9 +24,9 @@ public class UserService {
     private final UserMapper userMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserService(UserMapper userMapper) {
+    public UserService(UserMapper userMapper, BCryptPasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -57,7 +57,7 @@ public class UserService {
     /**
      * 创建用户
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public UserDTO createUser(CreateUserRequest request) {
         // 检查用户名是否已存在
         if (userMapper.selectByUsername(request.getUsername()) != null) {
@@ -90,7 +90,7 @@ public class UserService {
     /**
      * 更新用户信息
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public UserDTO updateUser(Long id, UpdateUserRequest request) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -124,7 +124,7 @@ public class UserService {
     /**
      * 修改密码
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long id, ChangePasswordRequest request) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -149,7 +149,7 @@ public class UserService {
     /**
      * 更新最后登录信息
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateLastLogin(Long id, String loginIp) {
         int result = userMapper.updateLastLogin(id, LocalDateTime.now(), loginIp);
         if (result > 0) {
@@ -160,7 +160,7 @@ public class UserService {
     /**
      * 更新用户状态
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateUserStatus(Long id, Integer status) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -178,7 +178,7 @@ public class UserService {
     /**
      * 钉钉登录或注册用户
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public User loginOrRegisterWithDingTalk(DingTalkUserInfo dingTalkUserInfo, String corpId) {
         log.info("DingTalk login/register for unionId: {}", dingTalkUserInfo.getUnionId());
 
@@ -254,7 +254,7 @@ public class UserService {
     /**
      * 删除用户（软删除）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteUser(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -353,7 +353,7 @@ public class UserService {
     /**
      * 更新用户的角色列表
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateUserRoles(Long userId, List<Long> roleIds) {
         User user = userMapper.selectById(userId);
         if (user == null) {

@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.Role;
@@ -12,12 +13,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Product Visibility Controller
- * Managing product authorization and visibility queries
- */
 @RestController
 @RequestMapping("/product-visibility")
+@RequireAuth
 public class ProductVisibilityController {
 
     @Autowired
@@ -94,6 +92,7 @@ public class ProductVisibilityController {
      * Grant visibility to user or role
      */
     @PostMapping("/grant")
+    @RequireAuth(permissions = "product:visibility:grant")
     public Result<Object> grantVisibility(@RequestBody GrantVisibilityRequest request) {
         if (request.getProductIds() == null || request.getProductIds().isEmpty()) {
             return Result.error(400, "Product IDs are required");
@@ -118,6 +117,7 @@ public class ProductVisibilityController {
      * Revoke visibility
      */
     @PostMapping("/revoke")
+    @RequireAuth(permissions = "product:visibility:revoke")
     public Result<Object> revokeVisibility(@RequestBody RevokeVisibilityRequest request) {
         if (request.getProductId() == null) {
             return Result.error(400, "Product ID is required");

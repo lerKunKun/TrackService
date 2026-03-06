@@ -110,8 +110,19 @@ public class AuthController {
     }
 
     /**
-     * 验证Token
+     * 用户登出 - 将 Token 加入黑名单
      */
+    @PostMapping("/logout")
+    public Result<Object> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            jwtUtil.blacklistToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
+            log.info("User {} logged out", username);
+        }
+        return Result.success("登出成功", null);
+    }
+
     @GetMapping("/validate")
     public Result<Boolean> validateToken(@RequestHeader("Authorization") String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -207,7 +218,10 @@ public class AuthController {
             User user = userService.loginOrRegisterWithDingTalk(userInfo, dingTalkConfig.getCorpId());
 
             // 4. 验证访问权限：超级管理员 OR CorpId在白名单中
-            boolean isAdmin = "ADMIN".equals(user.getRole());
+            java.util.List<com.logistics.track17.entity.Role> userRoles = roleService.getRolesByUserId(user.getId());
+            boolean isAdmin = userRoles.stream()
+                    .anyMatch(r -> "ADMIN".equals(r.getRoleCode()) || "SUPER_ADMIN".equals(r.getRoleCode())
+                            || "admin".equals(r.getRoleCode()) || "super_admin".equals(r.getRoleCode()));
             boolean isCorpIdAllowed = dingTalkService.validateCorpId(user.getCorpId());
 
             if (!isAdmin && !isCorpIdAllowed) {
@@ -306,26 +320,22 @@ public class AuthController {
      * 获取客户端真实IP地址
      */
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
+        String remoteAddr = request.getRemoteAddr();
+        boolean isTrustedProxy = "127.0.0.1".equals(remoteAddr)
+                || "0:0:0:0:0:0:0:1".equals(remoteAddr)
+                || (remoteAddr != null && remoteAddr.startsWith("172."))
+                || (remoteAddr != null && remoteAddr.startsWith("10."));
+
+        if (isTrustedProxy) {
+            String xff = request.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isEmpty() && !"unknown".equalsIgnoreCase(xff)) {
+                return xff.contains(",") ? xff.split(",")[0].trim() : xff.trim();
+            }
+            String realIp = request.getHeader("X-Real-IP");
+            if (realIp != null && !realIp.isEmpty() && !"unknown".equalsIgnoreCase(realIp)) {
+                return realIp.trim();
+            }
         }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_CLIENT_IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 处理多个IP的情况，取第一个
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
+        return remoteAddr;
     }
 }

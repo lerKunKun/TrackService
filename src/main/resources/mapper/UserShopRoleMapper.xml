@@ -80,11 +80,12 @@
         ORDER BY s.id
     </select>
 
-    <!-- Select by user ID -->
+    <!-- Select by user ID (only active, non-expired) -->
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM user_shop_roles
         WHERE user_id = #{userId}
+          AND (expires_at IS NULL OR expires_at > NOW())
         ORDER BY created_at DESC
     </select>
 

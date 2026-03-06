@@ -40,7 +40,7 @@ public class AllowedCorpIdService {
     /**
      * 添加允许的CorpId
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void addAllowedCorpId(AllowedCorpId allowedCorpId) {
         log.info("Adding allowed corpId: {}", allowedCorpId.getCorpId());
         allowedCorpIdMapper.insert(allowedCorpId);
@@ -49,7 +49,7 @@ public class AllowedCorpIdService {
     /**
      * 软删除允许的CorpId
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void removeAllowedCorpId(String corpId) {
         log.info("Soft deleting allowed corpId: {}", corpId);
         allowedCorpIdMapper.softDeleteByCorpId(corpId);
@@ -58,7 +58,7 @@ public class AllowedCorpIdService {
     /**
      * 更新CorpId状态
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateCorpIdStatus(String corpId, Integer status) {
         log.info("Updating corpId {} status to: {}", corpId, status);
         allowedCorpIdMapper.updateStatus(corpId, status);

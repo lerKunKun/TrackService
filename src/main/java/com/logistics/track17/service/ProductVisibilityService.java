@@ -39,7 +39,7 @@ public class ProductVisibilityService {
      * @param shopId     Optional shop ID (null = all shops)
      * @param expiresAt  Optional expiration time
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void grantVisibility(List<Long> productIds, String targetType,
             Long targetId, Long shopId, LocalDateTime expiresAt) {
         Long currentUserId = UserContextHolder.getCurrentUserId();
@@ -76,7 +76,7 @@ public class ProductVisibilityService {
     /**
      * Batch grant visibility (optimized for large operations)
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void batchGrantVisibility(List<ProductVisibility> visibilities) {
         Long currentUserId = UserContextHolder.getCurrentUserId();
 
@@ -96,7 +96,7 @@ public class ProductVisibilityService {
      * @param targetType "USER" or "ROLE"
      * @param targetId   User ID or Role ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void revokeVisibility(Long productId, String targetType, Long targetId) {
         if ("USER".equalsIgnoreCase(targetType)) {
             productVisibilityMapper.deleteByProductAndUser(productId, targetId);

@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import Layout from '@/views/Layout.vue'
 import { message } from 'ant-design-vue'
 
 const routes = [
@@ -149,6 +148,12 @@ const routes = [
         meta: { title: '通知配置', requiresAdmin: true }
       }
     ]
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/Layout.vue'),
+    redirect: '/dashboard'
   }
 ]
 
