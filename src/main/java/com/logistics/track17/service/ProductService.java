@@ -651,6 +651,19 @@ public class ProductService {
                 continue; // 跳过没有变体的产品
             }
 
+            // 从变体中提取第一个有效的图片 URL 作为 Image Src
+            // Shopify 要求第一行必须有非空 Image Src；若产品无图片则跳过导出
+            String firstImageSrc = variants.stream()
+                    .map(ProductVariant::getImageUrl)
+                    .filter(url -> url != null && !url.isBlank())
+                    .findFirst()
+                    .orElse(null);
+
+            if (firstImageSrc == null) {
+                log.warn("跳过产品 [{}] {}: 所有变体均无 image_url，无法导出", product.getId(), product.getHandle());
+                continue;
+            }
+
             // 第一行: 产品信息 + 第一个变体
             ProductVariant firstVariant = variants.get(0);
             csv.append(escapeCsvField(product.getHandle())).append(",");
@@ -683,75 +696,64 @@ public class ProductService {
             csv.append(escapeCsvField(finalOpt3Name)).append(",");
             csv.append(escapeCsvField(firstVariant.getOption3Value())).append(",");
 
-            // 变体信息 (仅包含店铺SKU,不包含采购信息)
+            // 变体信息
             csv.append(escapeCsvField(firstVariant.getSku())).append(",");
             csv.append(firstVariant.getWeight() != null ? firstVariant.getWeight() : "").append(",");
-            csv.append("shopify,"); // Inventory Tracker
+            csv.append("shopify,");
             csv.append(firstVariant.getInventoryQuantity() != null ? firstVariant.getInventoryQuantity() : "0")
                     .append(",");
-            csv.append("deny,"); // Inventory Policy
-            csv.append("manual,"); // Fulfillment Service
+            csv.append("deny,manual,");
             csv.append(firstVariant.getPrice() != null ? firstVariant.getPrice() : "").append(",");
             csv.append(firstVariant.getCompareAtPrice() != null ? firstVariant.getCompareAtPrice() : "").append(",");
-            csv.append("TRUE,TRUE,"); // Requires Shipping, Taxable
+            csv.append("TRUE,TRUE,");
             csv.append(escapeCsvField(firstVariant.getBarcode())).append(",");
+            // col 24: Image Src — 产品第一张图
+            csv.append(escapeCsvField(firstImageSrc)).append(",");
+            csv.append("1,"); // col 25: Image Position
+            csv.append(","); // col 26: Image Alt Text
+            csv.append("FALSE,"); // col 27: Gift Card
+            for (int i = 0; i < 15; i++)
+                csv.append(","); // cols 28-42: SEO + Google Shopping
+            // col 43: Variant Image — 第一个变体的自身图片
             csv.append(escapeCsvField(firstVariant.getImageUrl())).append(",");
-            csv.append("1,"); // Image Position
-            csv.append(","); // Image Alt Text
-            csv.append("FALSE,"); // Gift Card
-
-            // SEO和Google Shopping字段 (暂时留空)
-            for (int i = 0; i < 15; i++) {
-                csv.append(",");
-            }
-
-            csv.append(escapeCsvField(firstVariant.getImageUrl())).append(","); // Variant Image
-            csv.append("g,"); // Variant Weight Unit
-            csv.append(","); // Variant Tax Code
-            csv.append(","); // Cost per item (不导出采购价格)
-            csv.append(product.getPublished() == 1 ? "active" : "draft");
+            csv.append("g,"); // col 44: Variant Weight Unit
+            csv.append(","); // col 45: Variant Tax Code
+            csv.append(","); // col 46: Cost per item
+            csv.append(product.getPublished() == 1 ? "active" : "draft"); // col 47: Status
             csv.append("\n");
 
-            // 后续行: 其他变体 (仅变体信息,产品信息留空)
+            // 后续行: 其他变体 (产品信息全留空；Image Src 留空，Shopify 通过 Variant Image 匹配)
             for (int i = 1; i < variants.size(); i++) {
                 ProductVariant variant = variants.get(i);
 
-                // 产品信息列留空,仅填写Handle
                 csv.append(escapeCsvField(product.getHandle())).append(",");
-                csv.append(",,,,,"); // Title到Published留空
+                csv.append(",,,,,"); // cols 2-6 留空
 
-                // 变体选项 - 后续变体不需要重复Option Name，只填Value
+                // 变体选项
                 csv.append(","); // Option1 Name 留空
-
                 String variantOpt1Value = matchOptionValue(variant, finalOpt1Name, 1);
-                if (variantOpt1Value == null || variantOpt1Value.isEmpty()) {
-                    // 尝试使用标题
+                if (variantOpt1Value == null || variantOpt1Value.isEmpty())
                     variantOpt1Value = variant.getTitle();
-                }
-                // 如果标题也为空，且第一行定义了Option1 Name，必须填充默认值
                 if ((variantOpt1Value == null || variantOpt1Value.isEmpty())
-                        && (finalOpt1Name != null && !finalOpt1Name.isEmpty())) {
+                        && (finalOpt1Name != null && !finalOpt1Name.isEmpty()))
                     variantOpt1Value = "Default Value " + (i + 1);
-                }
                 csv.append(escapeCsvField(variantOpt1Value)).append(",");
 
                 csv.append(","); // Option2 Name 留空
                 String variantOpt2Value = matchOptionValue(variant, finalOpt2Name, 2);
                 if ((variantOpt2Value == null || variantOpt2Value.isEmpty())
-                        && (finalOpt2Name != null && !finalOpt2Name.isEmpty())) {
+                        && (finalOpt2Name != null && !finalOpt2Name.isEmpty()))
                     variantOpt2Value = "Default Value " + (i + 1);
-                }
                 csv.append(escapeCsvField(variantOpt2Value)).append(",");
 
                 csv.append(","); // Option3 Name 留空
                 String variantOpt3Value = matchOptionValue(variant, finalOpt3Name, 3);
                 if ((variantOpt3Value == null || variantOpt3Value.isEmpty())
-                        && (finalOpt3Name != null && !finalOpt3Name.isEmpty())) {
+                        && (finalOpt3Name != null && !finalOpt3Name.isEmpty()))
                     variantOpt3Value = "Default Value " + (i + 1);
-                }
                 csv.append(escapeCsvField(variantOpt3Value)).append(",");
 
-                // 变体信息
+                // 变体数据
                 csv.append(escapeCsvField(variant.getSku())).append(",");
                 csv.append(variant.getWeight() != null ? variant.getWeight() : "").append(",");
                 csv.append("shopify,");
@@ -761,23 +763,20 @@ public class ProductService {
                 csv.append(variant.getCompareAtPrice() != null ? variant.getCompareAtPrice() : "").append(",");
                 csv.append("TRUE,TRUE,");
                 csv.append(escapeCsvField(variant.getBarcode())).append(",");
-                csv.append(","); // Image Src留空（只有第一个variant有，后续variant通过Variant Image引用）
-                csv.append((i + 1) + ",");
-
-                // 其余字段留空
-                for (int j = 0; j < 17; j++) {
-                    csv.append(",");
-                }
-
-                String finalVariantImage = variant.getImageUrl();
-                // 移除强制兜底逻辑，避免将主图(如粉色)强行赋予没有图片的变体(如裸色)
-                // if (finalVariantImage == null || finalVariantImage.isEmpty()) {
-                // finalVariantImage = firstVariant.getImageUrl();
-                // }
-                csv.append(escapeCsvField(finalVariantImage)).append(",");
-                csv.append("g,,,");
-                csv.append("\n");
+                csv.append(","); // col 24: Image Src 留空
+                csv.append(","); // col 25: Image Position 留空
+                csv.append(","); // col 26: Image Alt Text 留空
+                csv.append(","); // col 27: Gift Card 留空
+                for (int j = 0; j < 15; j++)
+                    csv.append(","); // cols 28-42 留空
+                // col 43: Variant Image
+                csv.append(escapeCsvField(variant.getImageUrl())).append(",");
+                csv.append("g,"); // col 44: Variant Weight Unit
+                csv.append(","); // col 45: Variant Tax Code
+                csv.append(","); // col 46: Cost per item
+                csv.append("\n"); // col 47: Status 留空
             }
+
         }
 
         log.info("导出CSV完成,产品数: {}, 店铺ID: {}", products.size(), shopId);
