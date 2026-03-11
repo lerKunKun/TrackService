@@ -63,12 +63,7 @@ const routes = [
         component: () => import('@/views/product/listing/ProductListing.vue'),
         meta: { title: '产品刊登' }
       },
-      {
-        path: 'product/authorization',
-        name: 'ProductAuthorization',
-        component: () => import('@/views/product/ProductAuthorization.vue'),
-        meta: { title: '产品可见性' }
-      },
+
       {
         path: 'product/media',
         name: 'ProductMedia',

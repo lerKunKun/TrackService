@@ -172,7 +172,7 @@ public class DingtalkNotificationService {
         content.append("**发送时间**: ").append(LocalDateTime.now()).append("\n\n");
         content.append("**接收人**: ").append(dingUserId).append("\n\n");
         content.append("> 如果您收到此消息，说明钉钉通知配置正确。 ✅\n");
-        content.append("> 夺舍成功 👻👻👻\n");
+//        content.append("> 下班👻👻👻\n");
 
         try {
             return dingtalkApiService.sendWorkNotification(dingUserId, title, content.toString());

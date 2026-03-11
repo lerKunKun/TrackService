@@ -25,9 +25,6 @@ public class ProductPublishService {
     private ProductShopMapper productShopMapper;
 
     @Autowired
-    private ProductVisibilityService productVisibilityService;
-
-    @Autowired
     private UserShopService userShopService;
 
     /**
@@ -54,19 +51,8 @@ public class ProductPublishService {
             }
         }
 
-        // 2. Validate Product Visibility & Publish
+        // 2. Publish products to shops
         for (Long productId : productIds) {
-            // Check visibility (using null for shopId to check global visibility or need to
-            // check specific shop?)
-            // Requirement: "Product Visibility" controls if user can SEE/MANAGE the
-            // product.
-            // If user can see the product, they can potentially publish it IF they have
-            // shop access.
-            // Let's check visibility generally first.
-            if (!productVisibilityService.hasProductVisibility(userId, productId, null)) {
-                log.warn("User {} tried to publish unauthorized product {}", userId, productId);
-                continue; // Skip unauthorized products or throw exception? Skipping for batch robustness.
-            }
 
             for (Long shopId : shopIds) {
                 // Check if already published/associated
@@ -119,10 +105,6 @@ public class ProductPublishService {
         }
 
         for (Long productId : productIds) {
-            // Check visibility
-            if (!productVisibilityService.hasProductVisibility(userId, productId, null)) {
-                continue;
-            }
 
             for (Long shopId : shopIds) {
                 productShopMapper.deleteByProductIdAndShopId(productId, shopId);
