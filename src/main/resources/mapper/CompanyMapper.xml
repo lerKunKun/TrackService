@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.CompanyMapper">
+
+    <resultMap id="CompanyResultMap" type="com.logistics.track17.entity.Company">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="code" column="code"/>
+        <result property="ownerUserId" column="owner_user_id"/>
+        <result property="logo" column="logo"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.Company" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO companies (name, code, owner_user_id, logo, status, created_at, updated_at)
+        VALUES (#{name}, #{code}, #{ownerUserId}, #{logo}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.logistics.track17.entity.Company">
+        UPDATE companies
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="ownerUserId != null">owner_user_id = #{ownerUserId},</if>
+            <if test="logo != null">logo = #{logo},</if>
+            <if test="status != null">status = #{status},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM companies WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="CompanyResultMap">
+        SELECT * FROM companies WHERE id = #{id}
+    </select>
+
+    <select id="selectByCode" resultMap="CompanyResultMap">
+        SELECT * FROM companies WHERE code = #{code}
+    </select>
+
+    <select id="selectAll" resultMap="CompanyResultMap">
+        SELECT * FROM companies ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByUserId" resultMap="CompanyResultMap">
+        SELECT c.* FROM companies c
+        INNER JOIN company_members cm ON c.id = cm.company_id
+        WHERE cm.user_id = #{userId} AND cm.status = 1
+        ORDER BY c.created_at DESC
+    </select>
+
+</mapper>

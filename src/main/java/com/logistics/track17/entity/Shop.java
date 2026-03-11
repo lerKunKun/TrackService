@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Data
 public class Shop {
     private Long id;
+    private Long companyId; // 所属公司 ID
     private Long userId;
     private String shopName;
     private String platform;

@@ -3,10 +3,16 @@
     <a-card title="用户管理" :bordered="false">
       <!-- 操作栏 -->
       <div class="table-operations">
-        <a-button type="primary" @click="showCreateModal">
-          <PlusOutlined />
-          新增用户
-        </a-button>
+        <a-space>
+          <a-button type="primary" @click="showCreateModal">
+            <PlusOutlined />
+            新增用户
+          </a-button>
+          <a-button @click="showInviteModal">
+            <MailOutlined />
+            邮箱邀请
+          </a-button>
+        </a-space>
       </div>
 
       <!-- 用户表格 -->
@@ -208,13 +214,44 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 邮箱邀请弹窗 -->
+    <a-modal
+      v-model:open="inviteModalVisible"
+      title="邮箱邀请用户"
+      @ok="handleInviteOk"
+      @cancel="handleInviteCancel"
+      :confirm-loading="inviteModalLoading"
+    >
+      <a-form
+        ref="inviteFormRef"
+        :model="inviteFormState"
+        :rules="inviteFormRules"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
+      >
+        <a-form-item label="邮箱地址" name="email">
+          <a-input v-model:value="inviteFormState.email" placeholder="请输入被邀请人的邮箱地址" />
+        </a-form-item>
+        <a-form-item label="分配角色" name="roleId">
+          <a-select v-model:value="inviteFormState.roleId" placeholder="请选择分配的角色">
+            <!-- 假设 1是管理员, 2是普通用户，为了简单目前后端可能靠角色ID，具体参考后端的角色 -->
+            <a-select-option :value="2">普通用户</a-select-option>
+            <a-select-option :value="1">管理员</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="有效天数" name="expiresInDays">
+          <a-input-number v-model:value="inviteFormState.expiresInDays" :min="1" :max="30" placeholder="默认7天" style="width: 100%" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, MailOutlined } from '@ant-design/icons-vue'
 import { userApi } from '@/api/user'
 import { formatDateTime } from '@/utils/datetime'
 
@@ -278,6 +315,16 @@ const passwordFormState = reactive({
   confirmPassword: ''
 })
 
+// 邀请弹窗状态
+const inviteModalVisible = ref(false)
+const inviteModalLoading = ref(false)
+const inviteFormRef = ref()
+const inviteFormState = reactive({
+  email: '',
+  roleId: 2, // 默认普通用户
+  expiresInDays: 7
+})
+
 // 表单验证规则
 const formRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -304,6 +351,14 @@ const passwordFormRules = {
       trigger: 'blur'
     }
   ]
+}
+
+const inviteFormRules = {
+  email: [
+    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }
+  ],
+  roleId: [{ required: true, message: '请选择分配的角色', trigger: 'change' }]
 }
 
 // 获取用户列表
@@ -431,6 +486,43 @@ const handlePasswordOk = async () => {
 // 密码弹窗取消
 const handlePasswordCancel = () => {
   passwordModalVisible.value = false
+}
+
+// 显示邀请弹窗
+const showInviteModal = () => {
+  Object.assign(inviteFormState, {
+    email: '',
+    roleId: 2,
+    expiresInDays: 7
+  })
+  inviteModalVisible.value = true
+}
+
+// 邀请确认
+const handleInviteOk = async () => {
+  try {
+    await inviteFormRef.value.validate()
+    inviteModalLoading.value = true
+
+    await userApi.invite({
+      email: inviteFormState.email,
+      roleId: inviteFormState.roleId,
+      expiresInDays: inviteFormState.expiresInDays
+    })
+
+    message.success('邀请邮件发送成功')
+    inviteModalVisible.value = false
+  } catch (error) {
+    if (error.errorFields) return // 表单验证失败不全屏提示错误
+    console.error('发送邀请失败:', error)
+  } finally {
+    inviteModalLoading.value = false
+  }
+}
+
+// 邀请取消
+const handleInviteCancel = () => {
+  inviteModalVisible.value = false
 }
 
 // 切换用户状态

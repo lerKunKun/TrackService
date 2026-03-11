@@ -74,5 +74,10 @@ export const userApi = {
   // 获取所有用户列表（带角色信息）- 不分页
   getAllWithRoles() {
     return handleResponse(request.get('/users/all-with-roles'))
+  },
+
+  // 发送邀请邮件
+  invite(data) {
+    return handleResponse(request.post('/invitations', data))
   }
 }

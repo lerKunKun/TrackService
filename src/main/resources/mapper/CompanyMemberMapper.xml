@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.CompanyMemberMapper">
+
+    <resultMap id="CompanyMemberResultMap" type="com.logistics.track17.entity.CompanyMember">
+        <id property="id" column="id"/>
+        <result property="companyId" column="company_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="roleId" column="role_id"/>
+        <result property="invitedBy" column="invited_by"/>
+        <result property="joinedAt" column="joined_at"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.CompanyMember" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO company_members (company_id, user_id, role_id, invited_by, joined_at, status, created_at, updated_at)
+        VALUES (#{companyId}, #{userId}, #{roleId}, #{invitedBy}, #{joinedAt}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.logistics.track17.entity.CompanyMember">
+        UPDATE company_members
+        <set>
+            <if test="roleId != null">role_id = #{roleId},</if>
+            <if test="status != null">status = #{status},</if>
+            updated_at = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM company_members WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByCompanyAndUser">
+        DELETE FROM company_members WHERE company_id = #{companyId} AND user_id = #{userId}
+    </delete>
+
+    <select id="selectById" resultMap="CompanyMemberResultMap">
+        SELECT * FROM company_members WHERE id = #{id}
+    </select>
+
+    <select id="selectByCompanyId" resultMap="CompanyMemberResultMap">
+        SELECT * FROM company_members WHERE company_id = #{companyId} AND status = 1
+        ORDER BY joined_at ASC
+    </select>
+
+    <select id="selectByCompanyAndUser" resultMap="CompanyMemberResultMap">
+        SELECT * FROM company_members WHERE company_id = #{companyId} AND user_id = #{userId} LIMIT 1
+    </select>
+
+    <select id="selectByUserId" resultMap="CompanyMemberResultMap">
+        SELECT * FROM company_members WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="countByCompanyAndUser" resultType="int">
+        SELECT COUNT(*) FROM company_members
+        WHERE company_id = #{companyId} AND user_id = #{userId} AND status = 1
+    </select>
+
+</mapper>

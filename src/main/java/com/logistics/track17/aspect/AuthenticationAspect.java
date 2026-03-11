@@ -1,14 +1,16 @@
 package com.logistics.track17.aspect;
 
 import com.logistics.track17.annotation.RequireAuth;
-import com.logistics.track17.entity.Permission;
 import com.logistics.track17.entity.Role;
+import com.logistics.track17.entity.Shop;
 import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
+import com.logistics.track17.mapper.ShopMapper;
 import com.logistics.track17.service.PermissionService;
 import com.logistics.track17.service.RoleService;
 import com.logistics.track17.service.UserService;
 import com.logistics.track17.util.JwtUtil;
+import com.logistics.track17.util.RequestContext;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -28,11 +30,17 @@ import java.util.stream.Collectors;
 
 /**
  * 认证切面 - AOP权限控制
+ * 
+ * 职责：
+ * 1. JWT Token 验证
+ * 2. 解析 X-Shop-Id header → 设置 RequestContext（userId + companyId + shopId）
+ * 3. @RequireAuth 注解的角色/权限检查
+ * 4. 请求结束后清理 RequestContext
  */
 @Aspect
 @Component
 @Slf4j
-@Order(1) // 优先级最高
+@Order(1)
 public class AuthenticationAspect {
 
     private final JwtUtil jwtUtil;
@@ -43,15 +51,18 @@ public class AuthenticationAspect {
     @Autowired
     private HttpServletRequest request;
 
+    @Autowired
+    private ShopMapper shopMapper;
+
     @Value("${security.aop.enabled:true}")
     private Boolean aopEnabled;
 
     // 排除路径列表（不需要鉴权的路径）
     private static final String[] EXCLUDE_PATHS = {
             "/api/v1/auth/",
-            "/api/v1/oauth/", // OAuth授权和回调路径
-            "/api/v1/webhooks/", // Shopify Webhooks路径
-            "/api/v1/dingtalk/sync/", // 钉钉同步接口
+            "/api/v1/oauth/",
+            "/api/v1/webhooks/",
+            "/api/v1/dingtalk/sync/",
             "/public/",
             "/health"
     };
@@ -71,6 +82,15 @@ public class AuthenticationAspect {
      */
     @Around("@within(org.springframework.web.bind.annotation.RestController)")
     public Object checkAuthentication(ProceedingJoinPoint joinPoint) throws Throwable {
+        try {
+            return doCheckAuthentication(joinPoint);
+        } finally {
+            // 确保始终清理 RequestContext，防止 ThreadLocal 内存泄漏
+            RequestContext.clear();
+        }
+    }
+
+    private Object doCheckAuthentication(ProceedingJoinPoint joinPoint) throws Throwable {
         // AOP未启用，直接放行
         if (!aopEnabled) {
             return joinPoint.proceed();
@@ -78,45 +98,47 @@ public class AuthenticationAspect {
 
         // 1. 获取请求路径
         String path = request.getRequestURI();
-        log.info("AOP拦截请求路径: {}", path);
+        log.debug("AOP拦截请求路径: {}", path);
 
         // 2. 检查是否是排除路径
         if (isExcludedPath(path)) {
-            log.info("白名单路径，直接放行: {}", path);
             return joinPoint.proceed();
         }
 
-        // 3. 获取Token
+        // 3. 获取并验证Token
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new BusinessException(401, "未登录或Token已过期");
         }
 
         String token = authHeader.substring(7);
-
-        // 4. 验证Token
         if (!jwtUtil.validateToken(token)) {
             throw new BusinessException(401, "Token无效或已过期");
         }
 
-        // 5. 获取用户信息并设置到请求属性
+        // 4. 获取用户信息
         String username = jwtUtil.getUsernameFromToken(token);
         User user = userService.getUserByUsername(username);
-
         if (user == null) {
             throw new BusinessException(401, "用户不存在");
         }
 
-        // 设置用户信息到request属性（供Controller使用）
+        // 5. 设置 RequestContext（userId）
+        RequestContext.init(user.getId());
+
+        // 6. 设置用户信息到 request 属性（向后兼容 UserContextHolder）
         request.setAttribute("username", username);
         request.setAttribute("userId", user.getId());
 
-        // 6. 检查方法级别的权限注解
+        // 7. 解析 X-Shop-Id header → 设置 companyId + shopId
+        resolveShopContext();
+
+        // 8. 检查方法级别的权限注解
         Method method = ((MethodSignature) joinPoint.getSignature()).getMethod();
         RequireAuth requireAuth = method.getAnnotation(RequireAuth.class);
 
         if (requireAuth != null) {
-            // 6.1 检查管理员权限（兼容旧代码）
+            // 8.1 检查管理员权限
             if (requireAuth.admin()) {
                 if (!isAdminUser(user)) {
                     log.warn("User {} attempted to access admin-only resource: {}", username, path);
@@ -124,7 +146,7 @@ public class AuthenticationAspect {
                 }
             }
 
-            // 6.2 检查角色权限（兼容旧代码，基于user.role字段或user_roles表）
+            // 8.2 检查角色权限
             if (requireAuth.roles().length > 0) {
                 if (!hasAnyRole(user, requireAuth.roles())) {
                     log.warn("User {} lacks required roles {} for resource: {}",
@@ -133,7 +155,7 @@ public class AuthenticationAspect {
                 }
             }
 
-            // 6.3 检查权限码（推荐使用，基于RBAC的细粒度权限控制）
+            // 8.3 检查权限码
             if (requireAuth.permissions().length > 0) {
                 if (!checkPermissions(user.getId(), requireAuth.permissions(), requireAuth.permissionMode())) {
                     log.warn("User {} lacks required permissions {} (mode: {}) for resource: {}",
@@ -144,13 +166,34 @@ public class AuthenticationAspect {
             }
         }
 
-        log.debug("User {} accessed {}", username, path);
+        log.debug("User {} accessed {} [companyId={}, shopId={}]",
+                username, path, RequestContext.getCurrentCompanyId(), RequestContext.getCurrentShopId());
         return joinPoint.proceed();
     }
 
     /**
-     * 检查是否是排除路径
+     * 解析 X-Shop-Id header，查询店铺的 companyId 并设置到 RequestContext
      */
+    private void resolveShopContext() {
+        String shopIdHeader = request.getHeader("X-Shop-Id");
+        if (shopIdHeader == null || shopIdHeader.isEmpty()) {
+            return;
+        }
+
+        try {
+            Long shopId = Long.parseLong(shopIdHeader);
+            // 查询店铺获取 companyId
+            Shop shop = shopMapper.selectById(shopId);
+            if (shop != null) {
+                RequestContext.setCompanyAndShop(shop.getCompanyId(), shopId);
+            } else {
+                log.warn("X-Shop-Id {} 对应的店铺不存在", shopId);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("Invalid X-Shop-Id header: {}", shopIdHeader);
+        }
+    }
+
     private boolean isExcludedPath(String path) {
         for (String excludePath : EXCLUDE_PATHS) {
             if (path.startsWith(excludePath)) {
@@ -162,11 +205,8 @@ public class AuthenticationAspect {
 
     /**
      * 检查用户是否是管理员
-     * 检查逻辑：查询 user_roles 表中是否有 ADMIN 或 SUPER_ADMIN 角色
-     * 注意：已移除对 users.role 字段的兼容性检查，统一使用 RBAC 系统
      */
     private boolean isAdminUser(User user) {
-        // 查询 user_roles 表
         List<Role> roles = roleService.getRolesByUserId(user.getId());
         return roles.stream()
                 .map(Role::getRoleCode)
@@ -175,13 +215,9 @@ public class AuthenticationAspect {
 
     /**
      * 检查用户是否拥有任一指定角色
-     * 检查逻辑：查询 user_roles 表（RBAC 系统）
-     * 注意：已移除对 users.role 字段的兼容性检查，统一使用 RBAC 系统
      */
     private boolean hasAnyRole(User user, String[] requiredRoles) {
         Set<String> requiredRoleSet = Arrays.stream(requiredRoles).collect(Collectors.toSet());
-
-        // 查询 user_roles 表
         List<Role> userRoles = roleService.getRolesByUserId(user.getId());
         return userRoles.stream()
                 .map(Role::getRoleCode)
@@ -190,39 +226,18 @@ public class AuthenticationAspect {
 
     /**
      * 检查用户是否拥有所需权限
-     * 支持 AND 和 OR 两种验证模式
-     * 基于RBAC系统，查询user_roles -> role_permissions -> permissions
      */
     private boolean checkPermissions(Long userId, String[] requiredPermissions, RequireAuth.PermissionMode mode) {
         if (requiredPermissions == null || requiredPermissions.length == 0) {
             return true;
         }
 
-        // 查询用户所有权限码
         Set<String> userPermissionCodes = permissionService.getUserPermissionCodes(userId);
 
         if (mode == RequireAuth.PermissionMode.AND) {
-            // AND 逻辑：必须拥有所有权限
-            boolean hasAll = Arrays.stream(requiredPermissions)
-                    .allMatch(userPermissionCodes::contains);
-
-            if (!hasAll) {
-                log.debug("User {} lacks some required permissions (AND mode). Required: {}, Has: {}",
-                        userId, Arrays.toString(requiredPermissions), userPermissionCodes);
-            }
-
-            return hasAll;
+            return Arrays.stream(requiredPermissions).allMatch(userPermissionCodes::contains);
         } else {
-            // OR 逻辑：拥有任一权限即可（默认）
-            boolean hasAny = Arrays.stream(requiredPermissions)
-                    .anyMatch(userPermissionCodes::contains);
-
-            if (!hasAny) {
-                log.debug("User {} lacks all required permissions (OR mode). Required: {}, Has: {}",
-                        userId, Arrays.toString(requiredPermissions), userPermissionCodes);
-            }
-
-            return hasAny;
+            return Arrays.stream(requiredPermissions).anyMatch(userPermissionCodes::contains);
         }
     }
 }

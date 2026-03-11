@@ -150,15 +150,15 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  const switchShop = (shopId) => {
+  const switchShop = async (shopId) => {
     currentShopId.value = shopId
     if (shopId) {
       setStorageItem('currentShopId', shopId)
     } else {
       removeStorageItem('currentShopId')
     }
-    // Optionally reload page or trigger global refresh if needed
-    // window.location.reload() 
+    // 切换店铺后触发全局事件，通知布局组件重新加载菜单
+    window.dispatchEvent(new CustomEvent('shop-changed', { detail: { shopId } }))
   }
 
   return {

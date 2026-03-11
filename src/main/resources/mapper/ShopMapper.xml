@@ -5,6 +5,7 @@
 
     <resultMap id="BaseResultMap" type="com.logistics.track17.entity.Shop">
         <id column="id" property="id"/>
+        <result column="company_id" property="companyId"/>
         <result column="user_id" property="userId"/>
         <result column="shop_name" property="shopName"/>
         <result column="platform" property="platform"/>
@@ -42,14 +43,14 @@
 
     <!-- 基础列表（用于列表查询，不包含敏感信息） -->
     <sql id="Base_Column_List">
-        id, user_id, shop_name, platform, shop_url, shop_domain, primary_domain, timezone,
+        id, company_id, user_id, shop_name, platform, shop_url, shop_domain, primary_domain, timezone,
         currency, plan_display_name, contact_email,
         connection_status, is_dev_store, is_active, last_sync_time, created_at, updated_at, deleted_at
     </sql>
 
     <!-- 详细列表（用于详情查询，包含所有字段） -->
     <sql id="Detail_Column_List">
-        id, user_id, shop_name, platform, shop_url, shop_domain, timezone,
+        id, company_id, user_id, shop_name, platform, shop_url, shop_domain, timezone,
         api_key, api_secret, access_token, token_type, connection_status,
         last_validated_at, webhook_secret, oauth_state, oauth_scope,
         token_expires_at,
@@ -59,13 +60,13 @@
     </sql>
 
     <insert id="insert" parameterType="com.logistics.track17.entity.Shop" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO shops (user_id, shop_name, platform, shop_url, shop_domain, timezone,
+        INSERT INTO shops (company_id, user_id, shop_name, platform, shop_url, shop_domain, timezone,
                            api_key, api_secret, access_token, token_type, connection_status, last_validated_at,
                            webhook_secret, oauth_state, oauth_scope, token_expires_at,
                            contact_email, owner_email, currency, plan_name, plan_display_name,
                            is_shopify_plus, primary_domain, shop_owner, iana_timezone, shop_info_json,
                            is_dev_store, is_active, last_sync_time)
-        VALUES (#{userId}, #{shopName}, #{platform}, #{storeUrl}, #{shopDomain}, #{timezone},
+        VALUES (#{companyId}, #{userId}, #{shopName}, #{platform}, #{storeUrl}, #{shopDomain}, #{timezone},
                 #{apiKey}, #{apiSecret}, #{accessToken}, #{tokenType}, #{connectionStatus}, #{lastValidatedAt},
                 #{webhookSecret}, #{oauthState}, #{oauthScope}, #{tokenExpiresAt},
                 #{contactEmail}, #{ownerEmail}, #{currency}, #{planName}, #{planDisplayName},
@@ -115,6 +116,7 @@
     <update id="update" parameterType="com.logistics.track17.entity.Shop">
         UPDATE shops
         <set>
+            <if test="companyId != null">company_id = #{companyId},</if>
             <if test="userId != null">user_id = #{userId},</if>
             <if test="shopName != null">shop_name = #{shopName},</if>
             <if test="platform != null">platform = #{platform},</if>
