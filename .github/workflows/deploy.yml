@@ -26,11 +26,22 @@ jobs:
           # 例如: cd /root/track-service-git 
           # -------------------------------------------------------------
           script: |
-            cd /opt/track-service-git
+            TARGET_DIR="/opt/track-service-git"
+            REPO_URL="https://github.com/${{ github.repository }}.git" # 注意: 如果你仓库是私有仓库，克隆可能需要鉴权
+
+            # 1. 如果目录不存在或不是 git 仓库，则进行 git clone
+            if [ ! -d "$TARGET_DIR/.git" ]; then
+              echo "=> 目标目录不存在或不是 Git 仓库。正在新克隆..."
+              # 如果 $TARGET_DIR 已经存在但非空，先删除或重命名
+              rm -rf $TARGET_DIR
+              git clone $REPO_URL $TARGET_DIR
+            fi
             
-            # 先拉取最新代码，确保刚刚提交的 deploy.sh 已经同步到了服务器
+            # 2. 进入目录并拉取最新代码
+            cd $TARGET_DIR
+            echo "=> 正在拉取最新的修改..."
             git pull
-            
-            # 赋予执行权限并运行部署脚本
+
+            # 3. 赋予执行权限并运行部署脚本
             chmod +x deploy.sh
             ./deploy.sh
