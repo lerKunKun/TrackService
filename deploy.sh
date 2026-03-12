@@ -26,8 +26,8 @@ if [[ "$(docker images -q track-service-git-web 2> /dev/null)" != "" ]]; then
 fi
 
 # 3. 重新构建并启动容器
-echo "=> [3/4] 使用 docker-compose 重新构建并部署新服务..."
-docker-compose up -d --build
+echo "=> [3/4] 使用 docker compose 重新构建并部署新服务..."
+docker compose up -d --build
 
 # 4. 清理废弃的无用镜像 (不影响上一步打标签备份好的历史版本镜像)
 echo "=> [4/4] 清理本次构建产生的临时悬空(dangling)镜像..."

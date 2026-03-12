@@ -43,8 +43,8 @@ fi
 # 3. 重新启动容器以应用最新(回退后)的 latest 镜像
 echo "=> [2/2] 正在重启容器运行恢复的镜像..."
 # 由于我们没有修改代码只是改了镜像指向，这里直接 down 然后 up，去掉 --build 确保它使用本地的 latest
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 
 echo "=================================="
 echo "          ✅ 回退成功完成!          "
