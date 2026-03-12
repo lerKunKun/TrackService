@@ -28,6 +28,9 @@ jobs:
           script: |
             cd /opt/track-service-git
             
+            # 先拉取最新代码，确保刚刚提交的 deploy.sh 已经同步到了服务器
+            git pull
+            
             # 赋予执行权限并运行部署脚本
             chmod +x deploy.sh
             ./deploy.sh
