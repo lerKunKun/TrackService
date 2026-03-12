@@ -1,0 +1,29 @@
+name: Deploy to Cloud Server
+
+# 触发条件：当 main 分支有代码 push 时触发 (根据你的主分支修改)
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_HOST }} # 你的云服务器 IP
+          username: ${{ secrets.SERVER_USER }} # 登录用户名 (通常是 root)
+          password: ${{ secrets.SERVER_PASSWORD }} # (可选) 你的服务器密码，建议用私钥
+          key: ${{ secrets.SERVER_SSH_KEY }} # (推荐) 你的服务器 SSH 私钥
+          port: 22 # 默认22端口
+          script: |
+            # 进入你的项目目录 (请修改为云服务器上的实际路径)
+            cd /path/to/your/project/track-service-git
+            
+            # 赋予执行权限并运行部署脚本
+            chmod +x deploy.sh
+            ./deploy.sh
