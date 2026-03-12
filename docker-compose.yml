@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -61,6 +59,8 @@ services:
       - DB_PASSWORD=123456
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SPRING_REDIS_HOST=redis
+      - DINGTALK_REDIRECT_URI=http://101.47.72.178/api/v1/auth/dingtalk/callback
+      - DINGTALK_FRONTEND_REDIRECT=http://101.47.72.178
     ports:
       - "8080:8080"
     networks:

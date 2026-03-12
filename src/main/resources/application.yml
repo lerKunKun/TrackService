@@ -49,6 +49,7 @@ mybatis:
 
 server:
   port: 8080
+#  address: 0.0.0.0
   servlet:
     context-path: /api/v1
 
@@ -83,7 +84,8 @@ dingtalk:
   app-key: ${DINGTALK_APP_KEY:ding2o5exqttk4d9vjqq}
   app-secret: ${DINGTALK_APP_SECRET:atE27kNpKYUlwHy9jGHL1T5sPfZUn0gDe3q87uT9kDPF5TWySizUPX-lf0JIHJdP}
   agent-id: ${DINGTALK_AGENT_ID:3875497210}
-  redirect-uri: http://localhost:3000/api/v1/auth/dingtalk/callback
+  redirect-uri: ${DINGTALK_REDIRECT_URI:http://localhost:3000/api/v1/auth/dingtalk/callback}
+  frontend-redirect: ${DINGTALK_FRONTEND_REDIRECT:http://localhost:3000}
   qr-connect-url: https://login.dingtalk.com/oauth2/auth  # OAuth 2.0 授权地址
   token-url: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
   user-info-url: https://api.dingtalk.com/v1.0/contact/users/me
