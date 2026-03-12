@@ -16,15 +16,21 @@ git reset --hard origin/${BRANCH:-main}
 
 # 2. 备份当前正在运行的镜像 (如果存在)
 echo "=> [2/4] 备份当前镜像版本: $TIMESTAMP"
-# 检查是否存在对应容器的镜像，如果存在则打上带有时间戳的 tag 以备份
-if [[ "$(docker images -q track-service-git-app 2> /dev/null)" != "" ]]; then
-  docker tag track-service-git-app:latest track-service-git-app:backup-${TIMESTAMP}
-  echo "后端应用镜像已备份为 track-service-git-app:backup-${TIMESTAMP}"
+BACKUP_DIR="/opt/track-service-backups"
+mkdir -p "$BACKUP_DIR"
+
+if docker image inspect track-17-server:latest > /dev/null 2>&1; then
+    docker tag track-17-server:latest track-17-server:backup-$TIMESTAMP
+    echo "  - 已备份后端镜像为 track-17-server:backup-$TIMESTAMP"
+    echo "  - 正在打包导出后端镜像到压缩包..."
+    docker save track-17-server:backup-$TIMESTAMP | gzip > "$BACKUP_DIR/track-17-server-backup-${TIMESTAMP}.tar.gz"
 fi
 
-if [[ "$(docker images -q track-service-git-web 2> /dev/null)" != "" ]]; then
-  docker tag track-service-git-web:latest track-service-git-web:backup-${TIMESTAMP}
-  echo "前端页面镜像已备份为 track-service-git-web:backup-${TIMESTAMP}"
+if docker image inspect track-17-web:latest > /dev/null 2>&1; then
+    docker tag track-17-web:latest track-17-web:backup-$TIMESTAMP
+    echo "  - 已备份前端镜像为 track-17-web:backup-$TIMESTAMP"
+    echo "  - 正在打包导出前端镜像到压缩包..."
+    docker save track-17-web:backup-$TIMESTAMP | gzip > "$BACKUP_DIR/track-17-web-backup-${TIMESTAMP}.tar.gz"
 fi
 
 # 3. 重新构建并启动容器

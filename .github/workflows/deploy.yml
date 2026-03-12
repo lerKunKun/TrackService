@@ -16,13 +16,14 @@ jobs:
         uses: appleboy/ssh-action@master
         env:
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         with:
           host: ${{ secrets.SERVER_HOST }} # 你的云服务器 IP
           username: ${{ secrets.SERVER_USER }} # 登录用户名 (通常是 root)
           password: ${{ secrets.SERVER_PASSWORD }} # (可选) 你的服务器密码，建议用私钥
           key: ${{ secrets.SERVER_SSH_KEY }} # (推荐) 你的服务器 SSH 私钥
           port: 22 # 默认22端口
-          envs: REDIS_PASSWORD
+          envs: REDIS_PASSWORD,SERVER_HOST
           # -------------------------------------------------------------
           # 【重要提示】: 以下这一行 `cd` 命令后面的路径，
           # 必须修改为你自己云服务器上项目代码实际存放的绝对路径！
@@ -48,8 +49,10 @@ jobs:
             BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
             git reset --hard origin/${BRANCH:-main}
 
-            # 将密码写入部署环境的 .env 文件中供 docker compose 读取
+            # 将环境变量写入部署环境的 .env 文件中供 docker compose 读取
             echo "REDIS_PASSWORD=$REDIS_PASSWORD" > .env
+            echo "DINGTALK_REDIRECT_URI=http://${SERVER_HOST}/api/v1/auth/dingtalk/callback" >> .env
+            echo "DINGTALK_FRONTEND_REDIRECT=http://${SERVER_HOST}" >> .env
 
             # 3. 赋予执行权限并运行部署脚本
             chmod +x deploy.sh
