@@ -14,12 +14,15 @@ jobs:
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@master
+        env:
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         with:
           host: ${{ secrets.SERVER_HOST }} # 你的云服务器 IP
           username: ${{ secrets.SERVER_USER }} # 登录用户名 (通常是 root)
           password: ${{ secrets.SERVER_PASSWORD }} # (可选) 你的服务器密码，建议用私钥
           key: ${{ secrets.SERVER_SSH_KEY }} # (推荐) 你的服务器 SSH 私钥
           port: 22 # 默认22端口
+          envs: REDIS_PASSWORD
           # -------------------------------------------------------------
           # 【重要提示】: 以下这一行 `cd` 命令后面的路径，
           # 必须修改为你自己云服务器上项目代码实际存放的绝对路径！
@@ -44,6 +47,9 @@ jobs:
             # 自动获取当前默认分支名并强制重置
             BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
             git reset --hard origin/${BRANCH:-main}
+
+            # 将密码写入部署环境的 .env 文件中供 docker compose 读取
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD" > .env
 
             # 3. 赋予执行权限并运行部署脚本
             chmod +x deploy.sh
