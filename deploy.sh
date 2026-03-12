@@ -8,9 +8,11 @@ echo "=================================="
 # 生成当前时间戳作为备份版本号
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-# 1. 获取最新代码
+# 1. 获取最新代码 (强制覆盖本地修改)
 echo "=> [1/4] 从 Git 仓库拉取最新代码..."
-git pull
+git fetch --all
+BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+git reset --hard origin/${BRANCH:-main}
 
 # 2. 备份当前正在运行的镜像 (如果存在)
 echo "=> [2/4] 备份当前镜像版本: $TIMESTAMP"

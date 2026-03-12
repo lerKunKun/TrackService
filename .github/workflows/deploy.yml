@@ -37,10 +37,13 @@ jobs:
               git clone $REPO_URL $TARGET_DIR
             fi
             
-            # 2. 进入目录并拉取最新代码
+            # 2. 进入目录并拉取最新代码 (强制覆盖本地修改)
             cd $TARGET_DIR
             echo "=> 正在拉取最新的修改..."
-            git pull
+            git fetch --all
+            # 自动获取当前默认分支名并强制重置
+            BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@')
+            git reset --hard origin/${BRANCH:-main}
 
             # 3. 赋予执行权限并运行部署脚本
             chmod +x deploy.sh
