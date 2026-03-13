@@ -114,7 +114,7 @@
 
             <!-- 主图同步入口 -->
             <div v-if="cat.value === 'main_image'" class="sync-bar">
-              <span>从 Shopify 同步产品主图</span>
+              <span>同步产品主图</span>
               <a-button size="small" :loading="syncing" @click="doSyncImages">
                 <sync-outlined /> 同步
               </a-button>

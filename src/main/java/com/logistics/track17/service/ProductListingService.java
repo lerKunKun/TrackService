@@ -5,6 +5,9 @@ import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.mapper.ProductMapper;
 import com.logistics.track17.mapper.ProductShopMapper;
 import com.logistics.track17.mapper.ProductVariantMapper;
+import com.logistics.track17.mapper.ProductMediaFileMapper;
+import com.logistics.track17.entity.ProductMediaFile;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +27,16 @@ public class ProductListingService {
     private final ProductMapper productMapper;
     private final ProductVariantMapper productVariantMapper;
     private final ProductShopMapper productShopMapper;
+    private final ProductMediaFileMapper productMediaFileMapper;
 
     public ProductListingService(ProductMapper productMapper,
             ProductVariantMapper productVariantMapper,
-            ProductShopMapper productShopMapper) {
+            ProductShopMapper productShopMapper,
+            ProductMediaFileMapper productMediaFileMapper) {
         this.productMapper = productMapper;
         this.productVariantMapper = productVariantMapper;
         this.productShopMapper = productShopMapper;
+        this.productMediaFileMapper = productMediaFileMapper;
     }
 
     /**
@@ -62,6 +68,19 @@ public class ProductListingService {
             return csv.toString().getBytes(StandardCharsets.UTF_8);
         }
 
+        // Fetch main_image from media table
+        List<ProductMediaFile> allMainImages = productMediaFileMapper.selectList(
+                new QueryWrapper<ProductMediaFile>()
+                        .in("product_id", productIds)
+                        .eq("category", "main_image")
+                        .orderByAsc("sort_order"));
+        java.util.Map<Long, String> productMainImageMap = new java.util.HashMap<>();
+        for (ProductMediaFile f : allMainImages) {
+            if (!productMainImageMap.containsKey(f.getProductId()) && f.getUrl() != null) {
+                productMainImageMap.put(f.getProductId(), f.getUrl());
+            }
+        }
+
         List<ProductStoreStatusUpdate> updates = new ArrayList<>();
 
         for (Long productId : productIds) {
@@ -73,8 +92,10 @@ public class ProductListingService {
             if (variants == null || variants.isEmpty())
                 continue;
 
+            String mainImageUrl = productMainImageMap.get(productId);
+
             // 1. 生成CSV内容
-            processProductToCsv(csv, product, variants);
+            processProductToCsv(csv, product, variants, mainImageUrl);
 
             // 2. 收集需要更新状态的记录
             // 注意：这里假设导出操作关联到该产品已绑定的所有店铺，或者我们应该有一个当前上下文的shopId？
@@ -96,9 +117,15 @@ public class ProductListingService {
         return csv.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private void processProductToCsv(StringBuilder csv, Product product, List<ProductVariant> variants) {
+    private void processProductToCsv(StringBuilder csv, Product product, List<ProductVariant> variants,
+            String mainImageUrl) {
         // 第一行: 产品信息 + 第一个变体
         ProductVariant firstVariant = variants.get(0);
+
+        // 确定首图
+        String exportMainImage = (mainImageUrl != null && !mainImageUrl.trim().isEmpty()) ? mainImageUrl
+                : firstVariant.getImageUrl();
+
         appendCsvField(csv, product.getHandle());
         csv.append(",");
         appendCsvField(csv, product.getTitle());
@@ -137,7 +164,7 @@ public class ProductListingService {
         csv.append("TRUE,TRUE,");
         appendCsvField(csv, firstVariant.getBarcode());
         csv.append(",");
-        appendCsvField(csv, firstVariant.getImageUrl());
+        appendCsvField(csv, exportMainImage); // Image Src
         csv.append(",");
         csv.append("1,"); // Image Position
         csv.append(","); // Alt Text
@@ -147,7 +174,7 @@ public class ProductListingService {
         for (int i = 0; i < 20; i++)
             csv.append(",");
 
-        appendCsvField(csv, firstVariant.getImageUrl()); // Variant Image
+        appendCsvField(csv, exportMainImage); // Variant Image
         csv.append(",");
         csv.append("g,"); // Weight Unit
         csv.append(","); // Tax Code

@@ -233,6 +233,14 @@ public class ProductMediaController {
         return Result.success(productMediaFileService.migrateFromMinio());
     }
 
+    // ─── 修复已有文件 URL（R2 endpoint -> CDN） ───
+
+    @PostMapping("/fix-urls")
+    @RequireAuth(permissions = "admin")
+    public Result<Map<String, Object>> fixUrls() {
+        return Result.success(productMediaFileService.fixUrls());
+    }
+
     // ─── Helpers ───
 
     private Long getUserId(HttpServletRequest request) {

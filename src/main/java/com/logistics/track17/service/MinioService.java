@@ -23,6 +23,18 @@ public class MinioService {
     @org.springframework.beans.factory.annotation.Value("${minio.endpoint}")
     private String endpoint;
 
+    @org.springframework.beans.factory.annotation.Value("${minio.bucket-name:shopify-themes}")
+    private String themeBucket;
+
+    @org.springframework.beans.factory.annotation.Value("${minio.theme-cdn-domain:}")
+    private String themeCdnDomain;
+
+    @org.springframework.beans.factory.annotation.Value("${minio.product-media-bucket:product-media}")
+    private String mediaBucket;
+
+    @org.springframework.beans.factory.annotation.Value("${minio.media-cdn-domain:}")
+    private String mediaCdnDomain;
+
     /**
      * 确保 bucket 存在，若不存在则创建并设置公开读策略
      */
@@ -40,11 +52,16 @@ public class MinioService {
                         + "\"Action\":[\"s3:GetObject\"],"
                         + "\"Resource\":[\"arn:aws:s3:::" + bucket + "/*\"]"
                         + "}]}";
-                minioClient.setBucketPolicy(SetBucketPolicyArgs.builder()
-                        .bucket(bucket)
-                        .config(policy)
-                        .build());
-                log.info("MinIO bucket '{}' created with public-read policy", bucket);
+                try {
+                    minioClient.setBucketPolicy(SetBucketPolicyArgs.builder()
+                            .bucket(bucket)
+                            .config(policy)
+                            .build());
+                    log.info("MinIO bucket '{}' created with public-read policy", bucket);
+                } catch (Exception policyEx) {
+                    log.warn("Failed to set public-read policy for bucket '{}', this is expected for Cloudflare R2: {}",
+                            bucket, policyEx.getMessage());
+                }
             }
         } catch (Exception e) {
             log.error("Failed to ensure bucket '{}' exists", bucket, e);
@@ -178,11 +195,22 @@ public class MinioService {
     }
 
     /**
-     * 对于公开 bucket，直接拼接 URL（无需签名计算）
+     * 对于公开 bucket，根据 bucket 名称匹配对应的 CDN 域名拼接 URL
      */
     public String getDirectUrl(String bucket, String objectName) {
+        String cdn = resolveCdnDomain(bucket);
+        if (cdn != null && !cdn.trim().isEmpty()) {
+            String base = cdn.trim().endsWith("/") ? cdn.trim() : cdn.trim() + "/";
+            return base + objectName;
+        }
         String base = endpoint.endsWith("/") ? endpoint : endpoint + "/";
         return base + bucket + "/" + objectName;
+    }
+
+    private String resolveCdnDomain(String bucket) {
+        if (bucket != null && bucket.equals(mediaBucket)) return mediaCdnDomain;
+        if (bucket != null && bucket.equals(themeBucket)) return themeCdnDomain;
+        return null;
     }
 
     private String detectMediaType(String fileName) {

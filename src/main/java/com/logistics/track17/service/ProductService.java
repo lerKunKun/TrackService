@@ -48,6 +48,9 @@ public class ProductService {
     @Autowired
     private ProductVariantMapper productVariantMapper;
 
+    @Autowired
+    private com.logistics.track17.mapper.ProductMediaFileMapper productMediaFileMapper;
+
     @Value("${storage.local.base-path:./storage/product-imports}")
     private String storagePath;
 
@@ -634,6 +637,22 @@ public class ProductService {
             products = productMapper.selectByPage(null, null, null, shopId, 0, Integer.MAX_VALUE);
         }
 
+        // 查询这些产品的主图（从 ProductMediaFile）
+        List<Long> pIdsForMedia = products.stream().map(Product::getId).toList();
+        java.util.Map<Long, String> productMainImageMap = new java.util.HashMap<>();
+        if (!pIdsForMedia.isEmpty()) {
+            List<com.logistics.track17.entity.ProductMediaFile> allMainImages = productMediaFileMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.logistics.track17.entity.ProductMediaFile>()
+                            .in("product_id", pIdsForMedia)
+                            .eq("category", "main_image")
+                            .orderByAsc("sort_order"));
+            for (com.logistics.track17.entity.ProductMediaFile f : allMainImages) {
+                if (!productMainImageMap.containsKey(f.getProductId()) && f.getUrl() != null) {
+                    productMainImageMap.put(f.getProductId(), f.getUrl());
+                }
+            }
+        }
+
         // 遍历产品
         for (Product product : products) {
             // 如果指定了shopId,检查产品是否关联该店铺
@@ -666,6 +685,12 @@ public class ProductService {
 
             // 第一行: 产品信息 + 第一个变体
             ProductVariant firstVariant = variants.get(0);
+
+            // 确定首图
+            String dbMainImage = productMainImageMap.get(product.getId());
+            String exportMainImage = (dbMainImage != null && !dbMainImage.trim().isEmpty()) ? dbMainImage
+                    : firstImageSrc;
+
             csv.append(escapeCsvField(product.getHandle())).append(",");
             csv.append(escapeCsvField(product.getTitle())).append(",");
             csv.append(escapeCsvField(product.getBodyHtml())).append(",");
@@ -708,14 +733,14 @@ public class ProductService {
             csv.append("TRUE,TRUE,");
             csv.append(escapeCsvField(firstVariant.getBarcode())).append(",");
             // col 24: Image Src — 产品第一张图
-            csv.append(escapeCsvField(firstImageSrc)).append(",");
+            csv.append(escapeCsvField(exportMainImage)).append(",");
             csv.append("1,"); // col 25: Image Position
             csv.append(","); // col 26: Image Alt Text
             csv.append("FALSE,"); // col 27: Gift Card
             for (int i = 0; i < 15; i++)
                 csv.append(","); // cols 28-42: SEO + Google Shopping
             // col 43: Variant Image — 第一个变体的自身图片
-            csv.append(escapeCsvField(firstVariant.getImageUrl())).append(",");
+            csv.append(escapeCsvField(exportMainImage)).append(",");
             csv.append("g,"); // col 44: Variant Weight Unit
             csv.append(","); // col 45: Variant Tax Code
             csv.append(","); // col 46: Cost per item

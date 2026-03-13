@@ -64,4 +64,9 @@ public interface ProductMediaFileService extends IService<ProductMediaFile> {
      * 迁移 MinIO 存量数据到 DB（一次性）
      */
     Map<String, Object> migrateFromMinio();
+
+    /**
+     * 修复已有记录的 URL（将 R2 API endpoint URL 替换为 CDN URL）
+     */
+    Map<String, Object> fixUrls();
 }

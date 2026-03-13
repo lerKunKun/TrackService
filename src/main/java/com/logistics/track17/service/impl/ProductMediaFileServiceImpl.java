@@ -378,6 +378,27 @@ public class ProductMediaFileServiceImpl
                 "message", String.format("迁移完成：%d 个写入，%d 个跳过", migrated, skipped));
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> fixUrls() {
+        List<ProductMediaFile> allFiles = list();
+        int fixed = 0, skipped = 0;
+
+        for (ProductMediaFile file : allFiles) {
+            String correctUrl = minioService.getDirectUrl(bucket, file.getObjectName());
+            if (!correctUrl.equals(file.getUrl())) {
+                file.setUrl(correctUrl);
+                updateById(file);
+                fixed++;
+            } else {
+                skipped++;
+            }
+        }
+
+        return Map.of("fixed", fixed, "skipped", skipped,
+                "message", String.format("URL修复完成：%d 个已修复，%d 个无需修改", fixed, skipped));
+    }
+
     // ─── Helper methods ───
 
     private String normalizeCategory(String tag) {
