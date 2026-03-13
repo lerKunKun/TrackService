@@ -337,7 +337,7 @@ const handlePublish = async () => {
       publishing.value = true
       try {
         const res = await productPublishApi.publish({
-          shopId: userStore.currentShopId,
+          shopIds: [userStore.currentShopId],
           productIds: selectedRowKeys.value
         })
         if (res.code === 200 || res.success) {

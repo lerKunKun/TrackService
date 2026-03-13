@@ -1,105 +1,122 @@
-# Track17 物流追踪系统
+# Track17 跨境电商管理系统
 
-基于 Spring Boot 和 17Track API 的物流追踪管理系统，深度集成 Shopify 平台，专为跨境电商设计。
+基于 Spring Boot 的跨境电商综合管理系统，深度集成 Shopify 平台、17Track 物流 API 和钉钉企业应用，涵盖店铺管理、商品管理、订单管理、主题迁移、RBAC 权限控制等核心功能。
 
-## 🚀 项目简介
+## 项目简介
 
-Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 Shopify 电商平台，帮助电商企业集中管理和监控订单物流状态，实现自动化的物流跟踪更新。
+Track17 是一个面向跨境电商企业的综合管理系统，提供多店铺管理、商品全生命周期管理、Shopify 主题迁移、订单物流追踪、数据统计分析等功能，并通过钉钉企业集成实现组织架构同步和统一身份认证。
 
-## ✨ 核心功能
+## 核心功能
 
-### 已实现功能
+### 用户认证与授权
+- **JWT 认证**：基于 JWT 的用户登录和权限验证
+- **钉钉扫码登录**：OAuth 2.0 授权，支持企业内部应用 QR 码扫码
+- **多登录方式**：账号密码 + 钉钉扫码双模式
+- **Token 黑名单**：通过 Redis 实现安全退出登录
+- **登录 IP 记录**：记录用户最后登录 IP
 
-#### 用户认证与权限
-- ✅ **JWT 认证**：基于 JWT 的用户登录和权限验证
-- ✅ **钉钉扫码登录**：OAuth 2.0 授权，支持企业内部应用
-- ✅ **多登录方式**：账号密码 + 钉钉扫码双模式
-- ✅ **Token 验证**：请求拦截和 Token 有效性验证
+### RBAC 权限管理
+- **角色管理**：创建、编辑、删除角色，支持细粒度权限分配
+- **权限管理**：37+ 系统权限，支持菜单/按钮/数据三种类型
+- **菜单管理**：动态菜单配置，基于角色的菜单可见性控制
+- **审计日志**：基于 @AuditLog 注解的用户操作审计追踪
 
-#### RBAC 权限管理
-- ✅ **角色管理**：创建、编辑、删除角色，支持细粒度权限分配
-- ✅ **权限管理**：37+ 系统权限，支持菜单/按钮/数据三种类型
-- ✅ **菜单管理**：动态菜单配置，基于角色的菜单可见性控制
-- ✅ **前端权限检查**：按钮级别的权限控制 (v-if hasPermission)
+### 钉钉企业集成
+- **扫码登录**：动态二维码扫码登录，QR 码自动刷新
+- **企业白名单**：限制可登录的企业 CorpId
+- **用户同步**：从钉钉通讯录同步用户数据
+- **部门同步**：同步组织架构和部门信息
+- **角色映射**：基于部门自动分配系统角色
+- **同步日志**：记录同步操作历史和详情
 
-#### 钉钉集成
-- ✅ **钦钉登录**：动态二维码扫码登录，QR码自动刷新
-- ✅ **企业白名单**：限制可登录的企业 CorpId
-- ✅ **用户同步**：从钉钉通讯录同步用户数据
-- ✅ **同步日志**：记录同步操作历史
+### 店铺管理
+- **多平台支持**：支持 Shopify、Shopline、TikTok Shop 等平台
+- **CRUD 操作**：店铺的创建、查询、更新、删除
+- **连接健康检查**：验证单个或批量店铺的连接状态
+- **店铺信息同步**：自动获取并同步店铺名称、时区、货币、套餐等信息
 
-#### 店铺管理
-- ✅ **多平台支持**：支持 Shopify、Shopline、TikTok Shop 等平台
-- ✅ **CRUD 操作**：店铺的创建、查询、更新、删除
-- ✅ **分页查询**：支持按平台筛选的分页列表
-- ✅ **连接健康检查**：验证单个或批量店铺的连接状态
+### Shopify 深度集成
+- **OAuth 授权**：完整的 Shopify OAuth 2.0 授权流程
+- **Offline Access Token**：获取永久有效的访问令牌
+- **HMAC 签名验证**：确保回调请求的安全性
+- **Redis State 管理**：防止 CSRF 攻击的状态验证
+- **Webhook 管理**：注册、查看、删除 Webhook，接收订单履行事件
 
-#### Shopify 深度集成
-- ✅ **OAuth 授权**：完整的 Shopify OAuth 2.0 授权流程
-- ✅ **Offline Access Token**：获取永久有效的访问令牌
-- ✅ **店铺信息同步**：自动获取店铺名称、时区等信息
-- ✅ **HMAC 签名验证**：确保回调请求的安全性
-- ✅ **Redis State 管理**：防止 CSRF 攻击的状态验证
+### 商品管理
+- **CSV 导入/导出**：支持 Shopify 格式的商品批量导入和导出
+- **商品 CRUD**：创建、查询、更新、删除商品
+- **变体管理**：商品变体与 SKU 追踪
+- **价格管理**：更新售价和对比价
+- **采购管理**：追踪 SKU、采购链接、采购价、供应商信息
+- **标签管理**：商品分类标签
+- **批量操作**：批量更新、批量删除、批量关联店铺
+- **多店铺关联**：商品与多个店铺的关联管理
 
-#### Webhook 管理
-- ✅ **Webhook 注册**：自动注册订单履行和跟踪更新 webhook
-- ✅ **Webhook 查看**：查询已注册的 webhook 列表
-- ✅ **Webhook 删除**：批量删除店铺的 webhook
-- ✅ **订单履行事件**：接收 `fulfillments/create` 和 `fulfillments/update`
-- ✅ **实时更新**：自动接收 Shopify 的物流更新通知
+### 商品媒体管理
+- **文件上传**：支持图片、视频等媒体文件上传
+- **URL 批量下载**：从外部 URL 批量下载媒体文件
+- **Shopify 图片同步**：自动同步 Shopify 商品图片
+- **文件分类**：按主图、详情图等类型组织文件
+- **文件排序**：自定义媒体文件排列顺序
+- **参考链接**：关联竞品/参考商品链接
+- **MinIO 集成**：支持 MinIO 对象存储，同时支持本地存储回退
 
-#### 运单管理
-- ✅ **手动添加运单**：支持单个运单录入
-- ✅ **运单查询**：分页查询运单列表，支持多条件筛选
-- ✅ **运单详情**：查看完整的运单信息和物流轨迹
-- ✅ **手动同步**：主动同步单个运单的最新状态
-- ✅ **批量删除**：支持批量删除运单
+### 商品发布
+- **发布/下架**：推送商品到店铺或从店铺下架
+- **CSV 导出**：导出 Shopify 格式的商品 CSV
+- **批量发布**：支持多店铺商品批量发布
 
-#### 17Track 集成
-- ✅ **自动注册**：新运单自动注册到 17Track
-- ✅ **物流查询**：实时查询运单的物流状态
-- ✅ **事件追踪**：记录完整的物流轨迹事件
-- ✅ **承运商识别**：自动识别并记录承运商信息
+### 商品模板
+- **模板管理**：创建、更新商品模板
+- **Liquid Schema**：支持 Shopify Liquid 模板 Schema
+- **模板后缀**：自定义模板后缀配置
 
-#### 数据统计
-- ✅ **统计看板**：首页数据统计概览
-- ✅ **运单统计**：总运单数、今日新增、按状态分布
-- ✅ **店铺统计**：店铺总数统计
-- ✅ **用户统计**：用户总数统计
-- ✅ **承运商分析**：按承运商分组统计（Top 10）
-- ✅ **趋势分析**：最近7天运单趋势图
+### Shopify 主题迁移
+- **主题版本管理**：追踪和管理主题版本
+- **差异分析**：深度分析主题版本间的变更
+- **迁移规则**：配置和应用迁移规则
+- **主题导出/导入**：下载迁移后的主题 ZIP 包
+- **一键迁移**：快速主题迁移功能
+- **Git 集成**：基于 JGit 实现版本控制
 
-#### 用户管理
-- ✅ **用户列表**：分页查询用户列表
-- ✅ **用户详情**：查看用户详细信息
-- ✅ **用户创建**：创建新用户账号
-- ✅ **用户更新**：更新用户信息
-- ✅ **用户删除**：删除用户账号
+### 订单管理
+- **订单列表**：分页查询订单，支持多条件筛选
+- **订单详情**：查看完整订单信息
+- **订单商品**：Shopify 订单行项目详情
+- **履行状态**：追踪订单履行进度
+- **收货地址**：存储和管理配送地址
 
-#### 系统优化
-- ✅ **Redis 缓存**：OAuth state、Token 等关键数据缓存
-- ✅ **连接池管理**：数据库和 Redis 连接池优化
-- ✅ **异常处理**：统一的异常处理和错误响应
-- ✅ **日志记录**：完整的操作日志和调试信息
+### 数据统计
+- **统计看板**：首页关键指标概览
+- **订单统计**：总数、日新增、状态分布
+- **店铺统计**：店铺总数统计
+- **用户统计**：用户总数统计
+- **承运商分析**：按承运商分组统计（Top 10）
+- **趋势分析**：最近 7 天趋势图
 
-### 计划功能（后续版本）
+### 系统功能
+- **邮件监控**：邮件配置与通知
+- **邀请系统**：用户邀请管理
+- **通知管理**：通知接收人管理
+- **审计日志**：全量用户操作追踪
 
-- 📦 CSV 批量导入运单
-- 📊 物流轨迹可视化展示（时间线组件）
-- 🔔 异常运单提醒（超时、退回等）
-- 🌐 更多平台集成（Shopline、TikTok Shop）
-- 📱 移动端适配
-
-## 🛠 技术栈
+## 技术栈
 
 ### 后端
-- **Java 8**
+- **Java 17**
 - **Spring Boot 2.7.18**
-- **MyBatis** - ORM 框架
-- **MySQL 8.0** - 数据持久化
+- **MyBatis Plus 3.5.3** - ORM 框架
+- **MySQL 8.0+** - 数据持久化
 - **Redis 6.0+** - 缓存和会话管理
-- **RestTemplate** - HTTP 客户端
-- **JWT** - 认证令牌
+- **JWT 0.9.1** - 认证令牌
+- **OkHttp 4.10.0** - HTTP 客户端
+- **MinIO 8.5.7** - 对象存储
+- **JGit 6.8.0** - Git 操作（主题版本控制）
+- **DingTalk SDK 2.0.0** - 钉钉企业集成
+- **FastJSON 1.2.83** - JSON 处理
+- **Spring Security Crypto** - BCrypt 密码加密
+- **Spring AOP** - 面向切面编程（审计日志等）
+- **Apache Commons** (CSV, Compress, IO, Lang3) - 通用工具
 - **Lombok** - 简化代码
 
 ### 前端
@@ -111,35 +128,46 @@ Track17 是一个功能完整的物流追踪系统，集成了 17Track API 和 S
 - **Axios** - HTTP 客户端
 
 ### 外部服务
-- **17Track API** - 物流追踪服务
+- **17Track API v2.4** - 物流追踪服务
 - **Shopify API** - 电商平台集成
 - **Shopify Webhooks** - 实时事件推送
+- **钉钉开放平台** - 企业身份认证与组织同步
 
-## 📋 环境要求
+## 环境要求
 
 ### 后端
-- **JDK 1.8** 或更高版本
+- **JDK 17** 或更高版本
 - **Maven 3.6+**
 - **MySQL 8.0+**
 - **Redis 6.0+**（必需）
 
 ### 前端
-- **Node.js 16+** 或更高版本
+- **Node.js 16+**
 - **npm** 或 **yarn** 或 **pnpm**
 
-## 🚀 快速开始
+## 快速开始
 
-### 1. 创建数据库
+### 1. 使用 Docker Compose（推荐）
 
-执行以下 SQL 创建数据库和表结构：
+项目提供了 `docker-compose.yml`，可一键启动 MySQL、Redis 等依赖服务：
+
+```bash
+docker-compose up -d
+```
+
+### 2. 手动搭建环境
+
+#### 创建数据库
+
+项目使用 Flyway 数据库迁移，迁移脚本位于 `src/main/resources/db/migration/` 目录，应用启动时自动执行。
+
+也可手动执行：
 
 ```bash
 mysql -u root -p < docs/database.sql
 ```
 
-或者手动执行数据库建表脚本（参考项目文档中的建表语句）。
-
-### 2. 启动 Redis
+#### 启动 Redis
 
 ```bash
 # macOS (使用 Homebrew)
@@ -159,14 +187,14 @@ docker run -d -p 6379:6379 redis:latest
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC
-    username: root        # 修改为你的数据库用户名
-    password: 123456      # 修改为你的数据库密码
+    url: jdbc:mysql://localhost:3306/logistics_system?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: your_password
 
   redis:
     host: localhost
     port: 6379
-    password:             # 如有密码请填写
+    password:
 
 # JWT 配置
 jwt:
@@ -176,57 +204,57 @@ jwt:
 # 17Track API 配置
 track17:
   api:
-    token: YOUR_17TRACK_API_TOKEN  # 替换为你的 17Track API Token
+    token: YOUR_17TRACK_API_TOKEN
 
 # Shopify OAuth 配置
 shopify:
   api:
-    key: YOUR_SHOPIFY_API_KEY          # Shopify App 的 API Key
-    secret: YOUR_SHOPIFY_API_SECRET    # Shopify App 的 API Secret
+    key: YOUR_SHOPIFY_API_KEY
+    secret: YOUR_SHOPIFY_API_SECRET
   oauth:
-    redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback  # OAuth 回调地址
-    frontend-redirect: http://localhost:3000/shops  # 前端重定向地址
+    redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback
+    frontend-redirect: http://localhost:3000/shops
   webhook:
-    base-url: http://localhost:8080/api/v1  # Webhook 接收地址（生产环境需要公网地址）
+    base-url: http://localhost:8080/api/v1
+
+# 钉钉配置
+dingtalk:
+  corp-id: YOUR_CORP_ID
+  app-key: YOUR_APP_KEY
+  app-secret: YOUR_APP_SECRET
+
+# 存储配置（local 或 minio）
+storage:
+  type: local
+  local:
+    path: ./storage/theme-archives
+  minio:
+    endpoint: http://localhost:9000
+    access-key: YOUR_ACCESS_KEY
+    secret-key: YOUR_SECRET_KEY
 ```
+
+建议使用环境变量管理敏感配置，参见下方「环境变量」章节。
 
 ### 4. Shopify App 配置
 
-#### 4.1 创建 Shopify App
-
-1. 访问 [Shopify Partners](https://partners.shopify.com/)
-2. 创建一个新的 App（Custom App）
-3. 在 App 设置中配置：
-
-**Allowed redirection URL(s)**（重要！必须完全匹配）
-```
-http://localhost:8080/api/v1/oauth/shopify/callback
-```
-
-**Scopes（权限范围）**
-```
-read_orders, write_orders, read_products, write_products
-```
-
+1. 访问 [Shopify Partners](https://partners.shopify.com/) 创建 Custom App
+2. 配置 **Allowed redirection URL(s)**：
+   ```
+   http://localhost:8080/api/v1/oauth/shopify/callback
+   ```
+3. 配置 **Scopes**：
+   ```
+   read_orders, write_orders, read_products, write_products
+   ```
 4. 复制 **API Key** 和 **API Secret Key** 到 `application.yml`
 
-#### 4.2 生产环境配置
-
-生产环境部署时，需要：
-1. 使用 HTTPS 域名
-2. 修改 `redirect-uri` 为：`https://yourdomain.com/api/v1/oauth/shopify/callback`
-3. 在 Shopify App 设置中添加生产环境的回调 URL
-4. 修改 `webhook.base-url` 为公网可访问的地址
-
-### 5. 编译项目
+### 5. 编译和启动
 
 ```bash
+# 编译
 mvn clean package
-```
 
-### 6. 启动应用
-
-```bash
 # 方式1: 使用 Maven
 mvn spring-boot:run
 
@@ -236,18 +264,12 @@ java -jar target/track-17-server-1.0.0.jar
 
 启动成功后，后端服务运行在 `http://localhost:8080`
 
-### 7. 启动前端
+### 6. 启动前端
 
 ```bash
-# 进入前端目录
 cd frontend-vue
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
-
 # 访问 http://localhost:3000
 ```
 
@@ -255,175 +277,279 @@ npm run dev
 - 用户名：`admin`
 - 密码：`admin123`
 
-## 📁 项目结构
+## 项目结构
 
 ```
 track-17-server/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/logistics/track17/
-│   │   │   ├── config/          # 配置类
+│   │   │   ├── annotation/        # 自定义注解（@AuditLog 等）
+│   │   │   ├── aspect/            # AOP 切面（审计日志、权限校验）
+│   │   │   ├── config/            # 配置类
 │   │   │   │   ├── CorsConfig.java
 │   │   │   │   ├── JwtAuthenticationFilter.java
-│   │   │   │   └── RedisConfig.java          # Redis 配置
-│   │   │   ├── controller/      # 控制器
-│   │   │   │   ├── AuthController.java
-│   │   │   │   ├── ShopController.java
-│   │   │   │   ├── TrackingController.java
-│   │   │   │   ├── ShopifyOAuthController.java     # Shopify OAuth
-│   │   │   │   ├── ShopifyWebhookController.java   # Shopify Webhook
-│   │   │   │   ├── StatsController.java            # 统计控制器
-│   │   │   │   ├── UserController.java             # 用户控制器
-│   │   │   │   └── CarrierController.java          # 承运商控制器
-│   │   │   ├── service/         # 业务逻辑
-│   │   │   │   ├── ShopService.java
-│   │   │   │   ├── TrackingService.java
-│   │   │   │   ├── CarrierService.java
-│   │   │   │   ├── ShopifyOAuthService.java        # Shopify OAuth 服务
-│   │   │   │   ├── ShopifyWebhookService.java      # Shopify Webhook 服务
-│   │   │   │   ├── StatsService.java               # 统计服务
-│   │   │   │   └── UserService.java                # 用户服务
-│   │   │   ├── mapper/          # MyBatis Mapper 接口
-│   │   │   ├── entity/          # 实体类
-│   │   │   ├── dto/             # 数据传输对象
-│   │   │   ├── exception/       # 异常处理
-│   │   │   └── util/            # 工具类
+│   │   │   │   ├── RedisConfig.java
+│   │   │   │   └── ...
+│   │   │   ├── controller/        # REST 控制器（28 个）
+│   │   │   │   ├── AuthController.java          # 认证
+│   │   │   │   ├── UserController.java          # 用户管理
+│   │   │   │   ├── RoleController.java          # 角色管理
+│   │   │   │   ├── MenuController.java          # 菜单管理
+│   │   │   │   ├── ShopController.java          # 店铺管理
+│   │   │   │   ├── ShopifyOAuthController.java  # Shopify OAuth
+│   │   │   │   ├── ShopifyWebhookController.java
+│   │   │   │   ├── OrderController.java         # 订单管理
+│   │   │   │   ├── ProductController.java       # 商品管理
+│   │   │   │   ├── ProductMediaController.java  # 商品媒体
+│   │   │   │   ├── ProductPublishController.java # 商品发布
+│   │   │   │   ├── ProductListingController.java # 商品上架
+│   │   │   │   ├── ProductTemplateController.java # 商品模板
+│   │   │   │   ├── ThemeMigrationController.java # 主题迁移
+│   │   │   │   ├── ThemeVersionController.java   # 主题版本
+│   │   │   │   ├── DingtalkSyncController.java   # 钉钉同步
+│   │   │   │   ├── StatsController.java          # 数据统计
+│   │   │   │   ├── CarrierController.java        # 承运商
+│   │   │   │   └── ...
+│   │   │   ├── dto/               # 数据传输对象
+│   │   │   ├── entity/            # 数据库实体（~40 个）
+│   │   │   ├── enums/             # 枚举类型
+│   │   │   ├── exception/         # 异常处理
+│   │   │   ├── interceptor/       # 拦截器
+│   │   │   ├── mapper/            # MyBatis Mapper 接口
+│   │   │   ├── service/           # 业务逻辑（40+ 个）
+│   │   │   │   ├── impl/         # 服务实现
+│   │   │   │   └── storage/      # 存储服务
+│   │   │   └── util/              # 工具类
 │   │   └── resources/
-│   │       ├── mapper/          # MyBatis XML 映射文件
-│   │       └── application.yml  # 应用配置
+│   │       ├── db/migration/      # Flyway 数据库迁移脚本
+│   │       ├── mapper/            # MyBatis XML 映射文件
+│   │       └── application.yml    # 应用配置
 │   └── test/
-├── frontend-vue/                # Vue3 前端
-│   ├── src/
-│   │   ├── api/                # API 接口
-│   │   ├── assets/             # 静态资源
-│   │   ├── components/         # 组件
-│   │   ├── router/             # 路由
-│   │   ├── stores/             # 状态管理
-│   │   ├── utils/              # 工具函数
-│   │   └── views/              # 页面
-│   ├── index.html
-│   ├── vite.config.js
-│   └── package.json
-├── docs/                        # 文档目录
-│   ├── API_SHOP_MANAGEMENT.md         # 店铺管理 API
-│   ├── FRONTEND_SHOP_INTEGRATION.md   # 前端集成指南
-│   ├── SHOPIFY_SHOP_INTEGRATION_SUMMARY.md  # Shopify 集成总结
-│   ├── SHOPIFY_WEBHOOK_INTEGRATION.md       # Shopify Webhook 文档
-│   ├── REDIS_IMPLEMENTATION_SUMMARY.md      # Redis 实现总结
-│   └── REDIS_OPTIMIZATION_REPORT.md         # Redis 优化报告
-└── pom.xml                      # Maven 配置文件
+├── Dockerfile                     # Docker 镜像构建
+├── docker-compose.yml             # Docker Compose 编排
+└── pom.xml                        # Maven 配置文件
 ```
 
-## 📡 API 接口
+## API 接口
 
-### 认证相关
-- `POST /api/v1/auth/login` - 用户登录
-- `GET /api/v1/auth/validate` - 验证 Token
-- `GET /api/v1/auth/current` - 获取当前用户
+所有接口前缀：`/api/v1`
 
-### 店铺管理
-- `POST /api/v1/shops` - 创建店铺
-- `GET /api/v1/shops` - 获取店铺列表（支持分页和平台筛选）
-- `GET /api/v1/shops/{id}` - 获取店铺详情
-- `PUT /api/v1/shops/{id}` - 更新店铺
-- `DELETE /api/v1/shops/{id}` - 删除店铺
-- `POST /api/v1/shops/{id}/validate` - 验证店铺连接状态
-- `POST /api/v1/shops/validate-all` - 批量验证所有店铺连接
-
-### Shopify OAuth
-- `GET /api/v1/oauth/shopify/authorize?shopDomain={domain}` - 开始 OAuth 授权
-- `GET /api/v1/oauth/shopify/callback` - OAuth 回调处理
-
-### Shopify Webhook 管理
-- `GET /api/v1/shops/{id}/webhooks` - 获取店铺的已注册 webhooks
-- `POST /api/v1/shops/{id}/webhooks/register` - 为店铺注册所有 webhooks
-- `DELETE /api/v1/shops/{id}/webhooks` - 删除店铺的所有 webhooks
-
-### Webhook 接收（由 Shopify 调用）
-- `POST /api/v1/webhooks/shopify/fulfillments/create` - 订单履行创建事件
-- `POST /api/v1/webhooks/shopify/fulfillments/update` - 订单履行更新事件
-
-### 运单管理
-- `POST /api/v1/tracking` - 添加运单
-- `GET /api/v1/tracking` - 获取运单列表
-- `GET /api/v1/tracking/{id}` - 获取运单详情
-- `POST /api/v1/tracking/{id}/sync` - 手动同步运单
-- `DELETE /api/v1/tracking/{id}` - 删除运单
-- `POST /api/v1/tracking/batch-delete` - 批量删除运单
-
-### 统计数据
-- `GET /api/v1/stats/dashboard` - 获取首页统计数据
+### 认证
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/auth/login` | 用户登录 |
+| POST | `/auth/logout` | 用户退出 |
+| GET | `/auth/validate` | 验证 Token |
+| GET | `/auth/current` | 获取当前用户信息 |
+| GET | `/auth/dingtalk/login-url` | 获取钉钉登录 URL |
+| POST | `/auth/dingtalk/callback` | 钉钉 OAuth 回调 |
 
 ### 用户管理
-- `POST /api/v1/users` - 创建用户
-- `GET /api/v1/users` - 获取用户列表（支持分页）
-- `GET /api/v1/users/{id}` - 获取用户详情
-- `PUT /api/v1/users/{id}` - 更新用户
-- `DELETE /api/v1/users/{id}` - 删除用户
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/users` | 用户列表（分页） |
+| GET | `/users/all` | 全部用户（不分页） |
+| GET | `/users/{id}` | 用户详情 |
+| POST | `/users` | 创建用户 |
+| PUT | `/users/{id}` | 更新用户 |
+| DELETE | `/users/{id}` | 删除用户 |
+| POST | `/users/{id}/password` | 修改密码 |
+| PUT | `/users/{id}/status` | 更新用户状态 |
+| GET | `/users/{id}/roles` | 获取用户角色 |
+| PUT | `/users/{id}/roles` | 分配用户角色 |
 
-### 承运商管理
-- `GET /api/v1/carriers` - 获取所有承运商列表
-
-### 角色管理
-- `GET /api/v1/roles` - 获取角色列表
-- `GET /api/v1/roles/{id}` - 获取角色详情
-- `POST /api/v1/roles` - 创建角色
-- `PUT /api/v1/roles/{id}` - 更新角色
-- `DELETE /api/v1/roles/{id}` - 删除角色
-- `PUT /api/v1/roles/{id}/permissions` - 分配角色权限
-- `PUT /api/v1/roles/{id}/menus` - 分配角色菜单
-
-### 权限管理
-- `GET /api/v1/permissions` - 获取权限列表
-- `POST /api/v1/permissions` - 创建权限
-- `PUT /api/v1/permissions/{id}` - 更新权限
-- `DELETE /api/v1/permissions/{id}` - 删除权限
+### 角色与权限
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/roles` | 角色列表 |
+| POST | `/roles` | 创建角色 |
+| PUT | `/roles/{id}` | 更新角色 |
+| DELETE | `/roles/{id}` | 删除角色 |
+| GET | `/roles/{id}/permissions` | 获取角色权限 |
+| PUT | `/roles/{id}/permissions` | 分配角色权限 |
+| GET | `/permissions` | 权限列表 |
+| GET | `/permissions/search` | 搜索权限 |
 
 ### 菜单管理
-- `GET /api/v1/menus` - 获取菜单列表
-- `GET /api/v1/menus/tree` - 获取菜单树
-- `POST /api/v1/menus` - 创建菜单
-- `PUT /api/v1/menus/{id}` - 更新菜单
-- `DELETE /api/v1/menus/{id}` - 删除菜单
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/menus/tree` | 获取菜单树 |
+| GET | `/menus/user` | 获取当前用户菜单树 |
+| GET | `/menus` | 菜单列表 |
+| POST | `/menus` | 创建菜单 |
+| PUT | `/menus/{id}` | 更新菜单 |
+| DELETE | `/menus/{id}` | 删除菜单 |
 
-### 钉钉集成
-- `GET /api/v1/auth/dingtalk/login-url` - 获取钉钉登录二维码URL
-- `GET /api/v1/auth/dingtalk/callback` - 钉钉OAuth回调
-- `POST /api/v1/dingtalk/sync` - 同步钉钉用户
-- `GET /api/v1/dingtalk/sync/logs` - 获取同步日志
-- `GET /api/v1/allowed-corp-ids` - 获取企业白名单
-- `POST /api/v1/allowed-corp-ids` - 添加企业白名单
-- `DELETE /api/v1/allowed-corp-ids/{id}` - 删除企业白名单
+### 店铺管理
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/shops` | 店铺列表（分页） |
+| GET | `/shops/{id}` | 店铺详情 |
+| DELETE | `/shops/{id}` | 删除店铺 |
+| POST | `/shops/{id}/validate` | 验证连接 |
+| POST | `/shops/validate-all` | 批量验证连接 |
+| GET | `/shops/{id}/webhooks` | 获取 Webhooks |
+| POST | `/shops/{id}/webhooks/register` | 注册 Webhooks |
+| DELETE | `/shops/{id}/webhooks` | 删除 Webhooks |
+| GET | `/shops/{id}/info` | 获取店铺信息（实时） |
+| POST | `/shops/{id}/refresh-info` | 刷新店铺信息 |
 
-详细 API 文档请查看：
-- [API 文档](docs/API_DOCUMENTATION.md)
-- [店铺管理 API](docs/API_SHOP_MANAGEMENT.md)
+### Shopify OAuth
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/oauth/shopify/authorize` | 开始 OAuth 授权 |
+| GET | `/oauth/shopify/callback` | OAuth 回调处理 |
 
-## 🔧 配置说明
+### 订单管理
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/orders` | 订单列表（分页） |
+| GET | `/orders/{id}` | 订单详情 |
 
-### JWT 配置
+### 商品管理
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/product/import` | CSV 导入商品 |
+| GET | `/product/list` | 商品列表 |
+| GET | `/product/{id}` | 商品详情 |
+| PUT | `/product/{id}` | 更新商品 |
+| DELETE | `/product/{id}` | 删除商品 |
+| POST | `/product/batch/delete` | 批量删除 |
+| POST | `/product/batch/update` | 批量更新 |
+| POST | `/product/batch/shops` | 批量关联店铺 |
+| GET | `/product/{productId}/variants` | 获取变体 |
+| PUT | `/product/variants/{variantId}/price` | 更新变体价格 |
+| PUT | `/product/{productId}/price` | 更新全部变体价格 |
+| PUT | `/product/variants/{variantId}/procurement` | 更新采购信息 |
+| DELETE | `/product/variants/{variantId}` | 删除变体 |
+| GET | `/product/export/csv` | 导出 CSV |
+| GET | `/product/procurement-list` | 采购列表 |
+| GET | `/product/procurement/stats` | 采购统计 |
+| GET | `/product/tags` | 获取所有标签 |
 
-```yaml
-jwt:
-  secret: track17-logistics-secret-key-change-in-production  # 生产环境请修改
-  expiration: 86400000  # Token 过期时间（毫秒），默认 24 小时
-```
+### 商品媒体
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/product-media/list` | 带媒体的商品列表 |
+| GET | `/product-media/{productId}/files` | 文件列表 |
+| POST | `/product-media/{productId}/upload` | 上传文件 |
+| POST | `/product-media/{productId}/download-urls` | 从 URL 下载 |
+| POST | `/product-media/{productId}/sync-images` | 同步 Shopify 图片 |
+| DELETE | `/product-media/files/{fileId}` | 删除文件 |
+| DELETE | `/product-media/{productId}/files/batch` | 批量删除文件 |
+| PUT | `/product-media/{productId}/files/sort` | 更新排序 |
+| PUT | `/product-media/files/{fileId}/category` | 移动分类 |
+| GET | `/product-media/{productId}/reference-link` | 获取参考链接 |
+| PUT | `/product-media/{productId}/reference-link` | 更新参考链接 |
 
-### 17Track API 配置
+### 商品发布
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/product-publish/publish` | 发布商品到店铺 |
+| POST | `/product-publish/unpublish` | 下架商品 |
+| POST | `/api/v1/listing/export/csv` | 导出 Shopify CSV |
 
-1. 注册 17Track 账号：https://www.17track.net/
-2. 申请 API Key
-3. 在 `application.yml` 中配置 Token
+### 主题迁移
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/theme/migration/start` | 开始迁移 |
+| POST | `/theme/migration/execute` | 执行迁移 |
+| GET | `/theme/migration/session/{sessionId}` | 获取迁移会话 |
+| GET | `/theme/migration/download/{historyId}` | 下载迁移主题 |
+| POST | `/theme/quick-migration/execute` | 一键迁移 |
 
-```yaml
-track17:
-  api:
-    url: https://api.17track.net/track/v2.4
-    token: YOUR_17TRACK_API_TOKEN
-    register-endpoint: /register
-    query-endpoint: /gettrackinfo
-    timeout: 10000
-```
+### 主题版本
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/theme/versions` | 版本列表 |
+| GET | `/theme/versions/{id}` | 版本详情 |
+| POST | `/theme/versions` | 创建版本 |
+| DELETE | `/theme/versions/{id}` | 删除版本 |
+
+### 钉钉同步
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/dingtalk/sync/full` | 全量同步 |
+| POST | `/dingtalk/sync/departments` | 同步部门 |
+| POST | `/dingtalk/sync/users` | 同步用户 |
+| POST | `/dingtalk/sync/roles` | 应用角色映射 |
+| GET | `/dingtalk/sync/logs` | 同步日志列表 |
+| GET | `/dingtalk/sync/logs/{id}` | 同步日志详情 |
+
+### 其他
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/carriers` | 活跃承运商列表 |
+| GET | `/carriers/all` | 全部承运商 |
+| GET | `/stats/dashboard` | 统计看板 |
+
+## 环境变量
+
+生产环境建议通过环境变量管理敏感配置：
+
+| 变量 | 说明 |
+|------|------|
+| `DB_URL` | 数据库连接 URL |
+| `DB_USERNAME` | 数据库用户名 |
+| `DB_PASSWORD` | 数据库密码 |
+| `REDIS_PASSWORD` | Redis 密码 |
+| `JWT_SECRET` | JWT 签名密钥 |
+| `JWT_EXPIRATION` | JWT 过期时间（毫秒） |
+| `TRACK17_TOKEN` | 17Track API Token |
+| `SHOPIFY_API_KEY` | Shopify API Key |
+| `SHOPIFY_API_SECRET` | Shopify API Secret |
+| `DINGTALK_CORP_ID` | 钉钉企业 ID |
+| `DINGTALK_APP_KEY` | 钉钉应用 Key |
+| `DINGTALK_APP_SECRET` | 钉钉应用 Secret |
+| `DINGTALK_AGENT_ID` | 钉钉 Agent ID |
+| `MINIO_ENDPOINT` | MinIO 服务地址 |
+| `MINIO_ACCESS_KEY` | MinIO Access Key |
+| `MINIO_SECRET_KEY` | MinIO Secret Key |
+
+## 数据库
+
+项目使用 Flyway 管理数据库迁移，迁移脚本位于 `src/main/resources/db/migration/`。
+
+主要数据表：
+
+| 分类 | 表名 | 说明 |
+|------|------|------|
+| 用户权限 | `users` | 用户表 |
+| | `roles` | 角色表 |
+| | `permissions` | 权限表 |
+| | `menus` | 菜单表 |
+| | `audit_logs` | 审计日志 |
+| 组织 | `companies` | 企业/组织 |
+| | `company_members` | 企业成员 |
+| 店铺 | `shops` | 店铺信息 |
+| | `user_shop_roles` | 用户-店铺-角色关联 |
+| 订单 | `orders` | 订单表 |
+| | `order_items` | 订单行项目 |
+| | `fulfillments` | 履行记录 |
+| 商品 | `products` | 商品表 |
+| | `product_variants` | 商品变体 |
+| | `product_images` | 商品图片 |
+| | `product_shops` | 商品-店铺关联 |
+| | `product_imports` | 导入记录 |
+| | `product_media_files` | 媒体文件 |
+| | `product_templates` | 商品模板 |
+| 主题 | `theme_versions` | 主题版本 |
+| | `theme_migration_history` | 迁移历史 |
+| | `theme_migration_rules` | 迁移规则 |
+| | `liquid_schema_cache` | Liquid Schema 缓存 |
+| 物流 | `tracking_numbers` | 物流追踪号 |
+| | `tracking_events` | 物流事件 |
+| | `carriers` | 承运商 |
+| 钉钉 | `dingtalk_dept_mappings` | 部门映射 |
+| | `dingtalk_sync_logs` | 同步日志 |
+| | `allowed_corp_ids` | 企业白名单 |
+| 系统 | `notification_recipients` | 通知接收人 |
+| | `notification_logs` | 通知日志 |
+| | `email_monitor_configs` | 邮件监控配置 |
+| | `invitations` | 邀请记录 |
+
+## 配置说明
 
 ### Shopify 配置
 
@@ -438,238 +564,95 @@ shopify:
     redirect-uri: http://localhost:8080/api/v1/oauth/shopify/callback
     frontend-redirect: http://localhost:3000/shops
   webhook:
-    base-url: http://localhost:8080/api/v1  # 需要使用 ngrok 等工具暴露到公网
+    base-url: http://localhost:8080/api/v1  # 需要 ngrok 暴露到公网
 ```
 
 #### 生产环境
 
 ```yaml
 shopify:
-  api:
-    key: YOUR_SHOPIFY_API_KEY
-    secret: YOUR_SHOPIFY_API_SECRET
   oauth:
     redirect-uri: https://yourdomain.com/api/v1/oauth/shopify/callback
     frontend-redirect: https://yourdomain.com/shops
   webhook:
-    base-url: https://yourdomain.com/api/v1  # 必须是 HTTPS 公网地址
+    base-url: https://yourdomain.com/api/v1  # 必须 HTTPS
 ```
 
-#### 本地测试 Webhook
-
-由于 Shopify Webhook 需要公网地址，本地开发时可以使用 ngrok：
+#### 本地 Webhook 测试
 
 ```bash
-# 安装 ngrok
-brew install ngrok  # macOS
-
-# 启动 ngrok
+# 使用 ngrok 暴露本地服务到公网
 ngrok http 8080
-
-# 复制 ngrok 提供的公网地址（如 https://abc123.ngrok.io）
-# 更新 application.yml 中的 webhook.base-url
+# 复制 ngrok 提供的公网地址，更新 application.yml 中的 webhook.base-url
 ```
 
-### Redis 配置
+### 存储配置
+
+支持本地存储和 MinIO 对象存储两种模式：
 
 ```yaml
-spring:
-  redis:
-    host: localhost
-    port: 6379
-    password:             # 如有密码请填写
-    database: 0
-    timeout: 5000
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
+# 本地存储
+storage:
+  type: local
+  local:
+    path: ./storage/theme-archives
+
+# MinIO 对象存储
+storage:
+  type: minio
+  minio:
+    endpoint: http://localhost:9000
+    access-key: YOUR_ACCESS_KEY
+    secret-key: YOUR_SECRET_KEY
+    buckets:
+      themes: shopify-themes
+      media: product-media
 ```
 
-Redis 用途：
-- OAuth state 存储（防 CSRF）
-- 缓存优化（待实现）
-- 会话管理（待实现）
-
-## 🗄️ 数据库表结构
-
-主要数据表：
-
-- `users` - 用户表
-- `shops` - 店铺信息表（包含 Shopify OAuth 相关字段）
-  - `oauth_state` - OAuth state nonce
-  - `oauth_scope` - OAuth 授权范围
-  - `token_type` - Token 类型（offline/online）
-  - `connection_status` - 连接状态
-  - `token_expires_at` - Token 过期时间
-  - `shop_domain` - Shopify 店铺域名
-  - `timezone` - 店铺时区
-- `orders` - 订单表
-- `parcels` - 包裹表
-- `tracking_numbers` - 运单表
-- `tracking_events` - 物流事件表
-- `carriers` - 承运商表
-
-详细建表语句见项目根目录下的 SQL 文件。
-
-## 📖 使用流程
-
-### 1. Shopify 店铺接入
-
-1. **登录系统**
-   - 使用 `admin/admin123` 登录
-
-2. **开始 Shopify OAuth 授权**
-   - 访问：`http://localhost:8080/api/v1/oauth/shopify/authorize?shopDomain=yourstore.myshopify.com`
-   - 或在前端点击"连接 Shopify 店铺"按钮
-
-3. **完成授权**
-   - 在 Shopify 授权页面点击"安装应用"
-   - 授权完成后自动跳转回系统
-   - 系统自动保存店铺信息和 access token
-
-4. **注册 Webhook**
-   - 系统会自动为新接入的店铺注册 webhook
-   - 也可以在店铺管理页面手动注册
-
-### 2. 运单追踪
-
-1. **自动创建运单**
-   - Shopify 订单履行后，系统通过 Webhook 自动接收通知
-   - 系统自动创建运单并注册到 17Track
-
-2. **手动添加运单**
-   - 在运单管理页面手动添加运单号
-   - 系统自动识别承运商并注册到 17Track
-
-3. **查看物流信息**
-   - 在运单列表查看所有运单状态
-   - 点击运单查看详细物流轨迹
-
-4. **手动同步**
-   - 点击"同步"按钮手动更新运单状态
-
-## 🐛 故障排除
+## 故障排除
 
 ### 数据库连接失败
 - 检查 MySQL 服务是否启动
 - 确认数据库用户名和密码正确
-- 检查数据库 URL 中的端口号
 - 确认数据库 `logistics_system` 已创建
 
 ### Redis 连接失败
 - 检查 Redis 服务是否启动：`redis-cli ping`
 - 确认 Redis 端口（默认 6379）
-- 检查防火墙设置
-
-### JWT Token 无效
-- 检查 Token 是否过期
-- 确认请求头格式：`Authorization: Bearer {token}`
-- 检查 JWT secret 配置
-
-### 17Track API 调用失败
-- 确认 API Token 配置正确
-- 检查网络连接
-- 查看 17Track API 文档确认请求格式
-- 检查 API 调用配额
 
 ### Shopify OAuth 失败
 
-**错误：`invalid_request: The redirect_uri is not whitelisted`**
-- 检查 Shopify App 设置中的 "Allowed redirection URL(s)"
-- 确保配置的 URL 与 `application.yml` 中的 `redirect-uri` **完全一致**
-- URL 必须包含协议（http/https）、端口、路径
+**`invalid_request: The redirect_uri is not whitelisted`**
+- 检查 Shopify App 设置中的 Allowed redirection URL(s) 与 `application.yml` 中的 `redirect-uri` 完全一致
 
-**错误：State 验证失败**
+**State 验证失败**
 - 检查 Redis 是否正常运行
-- 确认 OAuth state 未过期（默认 5 分钟）
-- 清除 Redis 缓存重试：`redis-cli FLUSHDB`
+- OAuth state 有效期默认 5 分钟
 
-**错误：HMAC 验证失败**
+**HMAC 验证失败**
 - 检查 Shopify API Secret 配置是否正确
-- 确认没有代理或中间件修改了请求参数
 
 ### Webhook 接收失败
+- 确认 `webhook.base-url` 配置为公网可访问地址
+- 本地开发需使用 ngrok 等工具
 
-**Webhook 无法接收**
-- 确认 `webhook.base-url` 配置的是公网可访问地址
-- 本地开发需要使用 ngrok 等工具
-- 检查防火墙和安全组设置
-
-**Webhook 验证失败**
-- Shopify Webhook 需要 HMAC 签名验证
-- 检查 API Secret 配置
-- 查看日志确认签名计算是否正确
-
-## 📝 开发计划
-
-查看详细的开发计划和用户故事：[docs/USER_STORIES.md](docs/USER_STORIES.md)
-
-### 已完成 ✅
-
-- **用户认证**：JWT 登录、钉钉扫码登录
-- **RBAC 权限系统**：角色、权限、菜单管理
-- **钉钉集成**：登录、用户同步、企业白名单
-- **店铺管理**：CRUD 操作、分页查询、连接验证
-- **Shopify OAuth**：完整的授权流程、Token 管理
-- **Shopify Webhook**：订单履行事件接收、自动注册
-- **运单管理**：手动添加、查询、详情、同步、删除
-- **17Track 集成**：自动注册、物流查询、事件追踪
-- **Redis 缓存**：OAuth state 管理、连接池优化
-- **数据统计看板**：首页统计数据、运单趋势、承运商分析
-- **用户管理**：用户 CRUD 操作、分页查询
-## 📄 许可证
-
-MIT License
-
-## 📧 联系方式
-
-如有问题，请通过 Issue 反馈。
-
----
-
-## ⚠️ 注意事项
+## 注意事项
 
 ### 安全性
-1. **生产环境部署前必须修改**：
-   - JWT Secret（`jwt.secret`）
-   - 数据库密码
-   - Shopify API Secret
-   - 17Track API Token
-
-2. **HTTPS 要求**：
-   - 生产环境必须使用 HTTPS
-   - Shopify OAuth 和 Webhook 在生产环境要求 HTTPS
-
-3. **敏感信息保护**：
-   - 不要将 `application.yml` 提交到版本控制
-   - 使用环境变量管理敏感配置
-   - Access Token 加密存储
-
-### 性能优化
-1. **Redis 是必需的**：OAuth 流程依赖 Redis
-2. **数据库索引**：确保运单表和事件表有合适的索引
-3. **连接池配置**：根据并发量调整数据库和 Redis 连接池
+1. **生产环境必须修改**：JWT Secret、数据库密码、Shopify API Secret、17Track API Token
+2. **HTTPS**：生产环境必须使用 HTTPS，Shopify OAuth 和 Webhook 强制要求
+3. **敏感信息**：使用环境变量管理，不要将 `application.yml` 中的密钥提交到版本控制
 
 ### API 限制
-1. **17Track API**：
-   - 有调用频率限制
-   - 建议实现请求队列和重试机制
-
-2. **Shopify API**：
-   - REST API 有 2 次/秒的限制
-   - GraphQL API 有积分制限制
-   - 注意避免超过限制
+- **17Track API**：有调用频率限制，建议实现请求队列
+- **Shopify API**：REST API 限制 2 次/秒，GraphQL API 积分制限制
 
 ### 本地开发
-1. **Webhook 测试**：需要使用 ngrok 暴露本地服务到公网
-2. **跨域配置**：前后端分离开发已配置 CORS
-3. **日志级别**：开发环境建议使用 DEBUG 级别
+- **Webhook 测试**：需使用 ngrok 暴露本地服务到公网
+- **跨域配置**：前后端分离已配置 CORS
+- **日志级别**：开发环境建议使用 DEBUG 级别
 
 ---
 
-**版本**: v1.2.0  
-**最后更新**: 2025-12-17
-
+**版本**: v2.0.0
+**最后更新**: 2026-03-12

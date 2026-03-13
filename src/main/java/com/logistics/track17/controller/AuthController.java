@@ -206,49 +206,20 @@ public class AuthController {
                 httpResponse.sendRedirect(buildDingtalkErrorRedirect("state已过期或无效"));
                 return;
             }
+            // 清理 state
             redisTemplate.delete(key);
 
-            // 1. 用authCode换取accessToken
-            String accessToken = dingTalkService.getAccessToken(code);
+            // 由于前端使用的是嵌入式二维码 (DTFrameLogin)，JS SDK 已经拿到了 authCode，
+            // 并会通过发送 POST 请求来进行实际登录。
+            // 为了防止本 GET 请求在重定向时提前消耗了 authCode（导致前端报 400 Bad Request），
+            // 我们在这里中止 OAuth 的服务器端闭环，把它全部交给前端的 POST 接口去处理。
 
-            // 2. 获取用户信息
-            com.logistics.track17.dto.DingTalkUserInfo userInfo = dingTalkService.getUserInfo(accessToken);
-
-            // 3. 登录或注册用户
-            User user = userService.loginOrRegisterWithDingTalk(userInfo, dingTalkConfig.getCorpId());
-
-            // 4. 验证访问权限：超级管理员 OR CorpId在白名单中
-            java.util.List<com.logistics.track17.entity.Role> userRoles = roleService.getRolesByUserId(user.getId());
-            boolean isAdmin = userRoles.stream()
-                    .anyMatch(r -> "ADMIN".equals(r.getRoleCode()) || "SUPER_ADMIN".equals(r.getRoleCode())
-                            || "admin".equals(r.getRoleCode()) || "super_admin".equals(r.getRoleCode()));
-            boolean isCorpIdAllowed = dingTalkService.validateCorpId(user.getCorpId());
-
-            if (!isAdmin && !isCorpIdAllowed) {
-                log.warn("User {} from corpId {} is not allowed to login. Not admin and corpId not in whitelist.",
-                        user.getUsername(), user.getCorpId());
-                httpResponse.sendRedirect(buildDingtalkErrorRedirect("您的企业暂无登录权限，请联系管理员"));
-                return;
-            }
-
-            // 5. 生成JWT Token
-            String token = jwtUtil.generateToken(user.getUsername());
-
-            // 6. 更新最后登录信息
-            userService.updateLastLogin(user.getId(), "DingTalk OAuth");
-
-            log.info("User {} (role: {}, corpId: {}) logged in via DingTalk OAuth",
-                    user.getUsername(), user.getRole(), user.getCorpId());
-
-            // 7. 重定向到前端，携带token和用户信息
-            String redirectUrl = String.format(
-                    "%s/dingtalk/callback?token=%s&username=%s&realName=%s",
-                    normalizeFrontendBase(),
-                    URLEncoder.encode(token, StandardCharsets.UTF_8),
-                    URLEncoder.encode(user.getUsername(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(user.getRealName() != null ? user.getRealName() : user.getUsername(),
-                            StandardCharsets.UTF_8));
-            httpResponse.sendRedirect(redirectUrl);
+            httpResponse.setContentType("text/html;charset=utf-8");
+            httpResponse.getWriter().write(
+                    "<!DOCTYPE html><html><head><title>DingTalk Auth</title></head><body>" +
+                            "<script>console.log('DingTalk auth code received by iframe, ignoring on backend to prevent double consumption.');</script>"
+                            +
+                            "</body></html>");
 
         } catch (Exception e) {
             log.error("DingTalk OAuth callback failed", e);
