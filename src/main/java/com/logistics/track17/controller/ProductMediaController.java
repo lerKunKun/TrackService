@@ -10,16 +10,25 @@ import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductMedia;
 import com.logistics.track17.entity.ProductMediaFile;
 import com.logistics.track17.mapper.ProductMapper;
+import com.logistics.track17.service.MinioService;
 import com.logistics.track17.service.ProductMediaFileService;
 import com.logistics.track17.service.ProductMediaService;
 import com.logistics.track17.annotation.RequireAuth;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @RestController
@@ -31,6 +40,10 @@ public class ProductMediaController {
     private final ProductMediaService productMediaService;
     private final ProductMediaFileService productMediaFileService;
     private final ProductMapper productMapper;
+    private final MinioService minioService;
+
+    @Value("${minio.product-media-bucket:product-media}")
+    private String bucket;
 
     // ─── 产品列表（带文件统计） ───
 
@@ -239,6 +252,87 @@ public class ProductMediaController {
     @RequireAuth(permissions = "admin")
     public Result<Map<String, Object>> fixUrls() {
         return Result.success(productMediaFileService.fixUrls());
+    }
+
+    // ─── 单文件下载 ───
+
+    @GetMapping("/files/{fileId}/download")
+    public void downloadFile(@PathVariable Long fileId, HttpServletResponse response) {
+        ProductMediaFile file = productMediaFileService.getById(fileId);
+        if (file == null) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        String fileName = file.getOriginalName() != null ? file.getOriginalName() : "download";
+        String encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+
+        response.setContentType(file.getContentType() != null ? file.getContentType() : "application/octet-stream");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
+        if (file.getFileSize() != null && file.getFileSize() > 0) {
+            response.setContentLengthLong(file.getFileSize());
+        }
+
+        try (InputStream is = minioService.getObject(bucket, file.getObjectName());
+             OutputStream os = response.getOutputStream()) {
+            is.transferTo(os);
+            os.flush();
+        } catch (Exception e) {
+            log.error("文件下载失败: fileId={}", fileId, e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ─── 批量下载（ZIP） ───
+
+    @PostMapping("/files/batch-download")
+    public void batchDownload(@RequestBody List<Long> fileIds, HttpServletResponse response) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        List<ProductMediaFile> files = productMediaFileService.listByIds(fileIds);
+        if (files.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        String zipName = "media-files-" + System.currentTimeMillis() + ".zip";
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=" + zipName);
+
+        // 处理重名文件：同名时追加序号
+        Map<String, Integer> nameCount = new HashMap<>();
+
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+            for (ProductMediaFile file : files) {
+                String entryName = file.getOriginalName() != null ? file.getOriginalName() : file.getObjectName();
+                // 去重：同名文件追加 (2), (3)...
+                int count = nameCount.getOrDefault(entryName, 0) + 1;
+                nameCount.put(entryName, count);
+                if (count > 1) {
+                    int dotIdx = entryName.lastIndexOf('.');
+                    if (dotIdx > 0) {
+                        entryName = entryName.substring(0, dotIdx) + " (" + count + ")" + entryName.substring(dotIdx);
+                    } else {
+                        entryName = entryName + " (" + count + ")";
+                    }
+                }
+
+                try (InputStream is = minioService.getObject(bucket, file.getObjectName())) {
+                    zos.putNextEntry(new ZipEntry(entryName));
+                    is.transferTo(zos);
+                    zos.closeEntry();
+                } catch (Exception e) {
+                    log.warn("批量下载跳过文件: id={}, name={}, error={}", file.getId(), entryName, e.getMessage());
+                }
+            }
+            zos.flush();
+        } catch (Exception e) {
+            log.error("批量下载ZIP失败", e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 
     // ─── Helpers ───

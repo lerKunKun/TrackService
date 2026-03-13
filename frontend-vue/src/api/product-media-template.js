@@ -89,6 +89,27 @@ export function downloadFromUrls(productId, tag, urls) {
     })
 }
 
+/** 单个文件下载（返回 Blob） */
+export function downloadMediaFile(fileId) {
+    return request({
+        url: `/product-media/files/${fileId}/download`,
+        method: 'get',
+        responseType: 'blob',
+        timeout: 60000
+    })
+}
+
+/** 批量下载 ZIP（返回 Blob） */
+export function batchDownloadMediaFiles(fileIds) {
+    return request({
+        url: '/product-media/files/batch-download',
+        method: 'post',
+        data: fileIds,
+        responseType: 'blob',
+        timeout: 120000
+    })
+}
+
 /** 同步产品主图到 MinIO */
 export function syncProductImages(productId) {
     return request({

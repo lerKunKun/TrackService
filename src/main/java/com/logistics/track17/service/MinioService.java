@@ -178,6 +178,22 @@ public class MinioService {
     }
 
     /**
+     * 获取文件输入流（用于下载）
+     * 调用方负责关闭返回的 InputStream
+     */
+    public InputStream getObject(String bucket, String objectName) {
+        try {
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .build());
+        } catch (Exception e) {
+            log.error("Failed to get object: {}", objectName, e);
+            throw new RuntimeException("File download failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 生成预签 URL（适用于私有 bucket，时效 7 天）
      */
     public String getPresignedUrl(String bucket, String objectName) {

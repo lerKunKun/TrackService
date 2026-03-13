@@ -176,6 +176,9 @@
               <a-button size="small" type="text" @click="selectAllFiles">全选</a-button>
               <a-button size="small" type="text" @click="deselectAll">取消</a-button>
               <a-divider type="vertical" />
+              <a-button size="small" type="text" :loading="batchDownloading" @click="doBatchDownload">
+                <download-outlined /> 下载
+              </a-button>
               <a-popconfirm title="确定删除选中文件？" ok-text="删除" cancel-text="取消" @confirm="doBatchDelete">
                 <a-button size="small" danger type="text">删除</a-button>
               </a-popconfirm>
@@ -227,6 +230,7 @@
                       <!-- hover 操作 -->
                       <div class="card-actions">
                         <button @click.stop="openPreview(file)" title="预览"><eye-outlined /></button>
+                        <button @click.stop="doDownloadFile(file)" title="下载"><download-outlined /></button>
                         <button @click.stop="copyUrl(file)" title="复制链接"><copy-outlined /></button>
                         <button @click.stop="confirmDelete(file)" title="删除" class="act-danger"><delete-outlined /></button>
                       </div>
@@ -271,7 +275,7 @@ import {
   UploadOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
   CloudDownloadOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SyncOutlined, EyeOutlined, CopyOutlined, DownOutlined, CloseOutlined,
-  FolderOpenOutlined,
+  FolderOpenOutlined, DownloadOutlined,
   FilePdfOutlined, FileExcelOutlined, FileWordOutlined, FileOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
@@ -280,7 +284,8 @@ import {
   uploadProductMediaFile, deleteProductMediaFile,
   batchDeleteFiles, updateFilesSort, moveFileCategory,
   getReferenceLink, updateReferenceLink,
-  downloadFromUrls, syncProductImages
+  downloadFromUrls, syncProductImages,
+  downloadMediaFile, batchDownloadMediaFiles
 } from '@/api/product-media-template'
 
 const CATEGORY_LIST = [
@@ -554,6 +559,43 @@ async function copyUrl(file) {
 const previewOpen = ref(false)
 const previewFile = ref(null)
 function openPreview(file) { previewFile.value = file; previewOpen.value = true }
+
+// ─── 下载文件 ───
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+async function doDownloadFile(file) {
+  try {
+    message.loading({ content: '下载中...', key: 'dl' })
+    const blob = await downloadMediaFile(file.id)
+    triggerBlobDownload(blob, file.originalName || 'download')
+    message.success({ content: '下载完成', key: 'dl' })
+  } catch (e) {
+    message.error({ content: '下载失败', key: 'dl' })
+  }
+}
+
+const batchDownloading = ref(false)
+async function doBatchDownload() {
+  if (!selectedFileIds.value.length) return
+  batchDownloading.value = true
+  try {
+    message.loading({ content: '正在打包下载...', key: 'bdl' })
+    const blob = await batchDownloadMediaFiles(selectedFileIds.value)
+    triggerBlobDownload(blob, `media-files-${Date.now()}.zip`)
+    message.success({ content: '下载完成', key: 'bdl' })
+  } catch (e) {
+    message.error({ content: '批量下载失败', key: 'bdl' })
+  } finally { batchDownloading.value = false }
+}
 
 // ─── 工具 ───
 function formatSize(b) {
