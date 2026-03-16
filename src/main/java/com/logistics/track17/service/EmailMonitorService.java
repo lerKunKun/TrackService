@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 /**
  * 邮箱监控服务
  * 定时检查配置的邮箱，解析Shopify通知邮件，触发告警
+ * 自动化部署测试
  */
 @Service
 @Slf4j
