@@ -107,6 +107,13 @@ logging:
 
 # ========== Shopify Theme Migration Configuration ==========
 
+# Microsoft OAuth2 Modern Authentication（用于 Outlook IMAP）
+microsoft:
+  oauth2:
+    client-id: ${MICROSOFT_CLIENT_ID:}
+    client-secret: ${MICROSOFT_CLIENT_SECRET:}
+    redirect-uri: ${MICROSOFT_REDIRECT_URI:http://localhost:8080/api/v1/oauth/microsoft/callback}
+
 # 文件存储配置
 storage:
   type: local  # local / minio

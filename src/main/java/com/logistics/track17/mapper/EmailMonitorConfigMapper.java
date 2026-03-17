@@ -21,17 +21,20 @@ public interface EmailMonitorConfigMapper {
     @Select("SELECT * FROM email_monitor_config WHERE id = #{id}")
     EmailMonitorConfig findById(@Param("id") Long id);
 
-    @Insert("INSERT INTO email_monitor_config (name, host, port, protocol, username, password, sender_filter, check_interval, is_enabled, created_by) "
-            +
-            "VALUES (#{name}, #{host}, #{port}, #{protocol}, #{username}, #{password}, #{senderFilter}, #{checkInterval}, #{isEnabled}, #{createdBy})")
+    @Insert("INSERT INTO email_monitor_config (name, host, port, protocol, username, password, sender_filter, check_interval, is_enabled, created_by, auth_type) "
+            + "VALUES (#{name}, #{host}, #{port}, #{protocol}, #{username}, #{password}, #{senderFilter}, #{checkInterval}, #{isEnabled}, #{createdBy}, #{authType})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(EmailMonitorConfig config);
 
     @Update("UPDATE email_monitor_config SET name = #{name}, host = #{host}, port = #{port}, protocol = #{protocol}, " +
-            "username = #{username}, password = #{password}, sender_filter = #{senderFilter}, check_interval = #{checkInterval}, "
-            +
-            "is_enabled = #{isEnabled} WHERE id = #{id}")
+            "username = #{username}, password = #{password}, sender_filter = #{senderFilter}, check_interval = #{checkInterval}, " +
+            "is_enabled = #{isEnabled}, auth_type = #{authType} WHERE id = #{id}")
     int update(EmailMonitorConfig config);
+
+    @Update("UPDATE email_monitor_config SET access_token = #{accessToken}, refresh_token = #{refreshToken}, " +
+            "token_expiry = #{tokenExpiry}, auth_type = 'OAUTH2_MICROSOFT' WHERE id = #{id}")
+    int updateTokens(@Param("id") Long id, @Param("accessToken") String accessToken,
+            @Param("refreshToken") String refreshToken, @Param("tokenExpiry") LocalDateTime tokenExpiry);
 
     @Update("UPDATE email_monitor_config SET last_check_time = #{lastCheckTime}, last_check_status = #{status}, " +
             "last_error_message = #{errorMessage} WHERE id = #{id}")

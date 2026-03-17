@@ -13,6 +13,14 @@
 
       <!-- 筛选栏 -->
       <a-form layout="inline" class="filter-form">
+        <a-form-item>
+          <a-input-search
+            v-model:value="filters.keyword"
+            placeholder="搜索权限名称/编码/描述"
+            allow-clear
+            style="width: 240px"
+          />
+        </a-form-item>
         <a-form-item label="权限类型">
           <a-select
             v-model:value="filters.permissionType"
@@ -232,6 +240,7 @@ const columns = [
 const loading = ref(false)
 const permissions = ref([])
 const filters = reactive({
+  keyword: '',
   permissionType: undefined,
   status: undefined
 })
@@ -239,15 +248,20 @@ const filters = reactive({
 // 筛选后的权限列表
 const filteredPermissions = computed(() => {
   let result = permissions.value
-
+  const kw = filters.keyword.trim().toLowerCase()
+  if (kw) {
+    result = result.filter(p =>
+      (p.permissionName && p.permissionName.toLowerCase().includes(kw)) ||
+      (p.permissionCode && p.permissionCode.toLowerCase().includes(kw)) ||
+      (p.description && p.description.toLowerCase().includes(kw))
+    )
+  }
   if (filters.permissionType) {
     result = result.filter(p => p.permissionType === filters.permissionType)
   }
-
   if (filters.status !== undefined && filters.status !== null) {
     result = result.filter(p => p.status === filters.status)
   }
-
   return result
 })
 

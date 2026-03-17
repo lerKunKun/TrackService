@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -l \"RestController\" /d/develop/backend-project/track-service-git/src/main/java/com/logistics/track17/controller/*.java | xargs -I {} basename {})",
+      "Bash(cd D:/develop/backend-project/track-service-git && ./mvnw compile -q 2>&1 | tail -20)",
+      "Bash(cd D:/develop/backend-project/track-service-git && mvn compile -q 2>&1 | tail -20)",
+      "Bash(mvn compile:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

@@ -2,6 +2,7 @@ package com.logistics.track17.controller;
 
 import com.logistics.track17.entity.EmailMonitorConfig;
 import com.logistics.track17.mapper.EmailMonitorConfigMapper;
+import com.logistics.track17.service.MicrosoftOAuthService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,9 +21,12 @@ import java.util.*;
 public class EmailMonitorConfigController {
 
     private final EmailMonitorConfigMapper configMapper;
+    private final MicrosoftOAuthService microsoftOAuthService;
 
-    public EmailMonitorConfigController(EmailMonitorConfigMapper configMapper) {
+    public EmailMonitorConfigController(EmailMonitorConfigMapper configMapper,
+            MicrosoftOAuthService microsoftOAuthService) {
         this.configMapper = configMapper;
+        this.microsoftOAuthService = microsoftOAuthService;
     }
 
     /**
@@ -60,6 +64,9 @@ public class EmailMonitorConfigController {
             }
             if (config.getSenderFilter() == null || config.getSenderFilter().isEmpty()) {
                 config.setSenderFilter("noreply@shopify.com");
+            }
+            if (config.getAuthType() == null || config.getAuthType().isEmpty()) {
+                config.setAuthType("PASSWORD");
             }
             configMapper.insert(config);
             config.setPassword("******");
@@ -148,17 +155,28 @@ public class EmailMonitorConfigController {
         }
 
         try {
+            String proto = config.getProtocol();
             Properties props = new Properties();
-            props.setProperty("mail.store.protocol", config.getProtocol());
-            props.setProperty("mail." + config.getProtocol() + ".host", config.getHost());
-            props.setProperty("mail." + config.getProtocol() + ".port", String.valueOf(config.getPort()));
-            props.setProperty("mail." + config.getProtocol() + ".ssl.enable", "true");
-            props.setProperty("mail." + config.getProtocol() + ".connectiontimeout", "10000");
-            props.setProperty("mail." + config.getProtocol() + ".timeout", "10000");
+            props.setProperty("mail.store.protocol", proto);
+            props.setProperty("mail." + proto + ".host", config.getHost());
+            props.setProperty("mail." + proto + ".port", String.valueOf(config.getPort()));
+            props.setProperty("mail." + proto + ".ssl.enable", "true");
+            props.setProperty("mail." + proto + ".connectiontimeout", "10000");
+            props.setProperty("mail." + proto + ".timeout", "10000");
+
+            String password;
+            if ("OAUTH2_MICROSOFT".equals(config.getAuthType())) {
+                props.setProperty("mail." + proto + ".auth.mechanisms", "XOAUTH2");
+                props.setProperty("mail." + proto + ".sasl.enable", "true");
+                props.setProperty("mail." + proto + ".sasl.mechanisms", "XOAUTH2");
+                password = microsoftOAuthService.getValidAccessToken(config);
+            } else {
+                password = config.getPassword();
+            }
 
             Session session = Session.getInstance(props);
-            Store store = session.getStore(config.getProtocol());
-            store.connect(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
+            Store store = session.getStore(proto);
+            store.connect(config.getHost(), config.getPort(), config.getUsername(), password);
             store.close();
 
             // 更新连接状态

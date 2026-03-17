@@ -65,5 +65,10 @@ export const emailMonitorApi = {
     // 测试邮箱连接
     testConnection(id) {
         return request.post(`/alert-config/email-monitors/${id}/test-connection`)
+    },
+
+    // 获取 Microsoft OAuth2 授权 URL
+    getMicrosoftAuthUrl(configId) {
+        return request.get(`/alert-config/email-oauth/microsoft/auth-url`, { params: { configId } })
     }
 }

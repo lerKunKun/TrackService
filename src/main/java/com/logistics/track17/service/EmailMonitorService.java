@@ -32,6 +32,7 @@ public class EmailMonitorService {
 
     private final EmailMonitorConfigMapper configMapper;
     private final DingtalkNotificationService notificationService;
+    private final MicrosoftOAuthService microsoftOAuthService;
 
     // Shopify告警邮件关键词匹配
     private static final Pattern IP_INFRINGEMENT_PATTERN = Pattern
@@ -43,9 +44,11 @@ public class EmailMonitorService {
     private static final Pattern DISPUTE_EMAIL_PATTERN = Pattern.compile("(?i)(chargeback|dispute|inquiry.*payment)");
 
     public EmailMonitorService(EmailMonitorConfigMapper configMapper,
-            DingtalkNotificationService notificationService) {
+            DingtalkNotificationService notificationService,
+            MicrosoftOAuthService microsoftOAuthService) {
         this.configMapper = configMapper;
         this.notificationService = notificationService;
+        this.microsoftOAuthService = microsoftOAuthService;
     }
 
     /**
@@ -78,17 +81,28 @@ public class EmailMonitorService {
         Folder inbox = null;
 
         try {
+            String proto = config.getProtocol();
             Properties props = new Properties();
-            props.setProperty("mail.store.protocol", config.getProtocol());
-            props.setProperty("mail." + config.getProtocol() + ".host", config.getHost());
-            props.setProperty("mail." + config.getProtocol() + ".port", String.valueOf(config.getPort()));
-            props.setProperty("mail." + config.getProtocol() + ".ssl.enable", "true");
-            props.setProperty("mail." + config.getProtocol() + ".connectiontimeout", "15000");
-            props.setProperty("mail." + config.getProtocol() + ".timeout", "15000");
+            props.setProperty("mail.store.protocol", proto);
+            props.setProperty("mail." + proto + ".host", config.getHost());
+            props.setProperty("mail." + proto + ".port", String.valueOf(config.getPort()));
+            props.setProperty("mail." + proto + ".ssl.enable", "true");
+            props.setProperty("mail." + proto + ".connectiontimeout", "15000");
+            props.setProperty("mail." + proto + ".timeout", "15000");
+
+            String password;
+            if ("OAUTH2_MICROSOFT".equals(config.getAuthType())) {
+                props.setProperty("mail." + proto + ".auth.mechanisms", "XOAUTH2");
+                props.setProperty("mail." + proto + ".sasl.enable", "true");
+                props.setProperty("mail." + proto + ".sasl.mechanisms", "XOAUTH2");
+                password = microsoftOAuthService.getValidAccessToken(config);
+            } else {
+                password = config.getPassword();
+            }
 
             Session session = Session.getInstance(props);
-            store = session.getStore(config.getProtocol());
-            store.connect(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
+            store = session.getStore(proto);
+            store.connect(config.getHost(), config.getPort(), config.getUsername(), password);
 
             inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_ONLY);

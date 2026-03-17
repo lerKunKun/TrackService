@@ -15,10 +15,38 @@
         </a-space>
       </template>
 
+      <!-- 筛选栏 -->
+      <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <a-input-search
+          v-model:value="searchKeyword"
+          placeholder="搜索菜单名称/编码"
+          allow-clear
+          style="width: 220px"
+        />
+        <a-select
+          v-model:value="filterMenuType"
+          placeholder="菜单类型"
+          allow-clear
+          style="width: 130px"
+        >
+          <a-select-option value="MENU">菜单</a-select-option>
+          <a-select-option value="BUTTON">按钮</a-select-option>
+        </a-select>
+        <a-select
+          v-model:value="filterStatus"
+          placeholder="状态"
+          allow-clear
+          style="width: 100px"
+        >
+          <a-select-option :value="1">启用</a-select-option>
+          <a-select-option :value="0">禁用</a-select-option>
+        </a-select>
+      </div>
+
       <!-- 菜单树表格 -->
       <a-table
         :columns="columns"
-        :data-source="menuTree"
+        :data-source="filteredMenuTree"
         :loading="loading"
         :pagination="false"
         :row-key="record => record.id"
@@ -158,7 +186,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
@@ -220,6 +248,33 @@ const columns = [
     slots: { customRender: 'action' }
   }
 ]
+
+// 搜索/筛选
+const searchKeyword = ref('')
+const filterMenuType = ref(undefined)
+const filterStatus = ref(undefined)
+
+const filterTree = (nodes, kw, type, status) => {
+  return nodes.reduce((acc, node) => {
+    const children = node.children ? filterTree(node.children, kw, type, status) : []
+    const matchKw = !kw ||
+      (node.menuName && node.menuName.toLowerCase().includes(kw)) ||
+      (node.menuCode && node.menuCode.toLowerCase().includes(kw))
+    const matchType = !type || node.menuType === type
+    const matchStatus = status === undefined || status === null || node.status === status
+    if ((matchKw && matchType && matchStatus) || children.length) {
+      acc.push({ ...node, children: children.length ? children : (node.children || []) })
+    }
+    return acc
+  }, [])
+}
+
+const filteredMenuTree = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  const hasFilter = kw || filterMenuType.value !== undefined || filterStatus.value !== undefined
+  if (!hasFilter) return menuTree.value
+  return filterTree(menuTree.value, kw, filterMenuType.value, filterStatus.value)
+})
 
 // 数据状态
 const loading = ref(false)

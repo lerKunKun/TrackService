@@ -7,9 +7,28 @@
         </a-button>
       </template>
 
+      <!-- 筛选栏 -->
+      <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <a-input-search
+          v-model:value="searchKeyword"
+          placeholder="搜索角色名称/编码/描述"
+          allow-clear
+          style="width: 260px"
+        />
+        <a-select
+          v-model:value="filterStatus"
+          placeholder="状态"
+          allow-clear
+          style="width: 120px"
+        >
+          <a-select-option :value="1">启用</a-select-option>
+          <a-select-option :value="0">禁用</a-select-option>
+        </a-select>
+      </div>
+
       <!-- 角色列表 -->
-      <a-table 
-        :dataSource="roles" 
+      <a-table
+        :dataSource="filteredRoles"
         :columns="columns"
         :loading="loading"
         :rowKey="record => record.id">
@@ -107,13 +126,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import request from '@/utils/request'
 
 const loading = ref(false)
 const roles = ref([])
+
+const searchKeyword = ref('')
+const filterStatus = ref(undefined)
+
+const filteredRoles = computed(() => {
+  let result = roles.value
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (kw) {
+    result = result.filter(r =>
+      (r.roleName && r.roleName.toLowerCase().includes(kw)) ||
+      (r.roleCode && r.roleCode.toLowerCase().includes(kw)) ||
+      (r.description && r.description.toLowerCase().includes(kw))
+    )
+  }
+  if (filterStatus.value !== undefined && filterStatus.value !== null) {
+    result = result.filter(r => r.status === filterStatus.value)
+  }
+  return result
+})
 const modalVisible = ref(false)
 const modalTitle = ref('新增角色')
 const formData = ref({

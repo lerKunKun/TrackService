@@ -3,7 +3,7 @@
     <a-card title="用户管理" :bordered="false">
       <!-- 操作栏 -->
       <div class="table-operations">
-        <a-space>
+        <a-space wrap>
           <a-button type="primary" @click="showCreateModal">
             <PlusOutlined />
             新增用户
@@ -12,6 +12,30 @@
             <MailOutlined />
             邮箱邀请
           </a-button>
+          <a-input-search
+            v-model:value="searchKeyword"
+            placeholder="搜索用户名/姓名/邮箱/手机"
+            allow-clear
+            style="width: 240px"
+          />
+          <a-select
+            v-model:value="filterRole"
+            placeholder="角色"
+            allow-clear
+            style="width: 120px"
+          >
+            <a-select-option value="ADMIN">管理员</a-select-option>
+            <a-select-option value="USER">普通用户</a-select-option>
+          </a-select>
+          <a-select
+            v-model:value="filterStatus"
+            placeholder="状态"
+            allow-clear
+            style="width: 100px"
+          >
+            <a-select-option :value="1">启用</a-select-option>
+            <a-select-option :value="0">禁用</a-select-option>
+          </a-select>
         </a-space>
       </div>
 
@@ -20,7 +44,7 @@
       <a-table
         v-if="!isMobile"
         :columns="columns"
-        :data-source="userList"
+        :data-source="filteredUsers"
         :loading="loading"
         :pagination="pagination"
         row-key="id"
@@ -74,8 +98,8 @@
       <!-- 卡片列表 (移动端) -->
       <div v-else class="mobile-list">
         <a-spin :spinning="loading">
-          <div v-if="userList.length > 0">
-            <div v-for="item in userList" :key="item.id" class="mobile-card">
+          <div v-if="paginatedUsers.length > 0">
+            <div v-for="item in paginatedUsers" :key="item.id" class="mobile-card">
               <div class="card-header">
                 <span class="username">{{ item.username }}</span>
                 <a-tag :color="item.role === 'ADMIN' ? 'blue' : 'default'">
@@ -249,7 +273,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { message, Grid } from 'ant-design-vue'
 import { PlusOutlined, MailOutlined } from '@ant-design/icons-vue'
 import { userApi } from '@/api/user'
@@ -274,15 +298,51 @@ const columns = [
   { title: '操作', key: 'action', width: 200 }
 ]
 
+// 搜索/筛选
+const searchKeyword = ref('')
+const filterRole = ref(undefined)
+const filterStatus = ref(undefined)
+
 // 数据状态
 const loading = ref(false)
-const userList = ref([])
+const allUsers = ref([])
 const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
   showSizeChanger: true,
   showTotal: (total) => `共 ${total} 条`
+})
+
+const filteredUsers = computed(() => {
+  let result = allUsers.value
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (kw) {
+    result = result.filter(u =>
+      (u.username && u.username.toLowerCase().includes(kw)) ||
+      (u.realName && u.realName.toLowerCase().includes(kw)) ||
+      (u.email && u.email.toLowerCase().includes(kw)) ||
+      (u.phone && u.phone.toLowerCase().includes(kw))
+    )
+  }
+  if (filterRole.value) {
+    result = result.filter(u => u.role === filterRole.value)
+  }
+  if (filterStatus.value !== undefined && filterStatus.value !== null) {
+    result = result.filter(u => u.status === filterStatus.value)
+  }
+  return result
+})
+
+// 移动端分页数据
+const paginatedUsers = computed(() => {
+  const start = (pagination.current - 1) * pagination.pageSize
+  return filteredUsers.value.slice(start, start + pagination.pageSize)
+})
+
+watch(filteredUsers, (val) => {
+  pagination.current = 1
+  pagination.total = val.length
 })
 
 const useBreakpoint = Grid.useBreakpoint
@@ -365,12 +425,9 @@ const inviteFormRules = {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const data = await userApi.getList({
-      page: pagination.current,
-      size: pagination.pageSize
-    })
-    userList.value = data.list
-    pagination.total = data.total
+    const data = await userApi.getAll()
+    allUsers.value = data || []
+    pagination.total = filteredUsers.value.length
   } catch (error) {
     console.error('获取用户列表失败:', error)
   } finally {
@@ -382,7 +439,6 @@ const fetchUsers = async () => {
 const handleTableChange = (pag) => {
   pagination.current = pag.current
   pagination.pageSize = pag.pageSize
-  fetchUsers()
 }
 
 // 显示新增弹窗

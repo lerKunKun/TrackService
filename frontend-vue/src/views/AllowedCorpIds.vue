@@ -7,10 +7,29 @@
       </a-button>
     </div>
 
+    <!-- 筛选栏 -->
+    <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+      <a-input-search
+        v-model:value="searchKeyword"
+        placeholder="搜索CorpID/企业名称"
+        allow-clear
+        style="width: 240px"
+      />
+      <a-select
+        v-model:value="filterStatus"
+        placeholder="状态"
+        allow-clear
+        style="width: 120px"
+      >
+        <a-select-option :value="1">启用</a-select-option>
+        <a-select-option :value="0">禁用</a-select-option>
+      </a-select>
+    </div>
+
     <!-- 数据表格 -->
     <a-table
       :columns="columns"
-      :data-source="corpIds"
+      :data-source="filteredCorpIds"
       :loading="loading"
       :pagination="pagination"
       row-key="id"
@@ -86,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import axios from 'axios'
@@ -128,6 +147,25 @@ const columns = [
     width: 150
   }
 ]
+
+// 搜索/筛选
+const searchKeyword = ref('')
+const filterStatus = ref(undefined)
+
+const filteredCorpIds = computed(() => {
+  let result = corpIds.value
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (kw) {
+    result = result.filter(r =>
+      (r.corpId && r.corpId.toLowerCase().includes(kw)) ||
+      (r.corpName && r.corpName.toLowerCase().includes(kw))
+    )
+  }
+  if (filterStatus.value !== undefined && filterStatus.value !== null) {
+    result = result.filter(r => r.status === filterStatus.value)
+  }
+  return result
+})
 
 // 数据状态
 const loading = ref(false)

@@ -213,8 +213,13 @@ public class ProductService {
                     variant.setImageUrl(cachedImage); // 如果该颜色还没有图片，则为null
                 }
 
-                // SKU
-                variant.setSku(getOptionalField(record, "Variant SKU"));
+                // SKU (限制最大长度为500，防止超长SKU导致DB截断异常)
+                String sku = getOptionalField(record, "Variant SKU");
+                if (sku != null && sku.length() > 500) {
+                    log.warn("SKU 超过500字符，已截断: {}", sku);
+                    sku = sku.substring(0, 500);
+                }
+                variant.setSku(sku);
 
                 // 库存
                 String inventory = getOptionalField(record, "Variant Inventory Qty");

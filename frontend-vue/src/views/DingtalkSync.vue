@@ -77,11 +77,24 @@
     <!-- 同步日志 -->
     <a-card title="同步日志" :bordered="false" style="margin-top: 20px;">
       <template #extra>
-        <a-button type="link" @click="loadLogs">刷新</a-button>
+        <a-space>
+          <a-select v-model:value="filterSyncType" placeholder="同步类型" allow-clear style="width: 120px">
+            <a-select-option value="FULL">全量同步</a-select-option>
+            <a-select-option value="DEPT">部门</a-select-option>
+            <a-select-option value="USER">用户</a-select-option>
+            <a-select-option value="ROLE">角色映射</a-select-option>
+          </a-select>
+          <a-select v-model:value="filterLogStatus" placeholder="状态" allow-clear style="width: 100px">
+            <a-select-option value="SUCCESS">成功</a-select-option>
+            <a-select-option value="FAILED">失败</a-select-option>
+            <a-select-option value="RUNNING">进行中</a-select-option>
+          </a-select>
+          <a-button type="link" @click="loadLogs">刷新</a-button>
+        </a-space>
       </template>
 
-      <a-table 
-        :dataSource="logs" 
+      <a-table
+        :dataSource="filteredLogs"
         :loading="loading.logs" 
         :columns="columns"
         :rowKey="record => record.id"
@@ -127,6 +140,19 @@ const loading = ref({
 });
 
 const logs = ref([]);
+const filterSyncType = ref(undefined);
+const filterLogStatus = ref(undefined);
+
+const filteredLogs = computed(() => {
+  let result = logs.value;
+  if (filterSyncType.value) {
+    result = result.filter(r => r.syncType === filterSyncType.value);
+  }
+  if (filterLogStatus.value) {
+    result = result.filter(r => r.status === filterLogStatus.value);
+  }
+  return result;
+});
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
