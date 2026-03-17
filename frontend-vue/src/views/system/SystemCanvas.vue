@@ -17,6 +17,33 @@
       </div>
     </div>
 
+    <!-- 分配角色弹窗 -->
+    <a-modal
+      v-model:open="assignRoleModalVisible"
+      title="分配角色"
+      :confirm-loading="assignRoleSaving"
+      @ok="handleAssignRoleConfirm"
+      @cancel="assignRoleModalVisible = false"
+      width="480px"
+    >
+      <div style="margin-bottom: 8px; color: #8c8c8c; font-size: 13px;">
+        为用户 <strong>{{ selectedLeft?.name }}</strong> 分配角色，可多选：
+      </div>
+      <a-checkbox-group v-model:value="assignRoleIds" style="width: 100%">
+        <a-row>
+          <a-col :span="12" v-for="role in allRoles" :key="role.id" style="margin-bottom: 12px;">
+            <a-checkbox :value="role.id">
+              <span>{{ role.roleName }}</span>
+              <a-tag :color="role.status === 1 ? 'green' : 'default'" size="small" style="margin-left: 6px; font-size: 11px;">
+                {{ role.status === 1 ? '启用' : '禁用' }}
+              </a-tag>
+            </a-checkbox>
+          </a-col>
+        </a-row>
+      </a-checkbox-group>
+      <a-empty v-if="allRoles.length === 0" description="暂无可用角色" />
+    </a-modal>
+
     <!-- 三栏主体 -->
     <div class="matrix-body">
       <!-- 左侧：用户/角色列表 -->
@@ -319,6 +346,11 @@ const showRightPanel = ref(false)
 const syncing = ref(false)
 const saving = ref(false)
 
+// 分配角色弹窗
+const assignRoleModalVisible = ref(false)
+const assignRoleIds = ref([])
+const assignRoleSaving = ref(false)
+
 // 动态连接线路径
 const connectionPath = ref('M 0 0')
 
@@ -506,10 +538,43 @@ const handleSelectRelation = async (item, type) => {
   }
 }
 
-// 添加角色
+// 添加角色 - 打开角色分配弹窗
 const handleAddRole = () => {
-  message.info('请在右侧面板选择要分配的角色')
-  showRightPanel.value = true
+  if (!selectedLeft.value) return
+  // 预选当前已有角色
+  assignRoleIds.value = [...(pendingChanges.value.roleIds || [])]
+  assignRoleModalVisible.value = true
+}
+
+// 确认分配角色
+const handleAssignRoleConfirm = async () => {
+  assignRoleSaving.value = true
+  try {
+    await roleApi.updateUserRoles(selectedLeft.value.id, assignRoleIds.value)
+    message.success('角色分配成功')
+    assignRoleModalVisible.value = false
+    // 刷新数据并重新选中当前用户
+    await loadData()
+    // 重新找到更新后的用户并选中
+    const updated = users.value.find(u => u.id === selectedLeft.value.id)
+    if (updated) {
+      const mapped = {
+        id: updated.id,
+        name: updated.realName || updated.username,
+        description: updated.department || updated.email,
+        avatar: updated.avatar || defaultAvatar,
+        roles: updated.roles || [],
+        connectionCount: updated.roles?.length || 0
+      }
+      selectedLeft.value = mapped
+      pendingChanges.value.roleIds = mapped.roles.map(r => r.id)
+    }
+  } catch (error) {
+    console.error('角色分配失败:', error)
+    message.error('角色分配失败')
+  } finally {
+    assignRoleSaving.value = false
+  }
 }
 
 // 新建关联
