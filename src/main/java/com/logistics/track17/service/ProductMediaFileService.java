@@ -28,12 +28,12 @@ public interface ProductMediaFileService extends IService<ProductMediaFile> {
     /**
      * 上传文件：MinIO 存储 + DB 写入记录
      */
-    ProductMediaFile uploadFile(Long productId, String category, MultipartFile file, Long uploaderId);
+    ProductMediaFile uploadFile(Long productId, String category, String tags, MultipartFile file, Long uploaderId);
 
     /**
      * 从 URL 下载并保存：MinIO 存储 + DB 写入记录
      */
-    ProductMediaFile downloadFromUrl(Long productId, String category, String url, Long uploaderId);
+    ProductMediaFile downloadFromUrl(Long productId, String category, String tags, String url, Long uploaderId);
 
     /**
      * 删除文件：MinIO 删除 + DB 删除记录

@@ -69,7 +69,7 @@ public class ProductMediaFileServiceImpl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ProductMediaFile uploadFile(Long productId, String category, MultipartFile file, Long uploaderId) {
+    public ProductMediaFile uploadFile(Long productId, String category, String tags, MultipartFile file, Long uploaderId) {
         minioService.ensureBucketExists(bucket);
 
         String originalName = file.getOriginalFilename();
@@ -85,6 +85,7 @@ public class ProductMediaFileServiceImpl
         ProductMediaFile record = new ProductMediaFile();
         record.setProductId(productId);
         record.setCategory(category);
+        record.setTags(tags != null && !tags.isBlank() ? tags.trim() : null);
         record.setOriginalName(originalName != null ? originalName : objectName);
         record.setObjectName(objectName);
         record.setContentType(file.getContentType());
@@ -101,7 +102,7 @@ public class ProductMediaFileServiceImpl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ProductMediaFile downloadFromUrl(Long productId, String category, String rawUrl, Long uploaderId) {
+    public ProductMediaFile downloadFromUrl(Long productId, String category, String tags, String rawUrl, Long uploaderId) {
         minioService.ensureBucketExists(bucket);
 
         URL url;
@@ -147,6 +148,7 @@ public class ProductMediaFileServiceImpl
             ProductMediaFile record = new ProductMediaFile();
             record.setProductId(productId);
             record.setCategory(category);
+            record.setTags(tags != null && !tags.isBlank() ? tags.trim() : null);
             record.setOriginalName(extractFileNameFromUrl(rawUrl, fileName));
             record.setObjectName(objectName);
             record.setContentType(contentType);
@@ -422,7 +424,9 @@ public class ProductMediaFileServiceImpl
             if (contentType.startsWith("video")) return "video";
             if (contentType.startsWith("image")) return "image";
             if (contentType.contains("pdf") || contentType.contains("document")
-                    || contentType.contains("spreadsheet") || contentType.contains("msword")) {
+                    || contentType.contains("spreadsheet") || contentType.contains("msword")
+                    || contentType.contains("csv") || contentType.contains("json")
+                    || contentType.contains("text/plain") || contentType.contains("presentation")) {
                 return "document";
             }
         }
@@ -433,7 +437,9 @@ public class ProductMediaFileServiceImpl
                 return "video";
             }
             if (lower.endsWith(".pdf") || lower.endsWith(".doc") || lower.endsWith(".docx")
-                    || lower.endsWith(".xls") || lower.endsWith(".xlsx")) {
+                    || lower.endsWith(".xls") || lower.endsWith(".xlsx")
+                    || lower.endsWith(".csv") || lower.endsWith(".json")
+                    || lower.endsWith(".ppt") || lower.endsWith(".pptx")) {
                 return "document";
             }
         }
@@ -475,6 +481,8 @@ public class ProductMediaFileServiceImpl
             if (contentType.contains("avi")) return ".avi";
             if (contentType.contains("webm")) return ".webm";
             if (contentType.contains("pdf")) return ".pdf";
+            if (contentType.contains("csv") || contentType.contains("comma-separated")) return ".csv";
+            if (contentType.contains("json")) return ".json";
         }
         String path = url.split("\\?")[0];
         int dot = path.lastIndexOf('.');

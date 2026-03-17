@@ -121,10 +121,11 @@ public class ProductMediaController {
     public Result<ProductMediaFile> upload(
             @PathVariable Long productId,
             @RequestParam String category,
+            @RequestParam(required = false) String tags,
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
         Long uploaderId = getUserId(request);
-        ProductMediaFile saved = productMediaFileService.uploadFile(productId, category, file, uploaderId);
+        ProductMediaFile saved = productMediaFileService.uploadFile(productId, category, tags, file, uploaderId);
         return Result.success(saved);
     }
 
@@ -146,7 +147,7 @@ public class ProductMediaController {
             item.put("url", rawUrl.trim());
             try {
                 ProductMediaFile saved = productMediaFileService.downloadFromUrl(
-                        productId, category, rawUrl, uploaderId);
+                        productId, category, request.getTags(), rawUrl, uploaderId);
                 item.put("success", true);
                 item.put("id", saved.getId());
                 item.put("objectName", saved.getObjectName());

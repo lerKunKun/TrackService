@@ -17,10 +17,11 @@ export function getProductMediaFiles(productId, category) {
 }
 
 /** 上传文件（multipart） */
-export function uploadProductMediaFile(productId, category, file, onUploadProgress) {
+export function uploadProductMediaFile(productId, category, file, onUploadProgress, tags) {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('category', category)
+    if (tags) formData.append('tags', tags)
     return request({
         url: `/product-media/${productId}/upload`,
         method: 'post',
@@ -81,11 +82,11 @@ export function updateReferenceLink(productId, referenceLinks) {
 }
 
 /** 批量从 URL 下载媒体文件并保存到 MinIO */
-export function downloadFromUrls(productId, tag, urls) {
+export function downloadFromUrls(productId, tag, urls, tags) {
     return request({
         url: `/product-media/${productId}/download-urls`,
         method: 'post',
-        data: { tag, urls }
+        data: { tag, urls, tags: tags || null }
     })
 }
 
@@ -114,7 +115,8 @@ export function batchDownloadMediaFiles(fileIds) {
 export function syncProductImages(productId) {
     return request({
         url: `/product-media/${productId}/sync-images`,
-        method: 'post'
+        method: 'post',
+        timeout: 300000  // 5分钟，图片多时下载耗时较长
     })
 }
 

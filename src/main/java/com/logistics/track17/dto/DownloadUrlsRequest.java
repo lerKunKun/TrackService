@@ -14,4 +14,7 @@ public class DownloadUrlsRequest {
 
     @NotEmpty(message = "urls 不能为空")
     private List<String> urls;
+
+    /** 自定义标签（逗号分隔），可选 */
+    private String tags;
 }

@@ -4,8 +4,10 @@ import com.logistics.track17.dto.ProductDTO;
 import com.logistics.track17.dto.ProductProcurementSummaryDTO;
 import com.logistics.track17.dto.ProductSearchRequest;
 import com.logistics.track17.entity.Product;
+import com.logistics.track17.entity.ProductImage;
 import com.logistics.track17.entity.ProductImport;
 import com.logistics.track17.entity.ProductVariant;
+import com.logistics.track17.mapper.ProductImageMapper;
 import com.logistics.track17.mapper.ProductMapper;
 import com.logistics.track17.mapper.ProductShopMapper;
 import com.logistics.track17.mapper.ProductVariantMapper;
@@ -49,6 +51,9 @@ public class ProductService {
     private ProductVariantMapper productVariantMapper;
 
     @Autowired
+    private ProductImageMapper productImageMapper;
+
+    @Autowired
     private com.logistics.track17.mapper.ProductMediaFileMapper productMediaFileMapper;
 
     @Value("${storage.local.base-path:./storage/product-imports}")
@@ -86,8 +91,10 @@ public class ProductService {
             // 3. 解析 CSV
             List<Product> products = new ArrayList<>();
             Map<String, List<ProductVariant>> variantsMap = new HashMap<>();
+            // handle -> 有序去重的 Image Src 列表（产品级主图）
+            Map<String, List<String>> imageSrcsMap = new LinkedHashMap<>();
 
-            parseShopifyCsv(file, products, variantsMap);
+            parseShopifyCsv(file, products, variantsMap, imageSrcsMap);
 
             // 4. 保存产品和变体
             int successCount = 0;
@@ -109,6 +116,20 @@ public class ProductService {
                         variant.setProductId(product.getId());
                     }
                     productVariantMapper.batchInsert(variants);
+                }
+
+                // 插入产品主图（Image Src 列）
+                List<String> imageSrcs = imageSrcsMap.get(product.getHandle());
+                if (imageSrcs != null && !imageSrcs.isEmpty()) {
+                    List<ProductImage> images = new ArrayList<>();
+                    for (int i = 0; i < imageSrcs.size(); i++) {
+                        ProductImage img = new ProductImage();
+                        img.setProductId(product.getId());
+                        img.setSrc(imageSrcs.get(i));
+                        img.setPosition(i + 1);
+                        images.add(img);
+                    }
+                    productImageMapper.batchInsert(images);
                 }
 
                 successCount++;
@@ -138,7 +159,8 @@ public class ProductService {
      * Shopify CSV 格式：第一行是产品信息+第一个变体，后续行是同一产品的其他变体
      */
     private void parseShopifyCsv(MultipartFile file, List<Product> products,
-            Map<String, List<ProductVariant>> variantsMap) throws IOException {
+            Map<String, List<ProductVariant>> variantsMap,
+            Map<String, List<String>> imageSrcsMap) throws IOException {
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8));
@@ -153,6 +175,8 @@ public class ProductService {
             Product currentProduct = null;
             // 同一颜色的variants共享第一个variant的图片URL
             Map<String, String> colorImageMap = new HashMap<>();
+            // 当前产品已收集的 Image Src（去重用）
+            Set<String> currentImageSrcSet = new LinkedHashSet<>();
 
             for (CSVRecord record : csvParser) {
                 String handle = record.get("Handle");
@@ -174,8 +198,18 @@ public class ProductService {
 
                     products.add(currentProduct);
                     variantsMap.put(handle, new ArrayList<ProductVariant>());
-                    // 新产品时清空颜色图片映射
+                    // 新产品时重置
                     colorImageMap.clear();
+                    currentImageSrcSet = new LinkedHashSet<>();
+                    imageSrcsMap.put(handle, new ArrayList<>());
+                }
+
+                // 收集 Image Src（产品级主图），不管 Variant Image 是否有值都单独记录
+                String imageSrc = getOptionalField(record, "Image Src");
+                if (imageSrc != null && !imageSrc.isEmpty() && imageSrc.startsWith("http")) {
+                    if (currentImageSrcSet.add(imageSrc)) {
+                        imageSrcsMap.get(currentHandle).add(imageSrc);
+                    }
                 }
 
                 // 创建变体
@@ -198,9 +232,10 @@ public class ProductService {
                 String option1Value = getOptionalField(record, "Option1 Value");
                 String colorKey = (option1Value != null && !option1Value.isEmpty()) ? option1Value : "default";
 
+                // 变体图优先用 Variant Image，没有则降级到 Image Src
                 String variantImage = getOptionalField(record, "Variant Image");
                 if (variantImage == null || variantImage.isEmpty()) {
-                    variantImage = getOptionalField(record, "Image Src");
+                    variantImage = imageSrc;
                 }
 
                 // 如果当前variant有图片URL，记录为该颜色的代表图片
@@ -664,18 +699,31 @@ public class ProductService {
             products = productMapper.selectByPage(null, null, null, shopId, 0, Integer.MAX_VALUE);
         }
 
-        // 查询这些产品的主图（从 ProductMediaFile）
+        // 查询产品全部图片：优先已同步的媒体库，否则降级 product_images 原始图
         List<Long> pIdsForMedia = products.stream().map(Product::getId).toList();
-        java.util.Map<Long, String> productMainImageMap = new java.util.HashMap<>();
+        java.util.Map<Long, List<String>> productAllImagesMap = new java.util.HashMap<>();
         if (!pIdsForMedia.isEmpty()) {
-            List<com.logistics.track17.entity.ProductMediaFile> allMainImages = productMediaFileMapper.selectList(
+            // 1. 已同步媒体库（category = main_image，按 sort_order 有序）
+            List<com.logistics.track17.entity.ProductMediaFile> syncedFiles = productMediaFileMapper.selectList(
                     new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.logistics.track17.entity.ProductMediaFile>()
                             .in("product_id", pIdsForMedia)
                             .eq("category", "main_image")
                             .orderByAsc("sort_order"));
-            for (com.logistics.track17.entity.ProductMediaFile f : allMainImages) {
-                if (!productMainImageMap.containsKey(f.getProductId()) && f.getUrl() != null) {
-                    productMainImageMap.put(f.getProductId(), f.getUrl());
+            for (com.logistics.track17.entity.ProductMediaFile f : syncedFiles) {
+                if (f.getUrl() != null && !f.getUrl().isBlank()) {
+                    productAllImagesMap.computeIfAbsent(f.getProductId(), k -> new ArrayList<>()).add(f.getUrl());
+                }
+            }
+            // 2. 对没有媒体文件的产品，降级查 product_images（CSV 导入时写入）
+            List<Long> noMediaIds = pIdsForMedia.stream()
+                    .filter(id -> !productAllImagesMap.containsKey(id))
+                    .collect(java.util.stream.Collectors.toList());
+            if (!noMediaIds.isEmpty()) {
+                List<ProductImage> rawImages = productImageMapper.selectByProductIds(noMediaIds);
+                for (ProductImage img : rawImages) {
+                    if (img.getSrc() != null && !img.getSrc().isBlank()) {
+                        productAllImagesMap.computeIfAbsent(img.getProductId(), k -> new ArrayList<>()).add(img.getSrc());
+                    }
                 }
             }
         }
@@ -697,26 +745,24 @@ public class ProductService {
                 continue; // 跳过没有变体的产品
             }
 
-            // 从变体中提取第一个有效的图片 URL 作为 Image Src
-            // Shopify 要求第一行必须有非空 Image Src；若产品无图片则跳过导出
-            String firstImageSrc = variants.stream()
-                    .map(ProductVariant::getImageUrl)
-                    .filter(url -> url != null && !url.isBlank())
-                    .findFirst()
-                    .orElse(null);
-
-            if (firstImageSrc == null) {
-                log.warn("跳过产品 [{}] {}: 所有变体均无 image_url，无法导出", product.getId(), product.getHandle());
+            // 获取该产品全部图片列表（已同步媒体 > product_images > 变体图兜底）
+            List<String> allImages = productAllImagesMap.getOrDefault(product.getId(), new ArrayList<>());
+            if (allImages.isEmpty()) {
+                // 兜底：从变体图去重收集
+                variants.stream()
+                        .map(ProductVariant::getImageUrl)
+                        .filter(url -> url != null && !url.isBlank())
+                        .distinct()
+                        .forEach(allImages::add);
+            }
+            if (allImages.isEmpty()) {
+                log.warn("跳过产品 [{}] {}: 无任何图片，无法导出", product.getId(), product.getHandle());
                 continue;
             }
 
             // 第一行: 产品信息 + 第一个变体
             ProductVariant firstVariant = variants.get(0);
-
-            // 确定首图
-            String dbMainImage = productMainImageMap.get(product.getId());
-            String exportMainImage = (dbMainImage != null && !dbMainImage.trim().isEmpty()) ? dbMainImage
-                    : firstImageSrc;
+            String exportMainImage = allImages.get(0);
 
             csv.append(escapeCsvField(product.getHandle())).append(",");
             csv.append(escapeCsvField(product.getTitle())).append(",");
@@ -773,6 +819,20 @@ public class ProductService {
             csv.append(","); // col 46: Cost per item
             csv.append(product.getPublished() == 1 ? "active" : "draft"); // col 47: Status
             csv.append("\n");
+
+            // 额外图片行 (position 2, 3, ...)：仅 Handle + Image Src + Image Position，其余全空
+            for (int i = 1; i < allImages.size(); i++) {
+                csv.append(escapeCsvField(product.getHandle())).append(",");
+                csv.append(",,,,,"); // Title, Body, Vendor, Tags, Published
+                csv.append(",,,,,,"); // Option1-3 Name/Value
+                csv.append(",,,,,,,,,,,"); // Variant SKU~Barcode (11列)
+                csv.append(escapeCsvField(allImages.get(i))).append(","); // Image Src
+                csv.append(i + 1).append(","); // Image Position
+                csv.append(","); // Image Alt Text
+                csv.append("FALSE,"); // Gift Card
+                for (int j = 0; j < 15; j++) csv.append(","); // SEO + Google Shopping
+                csv.append(",,,\n"); // Variant Image, Weight Unit, Tax Code, Cost per item (Status 留空)
+            }
 
             // 后续行: 其他变体 (产品信息全留空；Image Src 留空，Shopify 通过 Variant Image 匹配)
             for (int i = 1; i < variants.size(); i++) {

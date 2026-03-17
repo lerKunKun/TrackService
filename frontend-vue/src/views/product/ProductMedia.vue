@@ -118,7 +118,19 @@
               <a-button size="small" :loading="syncing" @click="doSyncImages">
                 <sync-outlined /> 同步
               </a-button>
-              <span v-if="syncResult" class="sync-msg">{{ syncResult }}</span>
+              <span v-if="syncResult" class="sync-msg" :class="syncResultType">{{ syncResult }}</span>
+            </div>
+
+            <!-- 文档自定义标签输入 -->
+            <div v-if="cat.value === 'document'" class="doc-tags-bar">
+              <tag-outlined style="color:#999;flex-shrink:0" />
+              <a-select
+                v-model:value="docTagsInput[cat.value]"
+                mode="tags"
+                placeholder="添加标签（回车确认，上传时自动关联）"
+                style="flex:1"
+                :token-separators="[',']"
+              />
             </div>
 
             <!-- 操作区：上传 + URL下载并排 -->
@@ -127,7 +139,7 @@
                 @click="triggerFileInput(cat.value)">
                 <upload-outlined class="uz-icon" />
                 <span class="uz-text">拖拽或点击上传</span>
-                <span class="uz-hint">{{ cat.value === 'document' ? 'PDF / DOC / XLS' : '图片 / 视频' }}</span>
+                <span class="uz-hint">{{ cat.value === 'document' ? 'PDF / DOC / XLS / CSV / JSON' : '图片 / 视频' }}</span>
               </div>
               <div class="url-zone">
                 <a-textarea v-model:value="urlInputText[cat.value]"
@@ -142,7 +154,7 @@
               </div>
             </div>
             <input :ref="el => fileInputRefs[cat.value] = el" type="file" multiple
-              :accept="cat.value === 'document' ? '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx' : 'image/*,video/*'"
+              :accept="cat.value === 'document' ? '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.json' : 'image/*,video/*'"
               style="display:none" @change="handleFileChange($event, cat.value)" />
 
             <!-- 下载结果 -->
@@ -238,6 +250,9 @@
                     <div class="card-info">
                       <span class="card-name" :title="file.originalName">{{ file.originalName || file.objectName }}</span>
                       <span class="card-meta">{{ formatSize(file.fileSize) }}</span>
+                      <div v-if="file.tags" class="card-tags">
+                        <a-tag v-for="t in file.tags.split(',')" :key="t" color="cyan" style="margin:1px 2px;font-size:10px;padding:0 4px;line-height:18px">{{ t.trim() }}</a-tag>
+                      </div>
                     </div>
                   </div>
                 </template>
@@ -275,7 +290,7 @@ import {
   UploadOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
   CloudDownloadOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SyncOutlined, EyeOutlined, CopyOutlined, DownOutlined, CloseOutlined,
-  FolderOpenOutlined, DownloadOutlined,
+  FolderOpenOutlined, DownloadOutlined, TagOutlined,
   FilePdfOutlined, FileExcelOutlined, FileWordOutlined, FileOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
@@ -474,15 +489,41 @@ async function copyRefLink(link) {
 // ─── 同步主图 ───
 const syncing = ref(false)
 const syncResult = ref('')
+const syncResultType = ref('')
 async function doSyncImages() {
-  syncing.value = true; syncResult.value = ''
+  syncing.value = true
+  syncResult.value = ''
+  syncResultType.value = ''
   try {
     const res = await syncProductImages(selectedProduct.value.productId)
-    syncResult.value = res.data?.message || '完成'
-    if ((res.data?.synced || 0) > 0) { await loadFiles(); await loadProducts() }
-  } catch (e) { syncResult.value = '同步失败' }
-  finally { syncing.value = false }
+    const data = res.data || {}
+    const synced = data.synced || 0
+    const failed = data.failed || 0
+    const skipped = data.skipped || 0
+    if (failed > 0 && synced === 0) {
+      syncResult.value = `同步失败（${failed} 个失败）`
+      syncResultType.value = 'sync-error'
+    } else if (failed > 0) {
+      syncResult.value = `完成：${synced} 成功，${failed} 失败，${skipped} 跳过`
+      syncResultType.value = 'sync-warn'
+    } else {
+      syncResult.value = `成功同步 ${synced} 张，${skipped} 已存在跳过`
+      syncResultType.value = 'sync-ok'
+    }
+    if (synced > 0) {
+      await loadFiles()
+      await loadProducts()
+    }
+  } catch (e) {
+    syncResult.value = '请求超时或网络错误'
+    syncResultType.value = 'sync-error'
+  } finally {
+    syncing.value = false
+  }
 }
+
+// ─── 文档标签 ───
+const docTagsInput = reactive({})  // category -> string[]
 
 // ─── URL 下载 ───
 const urlInputText = reactive({})
@@ -500,7 +541,8 @@ async function startUrlDownload(category) {
   downloadResults[category] = []
   downloadResultText[category] = `正在下载 ${urls.length} 个文件...`
   try {
-    const res = await downloadFromUrls(selectedProduct.value.productId, category, urls)
+    const tags = docTagsInput[category]?.length ? docTagsInput[category].join(',') : null
+    const res = await downloadFromUrls(selectedProduct.value.productId, category, urls, tags)
     const results = res.data || []
     downloadResults[category] = results
     const ok = results.filter(r => r.success).length
@@ -527,8 +569,9 @@ async function uploadFiles(files, category) {
     const item = reactive({ name: file.name, progress: 0, status: 'uploading' })
     uploadQueue[category].push(item)
     try {
+      const tags = docTagsInput[category]?.length ? docTagsInput[category].join(',') : null
       await uploadProductMediaFile(selectedProduct.value.productId, category, file,
-        e => { item.progress = Math.round((e.loaded / e.total) * 100) })
+        e => { item.progress = Math.round((e.loaded / e.total) * 100) }, tags)
       item.status = 'done'; item.progress = 100
     } catch (err) { item.status = 'error' }
   }
@@ -692,7 +735,16 @@ onMounted(loadProducts)
   padding:6px 12px; margin-bottom:12px;
   background:#f6f8fa; border-radius:6px; font-size:13px; color:#666;
 }
-.sync-msg { font-size:12px; color:#52c41a; }
+.sync-msg { font-size:12px; }
+.doc-tags-bar {
+  display:flex; align-items:center; gap:8px;
+  padding:6px 12px; margin-bottom:8px;
+  background:#f6f8fa; border-radius:6px;
+}
+.card-tags { margin-top:3px; display:flex; flex-wrap:wrap; gap:0; }
+.sync-ok   { color:#52c41a; }
+.sync-warn { color:#faad14; }
+.sync-error{ color:#ff4d4f; }
 
 /* ─── 操作区 ─── */
 .action-row { display:flex; gap:12px; margin-bottom:12px; }

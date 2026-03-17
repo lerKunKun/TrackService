@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.logistics.track17.mapper.ProductImageMapper">
+
+    <select id="selectByProductIds" resultType="com.logistics.track17.entity.ProductImage">
+        SELECT id, product_id AS productId, src, alt_text AS altText, position
+        FROM product_images
+        WHERE product_id IN
+        <foreach collection="productIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY product_id, position
+    </select>
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO product_images (product_id, src, position)
+        VALUES
+        <foreach collection="images" item="img" separator=",">
+            (#{img.productId}, #{img.src}, #{img.position})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByProductId">
+        DELETE FROM product_images WHERE product_id = #{productId}
+    </delete>
+
+</mapper>

@@ -19,6 +19,9 @@ public class ProductMediaFile {
     /** main_image | detail_media | ad_media | document */
     private String category;
 
+    /** 自定义标签（逗号分隔），仅文档类型使用 */
+    private String tags;
+
     private String originalName;
 
     /** MinIO object path: {productId}/{category}/{uuid}.ext */
