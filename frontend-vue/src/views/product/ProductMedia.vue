@@ -205,6 +205,42 @@
               </a-dropdown>
             </div>
 
+            <!-- 文件筛选栏 -->
+            <div class="file-filter-bar">
+              <a-input
+                v-model:value="fileSearch"
+                placeholder="搜索文件名"
+                allow-clear
+                style="width:180px"
+              >
+                <template #prefix><search-outlined style="color:#bbb" /></template>
+              </a-input>
+              <a-select
+                v-model:value="fileSourceFilter"
+                placeholder="来源"
+                allow-clear
+                style="width:110px"
+              >
+                <a-select-option value="UPLOAD">上传</a-select-option>
+                <a-select-option value="URL_DOWNLOAD">链接下载</a-select-option>
+                <a-select-option value="SHOPIFY_SYNC">同步</a-select-option>
+              </a-select>
+              <a-select
+                v-if="activeCategory === 'document'"
+                v-model:value="fileTagFilter"
+                placeholder="标签筛选"
+                allow-clear
+                style="width:130px"
+              >
+                <a-select-option v-for="tag in allDocTags" :key="tag" :value="tag">
+                  {{ tag }}
+                </a-select-option>
+              </a-select>
+              <span v-if="isFiltered" class="filter-count-hint">
+                <filter-outlined /> {{ filteredFiles.length }} / {{ currentFiles.length }} 个
+              </span>
+            </div>
+
             <!-- 文件网格 -->
             <a-spin :spinning="filesLoading">
               <draggable
@@ -213,10 +249,12 @@
                 item-key="id"
                 class="media-grid"
                 ghost-class="drag-ghost"
+                :disabled="isFiltered"
                 @end="onDragEnd"
               >
                 <template #item="{ element: file }">
-                  <div :class="['media-card', { selected: selectedFileIds.includes(file.id) }]"
+                  <div v-show="filteredFileIds.has(file.id)"
+                    :class="['media-card', { selected: selectedFileIds.includes(file.id) }]"
                     @click.exact="toggleSelect(file)" @dblclick="openPreview(file)">
                     <div class="card-check" @click.stop="toggleSelect(file)">
                       <a-checkbox :checked="selectedFileIds.includes(file.id)" />
@@ -257,7 +295,8 @@
                   </div>
                 </template>
               </draggable>
-              <a-empty v-else description="暂无文件" style="margin:40px 0" />
+              <a-empty v-else-if="!currentFiles.length" description="暂无文件" style="margin:40px 0" />
+              <a-empty v-else-if="isFiltered && !filteredFiles.length" description="无匹配文件" style="margin:40px 0" />
             </a-spin>
           </a-tab-pane>
         </a-tabs>
@@ -290,7 +329,7 @@ import {
   UploadOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
   CloudDownloadOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SyncOutlined, EyeOutlined, CopyOutlined, DownOutlined, CloseOutlined,
-  FolderOpenOutlined, DownloadOutlined, TagOutlined,
+  FolderOpenOutlined, DownloadOutlined, TagOutlined, SearchOutlined, FilterOutlined,
   FilePdfOutlined, FileExcelOutlined, FileWordOutlined, FileOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
@@ -360,9 +399,45 @@ const fileInputRefs   = reactive({})
 const uploadQueue     = reactive({})
 const selectedFileIds = ref([])
 
+// ─── 文件筛选 ───
+const fileSearch       = ref('')
+const fileSourceFilter = ref('')
+const fileTagFilter    = ref('')
+
 const currentFiles = computed({
   get: () => allFiles[activeCategory.value] || [],
   set: (val) => { allFiles[activeCategory.value] = val }
+})
+
+const filteredFiles = computed(() => {
+  let files = currentFiles.value
+  const kw = fileSearch.value.trim().toLowerCase()
+  if (kw) {
+    files = files.filter(f => (f.originalName || f.objectName || '').toLowerCase().includes(kw))
+  }
+  if (fileSourceFilter.value) {
+    files = files.filter(f => f.source === fileSourceFilter.value)
+  }
+  if (fileTagFilter.value) {
+    files = files.filter(f =>
+      f.tags && f.tags.split(',').map(t => t.trim()).includes(fileTagFilter.value)
+    )
+  }
+  return files
+})
+
+const filteredFileIds = computed(() => new Set(filteredFiles.value.map(f => f.id)))
+const isFiltered      = computed(() =>
+  !!fileSearch.value.trim() || !!fileSourceFilter.value || !!fileTagFilter.value
+)
+
+// 当前 document tab 所有已用标签（去重）
+const allDocTags = computed(() => {
+  const tags = new Set()
+  ;(allFiles['document'] || []).forEach(f => {
+    if (f.tags) f.tags.split(',').forEach(t => { if (t.trim()) tags.add(t.trim()) })
+  })
+  return [...tags]
 })
 
 async function selectProduct(record) {
@@ -379,7 +454,13 @@ async function selectProduct(record) {
   await Promise.all([loadRefLinks(), loadFiles()])
 }
 
-function onCategoryChange() { selectedFileIds.value = []; loadFiles() }
+function onCategoryChange() {
+  selectedFileIds.value = []
+  fileSearch.value = ''
+  fileSourceFilter.value = ''
+  fileTagFilter.value = ''
+  loadFiles()
+}
 
 async function loadFiles() {
   if (!selectedProduct.value) return
@@ -398,7 +479,7 @@ function toggleSelect(file) {
   if (idx >= 0) selectedFileIds.value.splice(idx, 1)
   else selectedFileIds.value.push(file.id)
 }
-function selectAllFiles() { selectedFileIds.value = currentFiles.value.map(f => f.id) }
+function selectAllFiles() { selectedFileIds.value = filteredFiles.value.map(f => f.id) }
 function deselectAll() { selectedFileIds.value = [] }
 
 // ─── 批量删除 ───
@@ -736,6 +817,22 @@ onMounted(loadProducts)
   background:#f6f8fa; border-radius:6px; font-size:13px; color:#666;
 }
 .sync-msg { font-size:12px; }
+.file-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.filter-count-hint {
+  font-size: 12px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .doc-tags-bar {
   display:flex; align-items:center; gap:8px;
   padding:6px 12px; margin-bottom:8px;
