@@ -6,6 +6,8 @@ import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -352,8 +354,14 @@ public class UserService {
 
     /**
      * 更新用户的角色列表
+     * 更新后清除该用户的角色和权限缓存，确保下次请求使用最新数据
      */
     @Transactional(rollbackFor = Exception.class)
+    @Caching(evict = {
+        @CacheEvict(value = "user:roles", key = "#userId"),
+        @CacheEvict(value = "user:permissions", key = "#userId"),
+        @CacheEvict(value = "user:permissions:codes", key = "#userId")
+    })
     public void updateUserRoles(Long userId, List<Long> roleIds) {
         User user = userMapper.selectById(userId);
         if (user == null) {

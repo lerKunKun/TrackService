@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.*;
 import com.logistics.track17.service.TrackingService;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class TrackingController {
      * 手动添加运单
      */
     @PostMapping
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<TrackingResponse> create(@Validated @RequestBody TrackingRequest request) {
         TrackingResponse response = trackingService.create(request);
         return Result.success("运单添加成功", response);
@@ -35,6 +37,7 @@ public class TrackingController {
      * 获取运单列表
      */
     @GetMapping
+    @RequireAuth(permissions = {"tracking:view"})
     public Result<PageResult<TrackingResponse>> getList(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long shopId,
@@ -55,6 +58,7 @@ public class TrackingController {
      * 获取已有的承运商列表（用于筛选）
      */
     @GetMapping("/carriers")
+    @RequireAuth(permissions = {"tracking:view"})
     public Result<List<String>> getUsedCarriers() {
         List<String> carriers = trackingService.getUsedCarriers();
         return Result.success(carriers);
@@ -64,6 +68,7 @@ public class TrackingController {
      * 获取运单详情
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = {"tracking:view"})
     public Result<TrackingResponse> getById(@PathVariable Long id) {
         TrackingResponse response = trackingService.getById(id);
         return Result.success(response);
@@ -73,6 +78,7 @@ public class TrackingController {
      * 手动同步运单状态
      */
     @PostMapping("/{id}/sync")
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<TrackingResponse> sync(@PathVariable Long id) {
         TrackingResponse response = trackingService.sync(id);
         return Result.success("同步成功", response);
@@ -82,6 +88,7 @@ public class TrackingController {
      * 更新备注
      */
     @PutMapping("/{id}/remarks")
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<TrackingResponse> updateRemarks(
             @PathVariable Long id,
             @RequestBody UpdateRemarksRequest request) {
@@ -93,6 +100,7 @@ public class TrackingController {
      * 删除运单
      */
     @DeleteMapping("/{id}")
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<Void> delete(@PathVariable Long id) {
         trackingService.delete(id);
         return Result.success("运单删除成功", null);
@@ -102,6 +110,7 @@ public class TrackingController {
      * 批量删除运单
      */
     @PostMapping("/batch-delete")
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<Void> deleteBatch(@RequestBody BatchDeleteRequest request) {
         trackingService.deleteBatch(request.getIds());
         return Result.success("批量删除成功", null);
@@ -111,6 +120,7 @@ public class TrackingController {
      * 批量导入运单
      */
     @PostMapping("/batch-import")
+    @RequireAuth(permissions = {"tracking:manage"})
     public Result<BatchImportResult> batchImport(@Validated @RequestBody BatchImportRequest request) {
         BatchImportResult result = trackingService.batchImport(request);
         return Result.success(result.getMessage(), result);

@@ -57,15 +57,31 @@
         ORDER BY m.parent_id, m.sort_order
     </select>
 
-    <!-- 根据用户ID查询菜单 -->
+    <!-- 根据用户ID查询菜单（自动包含已分配子菜单的父菜单，确保菜单树能正确构建） -->
     <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT DISTINCT m.*
         FROM menus m
-        INNER JOIN role_menus rm ON m.id = rm.menu_id
-        INNER JOIN user_roles ur ON rm.role_id = ur.role_id
-        WHERE ur.user_id = #{userId}
-          AND m.status = 1
+        WHERE m.status = 1
           AND m.visible = 1
+          AND (
+            /* 直接分配给用户角色的菜单 */
+            m.id IN (
+                SELECT rm.menu_id
+                FROM role_menus rm
+                INNER JOIN user_roles ur ON rm.role_id = ur.role_id
+                WHERE ur.user_id = #{userId}
+            )
+            /* 已分配子菜单的父菜单（解决半选父节点未保存到role_menus的问题） */
+            OR m.id IN (
+                SELECT DISTINCT child.parent_id
+                FROM menus child
+                INNER JOIN role_menus rm ON child.id = rm.menu_id
+                INNER JOIN user_roles ur ON rm.role_id = ur.role_id
+                WHERE ur.user_id = #{userId}
+                  AND child.parent_id IS NOT NULL
+                  AND child.parent_id != 0
+            )
+          )
         ORDER BY m.parent_id, m.sort_order
     </select>
 

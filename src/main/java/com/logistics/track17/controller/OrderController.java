@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.OrderResponse;
 import com.logistics.track17.dto.PageResult;
 import com.logistics.track17.dto.Result;
@@ -34,6 +35,7 @@ public class OrderController {
      * 获取订单列表
      */
     @GetMapping
+    @RequireAuth(permissions = {"order:view"})
     public Result<PageResult<OrderResponse>> getList(
             @RequestParam(required = false) Long shopId,
             @RequestParam(defaultValue = "1") Integer page,
@@ -64,6 +66,7 @@ public class OrderController {
      * 获取订单详情
      */
     @GetMapping("/{id}")
+    @RequireAuth(permissions = {"order:view"})
     public Result<OrderResponse> getDetail(@PathVariable Long id) {
         log.info("Getting order detail: {}", id);
 

@@ -104,9 +104,9 @@
         <!-- 产品图片和名称 -->
         <template #product="{ record }">
           <div class="product-info">
-            <img 
-              v-if="record.imageUrl" 
-              :src="record.imageUrl" 
+            <img
+              v-if="record.imageUrl"
+              :src="record.imageUrl"
               :alt="record.title"
               class="product-image"
               @error="handleImageError"

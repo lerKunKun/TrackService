@@ -282,6 +282,7 @@ public class ProductService {
         Map<Long, List<Long>> productShopMap = new HashMap<>(); // productId -> List<shopId>
         Map<Long, ProductVariant> firstVariantMap = new HashMap<>(); // productId -> firstVariant
         Map<Long, Integer> variantCountMap = new HashMap<>(); // productId -> count
+        Map<Long, String> syncedImageMap = new HashMap<>(); // productId -> 已同步首图URL
 
         if (!productIds.isEmpty()) {
             // A. 批量查询商店关联
@@ -304,6 +305,18 @@ public class ProductService {
                 Integer count = ((Number) map.get("count")).intValue();
                 variantCountMap.put(pid, count);
             }
+
+            // D. 批量查询已同步的主图（product_media_files），取sort_order最小的首图
+            List<com.logistics.track17.entity.ProductMediaFile> mainImages = productMediaFileMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.logistics.track17.entity.ProductMediaFile>()
+                            .in("product_id", productIds)
+                            .eq("category", "main_image")
+                            .orderByAsc("sort_order"));
+            for (com.logistics.track17.entity.ProductMediaFile f : mainImages) {
+                if (!syncedImageMap.containsKey(f.getProductId()) && f.getUrl() != null) {
+                    syncedImageMap.put(f.getProductId(), f.getUrl());
+                }
+            }
         }
 
         // 4. 组装结果
@@ -320,12 +333,21 @@ public class ProductService {
             // 填充商店ID列表
             dto.setShopIds(productShopMap.getOrDefault(product.getId(), new ArrayList<>()));
 
-            // 填充变体信息
+            // 填充变体信息（价格来自变体，图片优先用已同步媒体文件）
             ProductVariant firstVariant = firstVariantMap.get(product.getId());
             if (firstVariant != null) {
-                dto.setImageUrl(firstVariant.getImageUrl());
                 dto.setPrice(firstVariant.getPrice());
                 dto.setCompareAtPrice(firstVariant.getCompareAtPrice());
+            }
+
+            // 首图：优先使用已同步到媒体库的图片，否则降级为变体原始URL
+            String syncedImage = syncedImageMap.get(product.getId());
+            if (syncedImage != null) {
+                dto.setImageUrl(syncedImage);
+                dto.setHasSyncedImages(true);
+            } else {
+                dto.setImageUrl(firstVariant != null ? firstVariant.getImageUrl() : null);
+                dto.setHasSyncedImages(false);
             }
 
             // 填充变体数量

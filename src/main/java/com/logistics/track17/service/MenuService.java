@@ -43,31 +43,18 @@ public class MenuService {
         try {
             List<Menu> userMenus = menuMapper.selectByUserId(userId);
 
-            // 如果查询结果为null或空，使用fallback策略
             if (userMenus == null || userMenus.isEmpty()) {
-                log.warn("用户 {} 没有分配菜单，返回所有可见菜单作为fallback", userId);
-                List<Menu> allMenus = menuMapper.selectAll();
-                if (allMenus == null) {
-                    log.error("查询所有菜单也失败，返回空列表");
-                    return Collections.emptyList();
-                }
-                // 只返回status=1和visible=1的菜单
-                userMenus = allMenus.stream()
-                        .filter(menu -> menu.getStatus() != null && menu.getStatus() == 1)
-                        .filter(menu -> menu.getVisible() != null && menu.getVisible() == 1)
-                        .collect(Collectors.toList());
-                log.info("Fallback返回 {} 个可见菜单", userMenus.size());
-            } else {
-                log.info("用户 {} 查询到 {} 个菜单", userId, userMenus.size());
+                log.info("用户 {} 未分配任何菜单，返回空列表", userId);
+                return Collections.emptyList();
             }
 
+            log.info("用户 {} 查询到 {} 个菜单", userId, userMenus.size());
             List<Menu> menuTree = buildMenuTree(userMenus, 0L);
             log.info("构建菜单树成功，顶级菜单数: {}", menuTree.size());
             return menuTree;
 
         } catch (Exception e) {
             log.error("获取用户菜单失败: userId={}, error={}", userId, e.getMessage(), e);
-            // 发生异常时返回空列表，避免500错误
             return Collections.emptyList();
         }
     }

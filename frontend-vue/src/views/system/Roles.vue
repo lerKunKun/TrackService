@@ -272,10 +272,28 @@ const assignMenus = async (role) => {
   }
 }
 
+// 递归收集所有选中节点的父节点ID（处理a-tree半选父节点不在checkedKeys中的问题）
+const includeParentMenuIds = (selectedIds, tree) => {
+  const result = new Set(selectedIds)
+  const addAncestors = (nodes, ancestors) => {
+    for (const node of nodes) {
+      if (result.has(node.id) && ancestors.length > 0) {
+        ancestors.forEach(id => result.add(id))
+      }
+      if (node.children && node.children.length > 0) {
+        addAncestors(node.children, [...ancestors, node.id])
+      }
+    }
+  }
+  addAncestors(tree, [])
+  return [...result]
+}
+
 const handleAssignMenus = async () => {
   try {
+    const menuIdsToSave = includeParentMenuIds(selectedMenuIds.value, menuTree.value)
     const response = await request.post(`/roles/${currentRole.value.id}/menus`, {
-      menuIds: selectedMenuIds.value
+      menuIds: menuIdsToSave
     })
     if (response.code === 200) {
       message.success('分配菜单成功')

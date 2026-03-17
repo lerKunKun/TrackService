@@ -64,4 +64,9 @@ public class ProductDTO {
      * 变体数量
      */
     private Integer variantCount;
+
+    /**
+     * 是否已同步主图到媒体库
+     */
+    private Boolean hasSyncedImages;
 }
