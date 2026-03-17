@@ -312,6 +312,53 @@
         :label-col="{ span: 5 }"
         :wrapper-col="{ span: 19 }"
       >
+        <!-- 对标页链接 -->
+        <a-form-item style="margin-bottom:12px">
+          <template #label>
+            <span><LinkOutlined style="margin-right:4px;color:#1677ff" />对标页链接</span>
+          </template>
+          <div class="dev-ref-box">
+            <div v-if="editRefLinks.length === 0" class="dev-ref-empty">暂无链接，点击下方按钮添加</div>
+            <div v-for="(link, idx) in editRefLinks" :key="idx" class="dev-ref-row">
+              <!-- 展示态 -->
+              <template v-if="link.trim() && editingRefLinkIdx !== idx">
+                <div class="dev-ref-link-display">
+                  <LinkOutlined class="dev-ref-link-icon" />
+                  <a :href="link" target="_blank" rel="noopener" class="dev-ref-url">{{ link }}</a>
+                  <div class="dev-ref-actions">
+                    <a-tooltip title="复制">
+                      <CopyOutlined class="dev-ref-op" @click="copyEditRefLink(link)" />
+                    </a-tooltip>
+                    <a-tooltip title="编辑">
+                      <EditOutlined class="dev-ref-op" @click="editingRefLinkIdx = idx" />
+                    </a-tooltip>
+                    <a-tooltip title="删除">
+                      <DeleteOutlined class="dev-ref-op dev-ref-op--danger" @click="removeEditRefLink(idx)" />
+                    </a-tooltip>
+                  </div>
+                </div>
+              </template>
+              <!-- 编辑态 -->
+              <template v-else>
+                <div class="dev-ref-link-edit">
+                  <a-input
+                    v-model:value="editRefLinks[idx]"
+                    placeholder="输入对标页 URL，如 https://..."
+                    size="small"
+                    @blur="onEditRefLinkBlur(idx)"
+                    @pressEnter="onEditRefLinkBlur(idx)"
+                    style="flex:1"
+                  />
+                  <DeleteOutlined class="dev-ref-op dev-ref-op--danger" @click="removeEditRefLink(idx)" />
+                </div>
+              </template>
+            </div>
+            <a-button type="dashed" size="small" block @click="addEditRefLink" class="dev-ref-add-btn">
+              <PlusOutlined /> 添加链接
+            </a-button>
+          </div>
+        </a-form-item>
+
         <a-form-item label="产品Handle">
           <a-input v-model:value="editForm.handle" placeholder="产品唯一标识" />
         </a-form-item>
@@ -466,15 +513,18 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { message, Grid } from 'ant-design-vue'
 import {
   UploadOutlined,
-
   SearchOutlined,
   TagOutlined,
   EditOutlined,
   DeleteOutlined,
   PictureOutlined,
   InboxOutlined,
-  DownOutlined
+  DownOutlined,
+  PlusOutlined,
+  CopyOutlined,
+  LinkOutlined
 } from '@ant-design/icons-vue'
+import { getReferenceLink, updateReferenceLink } from '@/api/product-media-template'
 import { Modal } from 'ant-design-vue'
 import productApi from '@/api/product'
 import { shopApi } from '@/api/shop'
@@ -678,6 +728,43 @@ const handleUpload = async () => {
 const editModalVisible = ref(false)
 const editLoading = ref(false)
 const editForm = ref(null)
+
+// 对标页链接
+const editRefLinks = ref([])
+const editingRefLinkIdx = ref(-1)
+
+async function loadEditRefLinks(productId) {
+  try {
+    const res = await getReferenceLink(productId)
+    editRefLinks.value = Array.isArray(res.data) && res.data.length ? [...res.data] : []
+  } catch (_) {
+    editRefLinks.value = []
+  }
+  editingRefLinkIdx.value = -1
+}
+
+function addEditRefLink() {
+  editRefLinks.value.push('')
+  editingRefLinkIdx.value = editRefLinks.value.length - 1
+}
+
+function removeEditRefLink(idx) {
+  editRefLinks.value.splice(idx, 1)
+  editingRefLinkIdx.value = -1
+}
+
+function onEditRefLinkBlur(idx) {
+  // 失焦时退出编辑态，但不立即保存（等弹窗确认时统一保存）
+  if (!editRefLinks.value[idx]?.trim()) {
+    editRefLinks.value.splice(idx, 1)
+  }
+  editingRefLinkIdx.value = -1
+}
+
+async function copyEditRefLink(link) {
+  try { await navigator.clipboard.writeText(link); message.success('已复制') }
+  catch (_) { message.error('复制失败') }
+}
 const avgProcurementPrice = ref('0.00')
 
 // 计算预计利润
@@ -748,6 +835,10 @@ const handleEdit = async (record) => {
     price: variantPrice || record.price,
     compareAtPrice: variantComparePrice || record.compareAtPrice
   }
+
+  // 加载对标页链接
+  await loadEditRefLinks(record.id)
+
   editModalVisible.value = true
 }
 
@@ -776,6 +867,10 @@ const handleEditSubmit = async () => {
         compareAtPrice: editForm.value.compareAtPrice
       })
     }
+
+    // 3. 保存对标页链接
+    const cleanedLinks = editRefLinks.value.filter(l => l.trim())
+    await updateReferenceLink(editForm.value.id, cleanedLinks)
     
     message.success('更新成功')
     editModalVisible.value = false
@@ -1095,4 +1190,79 @@ const handleBatchShopSubmit = async () => {
     padding: 12px;
   }
 }
+
+/* ─── 对标页链接（编辑弹窗）─── */
+.dev-ref-box {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 8px;
+}
+.dev-ref-empty {
+  text-align: center;
+  color: #bbb;
+  font-size: 12px;
+  padding: 6px 0;
+}
+.dev-ref-row { margin-bottom: 4px; }
+.dev-ref-row:last-of-type { margin-bottom: 0; }
+
+.dev-ref-link-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  transition: border-color .15s, box-shadow .15s;
+}
+.dev-ref-link-display:hover {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.06);
+}
+.dev-ref-link-icon {
+  color: #bbb;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.dev-ref-url {
+  flex: 1;
+  font-size: 12px;
+  color: #1677ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  min-width: 0;
+}
+.dev-ref-url:hover { text-decoration: underline; }
+.dev-ref-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.dev-ref-link-display:hover .dev-ref-actions { opacity: 1; }
+.dev-ref-op {
+  font-size: 13px;
+  color: #bbb;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  transition: all .15s;
+}
+.dev-ref-op:hover { color: #1677ff; background: #e6f4ff; }
+.dev-ref-op--danger:hover { color: #ff4d4f !important; background: #fff1f0 !important; }
+
+.dev-ref-link-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+.dev-ref-link-edit .dev-ref-op { opacity: 1; }
+.dev-ref-add-btn { margin-top: 6px; }
 </style>
