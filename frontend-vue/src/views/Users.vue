@@ -205,9 +205,10 @@
         </a-form-item>
         <a-form-item label="角色" name="role" v-if="!isEdit">
           <a-select v-model:value="formState.role" placeholder="请选择角色">
-            <a-select-option value="USER">普通用户</a-select-option>
+            <a-select-option value="USER">普通用户（默认）</a-select-option>
             <a-select-option value="ADMIN">管理员</a-select-option>
           </a-select>
+          <div style="color: #999; font-size: 12px; margin-top: 2px">角色不允许为空，未选时自动将分配普通用户</div>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -489,6 +490,8 @@ const handleModalOk = async () => {
       })
       message.success('用户更新成功')
     } else {
+      // 角色不允许为空，如未选则默认普通用户
+      if (!formState.role) formState.role = 'USER'
       await userApi.create(formState)
       message.success('用户创建成功')
     }

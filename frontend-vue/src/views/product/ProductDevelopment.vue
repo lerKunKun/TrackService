@@ -541,6 +541,7 @@ const selectedRowKeys = ref([])
 // 表格选择配置
 const rowSelection = {
   selectedRowKeys: selectedRowKeys,
+  preserveSelectedRowKeys: true,
   onChange: (keys) => {
     selectedRowKeys.value = keys
   }

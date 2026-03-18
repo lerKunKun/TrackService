@@ -245,6 +245,7 @@ const columns = [
 
 const rowSelection = computed(() => ({
   selectedRowKeys: selectedRowKeys.value,
+  preserveSelectedRowKeys: true,
   onChange: onSelectChange,
   getCheckboxProps: (record) => ({
     // 可以添加禁用逻辑

@@ -1,8 +1,10 @@
 package com.logistics.track17.service;
 
 import com.logistics.track17.dto.*;
+import com.logistics.track17.entity.Role;
 import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
+import com.logistics.track17.mapper.RoleMapper;
 import com.logistics.track17.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -24,10 +26,12 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserMapper userMapper;
+    private final RoleMapper roleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserService(UserMapper userMapper, BCryptPasswordEncoder passwordEncoder) {
+    public UserService(UserMapper userMapper, RoleMapper roleMapper, BCryptPasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
+        this.roleMapper = roleMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -358,24 +362,35 @@ public class UserService {
      */
     @Transactional(rollbackFor = Exception.class)
     @Caching(evict = {
-        @CacheEvict(value = "user:roles", key = "#userId"),
-        @CacheEvict(value = "user:permissions", key = "#userId"),
-        @CacheEvict(value = "user:permissions:codes", key = "#userId")
+            @CacheEvict(value = "user:roles", key = "#userId"),
+            @CacheEvict(value = "user:permissions", key = "#userId"),
+            @CacheEvict(value = "user:permissions:codes", key = "#userId")
     })
     public void updateUserRoles(Long userId, List<Long> roleIds) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw BusinessException.of(404, "用户不存在");
         }
-        // 删除用户现有角色
-        userMapper.deleteUserRoles(userId);
-        // 添加新角色
-        if (roleIds != null && !roleIds.isEmpty()) {
-            for (Long roleId : roleIds) {
-                userMapper.insertUserRole(userId, roleId);
+
+        // 角色不允许为空：若传入空列表，自动回退到普通用户角色
+        List<Long> effectiveRoleIds = roleIds;
+        if (effectiveRoleIds == null || effectiveRoleIds.isEmpty()) {
+            Role defaultRole = roleMapper.selectByRoleCode("USER");
+            if (defaultRole != null) {
+                effectiveRoleIds = java.util.Collections.singletonList(defaultRole.getId());
+                log.warn("updateUserRoles called with empty roleIds for user {}, falling back to default USER role {}",
+                        userId, defaultRole.getId());
+            } else {
+                throw BusinessException.of(400, "用户角色不允许为空");
             }
         }
-        log.info("Updated roles for user {}: {}", userId, roleIds);
+
+        // 删除用户现有角色，写入新角色
+        userMapper.deleteUserRoles(userId);
+        for (Long roleId : effectiveRoleIds) {
+            userMapper.insertUserRole(userId, roleId);
+        }
+        log.info("Updated roles for user {}: {}", userId, effectiveRoleIds);
     }
 
     /**

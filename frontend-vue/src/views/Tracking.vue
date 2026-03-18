@@ -549,6 +549,7 @@ const carrierOptions = ref([])
 const selectedRowKeys = ref([])
 const rowSelection = computed(() => ({
   selectedRowKeys: selectedRowKeys.value,
+  preserveSelectedRowKeys: true,
   onChange: (keys) => {
     selectedRowKeys.value = keys
   }
