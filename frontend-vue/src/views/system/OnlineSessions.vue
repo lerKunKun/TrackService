@@ -19,20 +19,21 @@
     </a-row>
 
     <a-card title="在线用户" :bordered="false">
-      <template #extra>
-        <a-space>
+      <!-- 操作栏 -->
+      <div class="table-operations">
+        <a-space wrap>
           <a-input-search
             v-model:value="searchUsername"
             placeholder="搜索用户名"
             allow-clear
-            style="width: 180px"
+            style="width: 240px"
           />
           <a-button @click="fetchData">
             <ReloadOutlined />
             刷新
           </a-button>
         </a-space>
-      </template>
+      </div>
 
       <!-- 表格 -->
       <a-table
@@ -52,12 +53,14 @@
           </template>
           <template v-if="column.key === 'deviceInfo'">
             <span>{{ [record.device, record.browser, record.os].filter(Boolean).join(' / ') || '-' }}</span>
+            <a-tag v-if="record.sessionId === currentSessionId" color="processing" style="margin-left: 8px">本机</a-tag>
           </template>
           <template v-if="column.key === 'loginTime'">
             {{ formatTime(record.loginTime) }}
           </template>
           <template v-if="column.key === 'action'">
             <a-popconfirm
+              v-if="record.sessionId !== currentSessionId"
               title="确定强制下线该设备？"
               ok-text="确定"
               cancel-text="取消"
@@ -65,6 +68,7 @@
             >
               <a-button type="link" size="small" danger>强制下线</a-button>
             </a-popconfirm>
+            <a-button v-else type="link" size="small" disabled>强制下线</a-button>
           </template>
         </template>
       </a-table>
@@ -82,8 +86,11 @@
             >
               <div class="mobile-card-header">
                 <span class="mobile-card-title">{{ item.username }}</span>
-                <a-tag v-if="item.loginSource === 'PASSWORD'" color="blue">密码</a-tag>
-                <a-tag v-else-if="item.loginSource === 'DINGTALK'" color="cyan">钉钉</a-tag>
+                <div>
+                  <a-tag v-if="item.sessionId === currentSessionId" color="processing">本机</a-tag>
+                  <a-tag v-if="item.loginSource === 'PASSWORD'" color="blue">密码</a-tag>
+                  <a-tag v-else-if="item.loginSource === 'DINGTALK'" color="cyan">钉钉</a-tag>
+                </div>
               </div>
               <div class="mobile-card-body">
                 <div>IP：{{ item.ipAddress || '-' }}</div>
@@ -92,6 +99,7 @@
               </div>
               <div class="mobile-card-actions">
                 <a-popconfirm
+                  v-if="item.sessionId !== currentSessionId"
                   title="确定强制下线该设备？"
                   ok-text="确定"
                   cancel-text="取消"
@@ -99,6 +107,7 @@
                 >
                   <a-button type="link" size="small" danger>强制下线</a-button>
                 </a-popconfirm>
+                <a-button v-else type="link" size="small" disabled>强制下线</a-button>
               </div>
             </a-card>
           </div>
@@ -114,6 +123,8 @@ import { Grid, message } from 'ant-design-vue'
 import { TeamOutlined, LaptopOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { onlineSessionApi } from '@/api/online-session'
 import dayjs from 'dayjs'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client/dist/sockjs.min.js'
 
 const { useBreakpoint } = Grid
 const screens = useBreakpoint()
@@ -128,7 +139,11 @@ const loading = ref(false)
 const sessions = ref([])
 const searchUsername = ref('')
 const stats = ref({ userCount: 0, sessionCount: 0 })
-let refreshTimer = null
+
+const token = localStorage.getItem('token') || ''
+const currentSessionId = ref(token.length > 16 ? token.substring(token.length - 16) : token)
+
+let stompClient = null
 
 const filteredSessions = computed(() => {
   if (!searchUsername.value) return sessions.value
@@ -175,20 +190,45 @@ const formatTime = (time) => {
   return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
+const connectWebSocket = () => {
+  stompClient = new Client({
+    webSocketFactory: () => new SockJS('/api/v1/ws/sessions'),
+    onConnect: () => {
+      stompClient.subscribe('/topic/online-sessions', (msg) => {
+        if (msg.body === 'REFRESH') {
+          fetchData()
+        }
+      })
+    },
+    onStompError: (frame) => {
+      console.error('Broker error:', frame.headers?.message)
+    }
+  })
+  stompClient.activate()
+}
+
 onMounted(() => {
   fetchData()
-  // 30秒自动刷新
-  refreshTimer = setInterval(fetchData, 30000)
+  connectWebSocket()
 })
 
 onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
+  if (stompClient) {
+    stompClient.deactivate()
   }
 })
 </script>
 
 <style scoped>
+.page-content {
+  padding: 24px;
+}
+@media (max-width: 576px) {
+  .page-content {
+    padding: 12px;
+  }
+}
+
 .table-operations {
   margin-bottom: 16px;
 }

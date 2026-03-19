@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -25,13 +27,16 @@ public class OnlineSessionService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate simpMessagingTemplate;
 
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
 
-    public OnlineSessionService(RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
+    public OnlineSessionService(RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil,
+            SimpMessagingTemplate simpMessagingTemplate) {
         this.redisTemplate = redisTemplate;
         this.jwtUtil = jwtUtil;
+        this.simpMessagingTemplate = simpMessagingTemplate;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
     }
@@ -68,6 +73,7 @@ public class OnlineSessionService {
             redisTemplate.expire(USER_SESSIONS_PREFIX + userId, ttlSeconds, TimeUnit.SECONDS);
 
             log.debug("Online session created for user {}, sessionId={}", username, tokenHash);
+            simpMessagingTemplate.convertAndSend("/topic/online-sessions", "REFRESH");
         } catch (Exception e) {
             log.error("Failed to create online session: {}", e.getMessage(), e);
         }
@@ -86,6 +92,7 @@ public class OnlineSessionService {
             }
             redisTemplate.delete(SESSION_PREFIX + tokenHash);
             log.debug("Online session removed, sessionId={}", tokenHash);
+            simpMessagingTemplate.convertAndSend("/topic/online-sessions", "REFRESH");
         } catch (Exception e) {
             log.error("Failed to remove online session: {}", e.getMessage(), e);
         }
@@ -113,6 +120,7 @@ public class OnlineSessionService {
             redisTemplate.delete(SESSION_PREFIX + sessionId);
 
             log.info("Force logout session: user={}, sessionId={}", session.getUsername(), sessionId);
+            simpMessagingTemplate.convertAndSend("/topic/online-sessions", "REFRESH");
             return true;
         } catch (Exception e) {
             log.error("Failed to force logout session: {}", e.getMessage(), e);
@@ -152,7 +160,8 @@ public class OnlineSessionService {
                     }
                 })
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(OnlineSession::getLoginTime, Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator.comparing(OnlineSession::getLoginTime,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
     }
 
@@ -187,31 +196,46 @@ public class OnlineSessionService {
 
     private String parseDevice(String ua) {
         if (ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone")) {
-            if (ua.contains("iPad")) return "iPad";
-            if (ua.contains("iPhone")) return "iPhone";
-            if (ua.contains("Android")) return "Android";
+            if (ua.contains("iPad"))
+                return "iPad";
+            if (ua.contains("iPhone"))
+                return "iPhone";
+            if (ua.contains("Android"))
+                return "Android";
             return "Mobile";
         }
         return "PC";
     }
 
     private String parseBrowser(String ua) {
-        if (ua.contains("Edg/")) return "Edge";
-        if (ua.contains("Chrome/") && !ua.contains("Edg/")) return "Chrome";
-        if (ua.contains("Firefox/")) return "Firefox";
-        if (ua.contains("Safari/") && !ua.contains("Chrome/")) return "Safari";
-        if (ua.contains("DingTalk")) return "DingTalk";
+        if (ua.contains("Edg/"))
+            return "Edge";
+        if (ua.contains("Chrome/") && !ua.contains("Edg/"))
+            return "Chrome";
+        if (ua.contains("Firefox/"))
+            return "Firefox";
+        if (ua.contains("Safari/") && !ua.contains("Chrome/"))
+            return "Safari";
+        if (ua.contains("DingTalk"))
+            return "DingTalk";
         return "Other";
     }
 
     private String parseOs(String ua) {
-        if (ua.contains("Windows NT 10")) return "Windows 10";
-        if (ua.contains("Windows NT")) return "Windows";
-        if (ua.contains("Mac OS X")) return "macOS";
-        if (ua.contains("Linux") && ua.contains("Android")) return "Android";
-        if (ua.contains("Linux")) return "Linux";
-        if (ua.contains("iPhone OS")) return "iOS";
-        if (ua.contains("iPad")) return "iPadOS";
+        if (ua.contains("Windows NT 10"))
+            return "Windows 10";
+        if (ua.contains("Windows NT"))
+            return "Windows";
+        if (ua.contains("Mac OS X"))
+            return "macOS";
+        if (ua.contains("Linux") && ua.contains("Android"))
+            return "Android";
+        if (ua.contains("Linux"))
+            return "Linux";
+        if (ua.contains("iPhone OS"))
+            return "iOS";
+        if (ua.contains("iPad"))
+            return "iPadOS";
         return "Other";
     }
 }
