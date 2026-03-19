@@ -9,7 +9,9 @@ import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductMedia;
 import com.logistics.track17.entity.ProductMediaFile;
+import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.mapper.ProductMapper;
+import com.logistics.track17.mapper.ProductVariantMapper;
 import com.logistics.track17.service.MinioService;
 import com.logistics.track17.service.ProductMediaFileService;
 import com.logistics.track17.service.ProductMediaService;
@@ -39,6 +41,7 @@ public class ProductMediaController {
 
     private final ProductMediaService productMediaService;
     private final ProductMediaFileService productMediaFileService;
+    private final ProductVariantMapper productVariantMapper;
     private final ProductMapper productMapper;
     private final MinioService minioService;
 
@@ -72,6 +75,28 @@ public class ProductMediaController {
         // DB batch count (replaces N+1 MinIO calls)
         Map<Long, Map<String, Long>> fileCounts = productMediaFileService.countByProductIds(productIds);
 
+        // Fetch first main_image for each product
+        List<ProductMediaFile> mainImages = productMediaFileService.list(
+                new QueryWrapper<ProductMediaFile>()
+                        .in("product_id", productIds)
+                        .eq("category", "main_image")
+                        .orderByAsc("product_id", "sort_order", "id"));
+        Map<Long, String> mainImageMap = new HashMap<>();
+        for (ProductMediaFile f : mainImages) {
+            mainImageMap.putIfAbsent(f.getProductId(), f.getUrl());
+        }
+
+        // Fallback: Fetch original CSV imported main image from ProductVariant
+        List<ProductVariant> variants = productVariantMapper.selectFirstVariantsByProductIds(productIds);
+        Map<Long, String> fallbackImageMap = new HashMap<>();
+        if (variants != null) {
+            for (ProductVariant v : variants) {
+                if (v.getImageUrl() != null && !v.getImageUrl().trim().isEmpty()) {
+                    fallbackImageMap.putIfAbsent(v.getProductId(), v.getImageUrl());
+                }
+            }
+        }
+
         List<ProductMedia> mediaList = productMediaService.list(
                 new QueryWrapper<ProductMedia>().in("product_id", productIds));
         Map<Long, ProductMedia> mediaMap = mediaList.stream()
@@ -84,6 +109,13 @@ public class ProductMediaController {
             dto.setProductId(product.getId());
             dto.setProductName(product.getTitle());
             dto.setDescription(product.getBodyHtml());
+            dto.setHandle(product.getHandle());
+
+            String imgUrl = mainImageMap.get(product.getId());
+            if (imgUrl == null || imgUrl.isBlank()) {
+                imgUrl = fallbackImageMap.get(product.getId());
+            }
+            dto.setImageUrl(imgUrl);
 
             ProductMedia media = mediaMap.get(product.getId());
             if (media != null) {
@@ -142,7 +174,8 @@ public class ProductMediaController {
         List<Map<String, Object>> results = new ArrayList<>();
 
         for (String rawUrl : urls) {
-            if (rawUrl == null || rawUrl.isBlank()) continue;
+            if (rawUrl == null || rawUrl.isBlank())
+                continue;
             Map<String, Object> item = new HashMap<>();
             item.put("url", rawUrl.trim());
             try {
@@ -275,7 +308,7 @@ public class ProductMediaController {
         }
 
         try (InputStream is = minioService.getObject(bucket, file.getObjectName());
-             OutputStream os = response.getOutputStream()) {
+                OutputStream os = response.getOutputStream()) {
             is.transferTo(os);
             os.flush();
         } catch (Exception e) {
@@ -347,7 +380,8 @@ public class ProductMediaController {
      * 前端 tag 参数兼容：main-image -> main_image
      */
     private String normalizeCategoryParam(String tag) {
-        if (tag == null) return "main_image";
+        if (tag == null)
+            return "main_image";
         return tag.contains("-") ? tag.replace("-", "_") : tag;
     }
 }

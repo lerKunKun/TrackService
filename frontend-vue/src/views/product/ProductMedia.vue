@@ -23,8 +23,33 @@
         :customRow="r => ({ onClick: () => selectProduct(r) })"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'name'">
-            <span class="product-name">{{ record.productName || '—' }}</span>
+          <template v-if="column.key === 'product'">
+            <div class="product-cell">
+              <div class="product-image">
+                <a-image
+                  :src="record.imageUrl || '/images/placeholder.png'"
+                  :width="64"
+                  :height="64"
+                  :preview="false"
+                  fallback="/images/placeholder.png"
+                />
+              </div>
+              <div class="product-info">
+                <div class="product-title" :title="record.productName">
+                  {{ record.productName || '—' }}
+                </div>
+                <div class="product-meta">
+                  <span class="meta-item">
+                    <span class="meta-label">Handle:</span>
+                    <span class="meta-value">{{ record.handle || '-' }}</span>
+                  </span>
+                  <span v-if="record.sku" class="meta-item">
+                    <span class="meta-label">SKU:</span>
+                    <span class="meta-value">{{ record.sku }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </template>
           <template v-if="column.key === 'counts'">
             <div class="file-counts">
@@ -357,7 +382,7 @@ const tableLoading = ref(false)
 const searchTitle  = ref('')
 const pagination   = reactive({ current:1, pageSize:10, total:0, showSizeChanger:true })
 const productCols  = [
-  { title: '产品名称', key: 'name', dataIndex: 'productName', ellipsis: true },
+  { title: '产品信息', key: 'product', width: 400 },
   { title: '主图 / 详情 / 广告 / 文档', key: 'counts', width: 200, align: 'center' },
   { title: '总计', key: 'total', width: 70, align: 'center' },
   { title: '操作', key: 'action', width: 80, align: 'center' }
@@ -740,7 +765,55 @@ onMounted(loadProducts)
 :deep(.ant-table-row) { cursor:pointer; }
 :deep(.ant-table-row:hover) td { background:#f0f5ff !important; }
 
-.product-name { font-weight:500; color:#1d2129; }
+/* 产品单元格 */
+.product-cell {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.product-image {
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+}
+.product-image :deep(.ant-image-img) {
+  object-fit: cover;
+  display: block;
+}
+.product-info {
+  flex: 1;
+  min-width: 0;
+}
+.product-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+}
+.product-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meta-item {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+}
+.meta-label {
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+.meta-value {
+  color: #595959;
+}
 
 /* 文件计数 - 紧凑小圆点 */
 .file-counts { display:flex; align-items:center; justify-content:center; gap:12px; }
