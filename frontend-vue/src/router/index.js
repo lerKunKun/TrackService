@@ -2,6 +2,19 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { message } from 'ant-design-vue'
 
+/**
+ * 解析JWT payload，检查token是否已过期
+ */
+function isTokenExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    // exp 是秒级时间戳，提前30秒判定为过期
+    return payload.exp * 1000 <= Date.now() + 30 * 1000
+  } catch {
+    return true
+  }
+}
+
 const routes = [
   {
     path: '/login',
@@ -141,6 +154,24 @@ const routes = [
         name: 'AlertSettings',
         component: () => import('@/views/system/AlertSettings.vue'),
         meta: { title: '通知配置', requiresAdmin: true }
+      },
+      {
+        path: 'system/audit-logs',
+        name: 'AuditLogs',
+        component: () => import('@/views/system/AuditLogs.vue'),
+        meta: { title: '操作日志', requiresAdmin: true }
+      },
+      {
+        path: 'system/login-logs',
+        name: 'LoginLogs',
+        component: () => import('@/views/system/LoginLogs.vue'),
+        meta: { title: '登录日志', requiresAdmin: true }
+      },
+      {
+        path: 'system/online-sessions',
+        name: 'OnlineSessions',
+        component: () => import('@/views/system/OnlineSessions.vue'),
+        meta: { title: '在线用户', requiresAdmin: true }
       }
     ]
   },
@@ -160,6 +191,14 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
+
+  // 检查token是否过期或被踢出
+  if (userStore.isLoggedIn && isTokenExpired(userStore.token)) {
+    message.warning('登录已过期，请重新登录')
+    userStore.logout()
+    next('/login')
+    return
+  }
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next('/login')

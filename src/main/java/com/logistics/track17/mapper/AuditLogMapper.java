@@ -4,6 +4,7 @@ import com.logistics.track17.entity.AuditLogEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -30,7 +31,10 @@ public interface AuditLogMapper {
             @Param("limit") int limit,
             @Param("userId") Long userId,
             @Param("operation") String operation,
-            @Param("module") String module);
+            @Param("module") String module,
+            @Param("result") String result,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 
     /**
      * 统计总数
@@ -38,5 +42,8 @@ public interface AuditLogMapper {
     Long countAll(
             @Param("userId") Long userId,
             @Param("operation") String operation,
-            @Param("module") String module);
+            @Param("module") String module,
+            @Param("result") String result,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 }

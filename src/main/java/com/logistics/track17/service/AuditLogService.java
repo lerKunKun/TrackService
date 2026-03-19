@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -48,16 +49,18 @@ public class AuditLogService {
     /**
      * 查询审计日志列表（分页）
      */
-    public List<AuditLogEntity> getAuditLogs(int page, int size, Long userId, String operation, String module) {
+    public List<AuditLogEntity> getAuditLogs(int page, int size, Long userId, String operation, String module,
+            String result, LocalDateTime startTime, LocalDateTime endTime) {
         int offset = (page - 1) * size;
-        return auditLogMapper.selectByPage(offset, size, userId, operation, module);
+        return auditLogMapper.selectByPage(offset, size, userId, operation, module, result, startTime, endTime);
     }
 
     /**
      * 统计审计日志总数
      */
-    public Long countAuditLogs(Long userId, String operation, String module) {
-        return auditLogMapper.countAll(userId, operation, module);
+    public Long countAuditLogs(Long userId, String operation, String module,
+            String result, LocalDateTime startTime, LocalDateTime endTime) {
+        return auditLogMapper.countAll(userId, operation, module, result, startTime, endTime);
     }
 
     /**

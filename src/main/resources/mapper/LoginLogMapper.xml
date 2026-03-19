@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.logistics.track17.mapper.LoginLogMapper">
+
+    <resultMap id="LoginLogResultMap" type="com.logistics.track17.entity.LoginLog">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="loginType" column="login_type"/>
+        <result property="loginResult" column="login_result"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="userAgent" column="user_agent"/>
+        <result property="device" column="device"/>
+        <result property="browser" column="browser"/>
+        <result property="os" column="os"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.logistics.track17.entity.LoginLog" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO login_logs (
+            user_id, username, login_type, login_result,
+            ip_address, user_agent, device, browser, os, error_msg
+        ) VALUES (
+            #{userId}, #{username}, #{loginType}, #{loginResult},
+            #{ipAddress}, #{userAgent}, #{device}, #{browser}, #{os}, #{errorMsg}
+        )
+    </insert>
+
+    <select id="selectByPage" resultMap="LoginLogResultMap">
+        SELECT * FROM login_logs
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="loginType != null and loginType != ''">
+                AND login_type = #{loginType}
+            </if>
+            <if test="loginResult != null and loginResult != ''">
+                AND login_result = #{loginResult}
+            </if>
+            <if test="startTime != null">
+                AND created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM login_logs
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="loginType != null and loginType != ''">
+                AND login_type = #{loginType}
+            </if>
+            <if test="loginResult != null and loginResult != ''">
+                AND login_result = #{loginResult}
+            </if>
+            <if test="startTime != null">
+                AND created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+    </select>
+
+</mapper>

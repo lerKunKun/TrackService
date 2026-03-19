@@ -8,6 +8,8 @@ import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.UserService;
 import com.logistics.track17.service.DingTalkService;
+import com.logistics.track17.service.LoginLogService;
+import com.logistics.track17.service.OnlineSessionService;
 import com.logistics.track17.service.PermissionService;
 import com.logistics.track17.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,8 @@ public class AuthController {
     private final UserService userService;
     private final DingTalkService dingTalkService;
     private final PermissionService permissionService;
+    private final LoginLogService loginLogService;
+    private final OnlineSessionService onlineSessionService;
     private final com.logistics.track17.config.DingTalkConfig dingTalkConfig;
     private final com.logistics.track17.service.RoleService roleService;
 
@@ -50,6 +54,8 @@ public class AuthController {
     public AuthController(JwtUtil jwtUtil, UserService userService,
             DingTalkService dingTalkService,
             PermissionService permissionService,
+            LoginLogService loginLogService,
+            OnlineSessionService onlineSessionService,
             com.logistics.track17.config.DingTalkConfig dingTalkConfig,
             com.logistics.track17.service.RoleService roleService,
             RedisTemplate<String, Object> redisTemplate) {
@@ -57,6 +63,8 @@ public class AuthController {
         this.userService = userService;
         this.dingTalkService = dingTalkService;
         this.permissionService = permissionService;
+        this.loginLogService = loginLogService;
+        this.onlineSessionService = onlineSessionService;
         this.dingTalkConfig = dingTalkConfig;
         this.roleService = roleService;
         this.redisTemplate = redisTemplate;
@@ -71,20 +79,28 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Validated @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         log.info("Login attempt for user: {}", request.getUsername());
+        String loginIp = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
         // 从数据库查询用户
         User user = userService.getUserByUsername(request.getUsername());
         if (user == null) {
+            loginLogService.recordLogin(null, request.getUsername(), "PASSWORD", "FAILURE",
+                    loginIp, userAgent, "用户名或密码错误");
             throw BusinessException.of(401, "用户名或密码错误");
         }
 
         // 检查用户状态
         if (user.getStatus() == 0) {
+            loginLogService.recordLogin(user.getId(), user.getUsername(), "PASSWORD", "FAILURE",
+                    loginIp, userAgent, "账号已被禁用");
             throw BusinessException.of(403, "账号已被禁用，请联系管理员");
         }
 
         // 验证密码（BCrypt）
         if (!userService.verifyPassword(request.getPassword(), user.getPassword())) {
+            loginLogService.recordLogin(user.getId(), user.getUsername(), "PASSWORD", "FAILURE",
+                    loginIp, userAgent, "用户名或密码错误");
             throw BusinessException.of(401, "用户名或密码错误");
         }
 
@@ -99,8 +115,14 @@ public class AuthController {
         java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
 
         // 更新最后登录信息
-        String loginIp = getClientIp(httpRequest);
         userService.updateLastLogin(user.getId(), loginIp);
+
+        // 记录登录日志
+        loginLogService.recordLogin(user.getId(), user.getUsername(), "PASSWORD", "SUCCESS",
+                loginIp, userAgent, null);
+
+        // 创建在线会话
+        onlineSessionService.createSession(user.getId(), user.getUsername(), token, loginIp, userAgent, "PASSWORD");
 
         LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
                 expiration, permissions, roles);
@@ -113,11 +135,23 @@ public class AuthController {
      * 用户登出 - 将 Token 加入黑名单
      */
     @PostMapping("/logout")
-    public Result<Object> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<Object> logout(@RequestHeader(value = "Authorization", required = false) String authHeader,
+            HttpServletRequest httpRequest) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            jwtUtil.blacklistToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
+
+            // 移除在线会话
+            onlineSessionService.removeSession(token);
+            // 加入黑名单
+            jwtUtil.blacklistToken(token);
+
+            // 记录登出日志
+            if (username != null) {
+                User user = userService.getUserByUsername(username);
+                loginLogService.recordLogin(user != null ? user.getId() : null, username, "LOGOUT", "SUCCESS",
+                        getClientIp(httpRequest), httpRequest.getHeader("User-Agent"), null);
+            }
             log.info("User {} logged out", username);
         }
         return Result.success("登出成功", null);
@@ -247,6 +281,8 @@ public class AuthController {
             @org.springframework.validation.annotation.Validated @RequestBody com.logistics.track17.dto.DingTalkLoginRequest request,
             HttpServletRequest httpRequest) {
         log.info("DingTalk login callback with code: {}", request.getCode());
+        String loginIp = getClientIp(httpRequest);
+        String userAgent = httpRequest.getHeader("User-Agent");
 
         try {
             // 1. 用authCode换取accessToken
@@ -257,6 +293,8 @@ public class AuthController {
 
             // 3. 验证CorpId（这里简化处理，使用配置的CorpId）
             if (!dingTalkService.validateCorpId(dingTalkConfig.getCorpId())) {
+                loginLogService.recordLogin(null, null, "DINGTALK", "FAILURE",
+                        loginIp, userAgent, "非本企业用户");
                 throw com.logistics.track17.exception.BusinessException.of(403, "非本企业用户，禁止登录");
             }
 
@@ -272,8 +310,14 @@ public class AuthController {
             java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
 
             // 7. 更新最后登录信息
-            String loginIp = getClientIp(httpRequest);
             userService.updateLastLogin(user.getId(), loginIp);
+
+            // 8. 记录登录日志
+            loginLogService.recordLogin(user.getId(), user.getUsername(), "DINGTALK", "SUCCESS",
+                    loginIp, userAgent, null);
+
+            // 9. 创建在线会话
+            onlineSessionService.createSession(user.getId(), user.getUsername(), token, loginIp, userAgent, "DINGTALK");
 
             LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
                     expiration, permissions, roles);
@@ -283,6 +327,8 @@ public class AuthController {
 
         } catch (Exception e) {
             log.error("DingTalk login failed", e);
+            loginLogService.recordLogin(null, null, "DINGTALK", "FAILURE",
+                    loginIp, userAgent, e.getMessage());
             throw com.logistics.track17.exception.BusinessException.of("钉钉登录失败: " + e.getMessage());
         }
     }

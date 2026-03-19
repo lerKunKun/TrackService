@@ -8,7 +8,11 @@
       "Bash(docker ps:*)",
       "Bash(docker exec:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(mysql:*)",
+      "Bash(python3:*)",
+      "Bash(docker cp:*)",
+      "Bash(node:*)"
     ]
   }
 }

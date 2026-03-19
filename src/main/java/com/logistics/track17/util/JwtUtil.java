@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 public class JwtUtil {
 
     private static final String TOKEN_BLACKLIST_PREFIX = "jwt:blacklist:";
+    private static final String SESSION_BLACKLIST_PREFIX = "jwt:blacklist:session:";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -70,6 +71,11 @@ public class JwtUtil {
     public boolean validateToken(String token) {
         try {
             if (isTokenBlacklisted(token)) {
+                return false;
+            }
+            // 检查是否被强制下线（通过 sessionId）
+            String tokenHash = token.length() > 16 ? token.substring(token.length() - 16) : token;
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(SESSION_BLACKLIST_PREFIX + tokenHash))) {
                 return false;
             }
             Claims claims = getClaimsFromToken(token);

@@ -137,6 +137,18 @@
               <ApartmentOutlined />
               <span>系统画布</span>
             </a-menu-item>
+            <a-menu-item key="audit-logs">
+              <FileSearchOutlined />
+              <span>操作日志</span>
+            </a-menu-item>
+            <a-menu-item key="login-logs">
+              <LoginOutlined />
+              <span>登录日志</span>
+            </a-menu-item>
+            <a-menu-item key="online-sessions">
+              <WifiOutlined />
+              <span>在线用户</span>
+            </a-menu-item>
           </a-sub-menu>
         </template>
       </a-menu>
@@ -250,7 +262,10 @@ import {
   IdcardOutlined,
   ApartmentOutlined,
   PictureOutlined,
-  LayoutOutlined
+  LayoutOutlined,
+  FileSearchOutlined,
+  LoginOutlined,
+  WifiOutlined
 } from '@ant-design/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { menuApi } from '@/api/menu'
@@ -337,6 +352,15 @@ watch(
     } else if (path.includes('system/canvas')) {
       selectedKeys.value = ['system-canvas']
       openKeys.value = ['system']
+    } else if (path.includes('system/audit-logs')) {
+      selectedKeys.value = ['audit-logs']
+      openKeys.value = ['system']
+    } else if (path.includes('system/login-logs')) {
+      selectedKeys.value = ['login-logs']
+      openKeys.value = ['system']
+    } else if (path.includes('system/online-sessions')) {
+      selectedKeys.value = ['online-sessions']
+      openKeys.value = ['system']
     } else if (path.includes('product/development')) {
       selectedKeys.value = ['product-development']
       openKeys.value = ['product']
@@ -399,6 +423,12 @@ const handleMenuClick = ({ key }) => {
     router.push('/product/template')
   } else if (key === 'system-canvas') {
     router.push('/system/canvas')
+  } else if (key === 'audit-logs') {
+    router.push('/system/audit-logs')
+  } else if (key === 'login-logs') {
+    router.push('/system/login-logs')
+  } else if (key === 'online-sessions') {
+    router.push('/system/online-sessions')
   } else {
     router.push(`/${key}`)
   }

@@ -50,6 +50,15 @@
             <if test="module != null and module != ''">
                 AND module = #{module}
             </if>
+            <if test="result != null and result != ''">
+                AND result = #{result}
+            </if>
+            <if test="startTime != null">
+                AND created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
         </where>
         ORDER BY created_at DESC
         LIMIT #{offset}, #{limit}
@@ -67,6 +76,15 @@
             </if>
             <if test="module != null and module != ''">
                 AND module = #{module}
+            </if>
+            <if test="result != null and result != ''">
+                AND result = #{result}
+            </if>
+            <if test="startTime != null">
+                AND created_at &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
             </if>
         </where>
     </select>
