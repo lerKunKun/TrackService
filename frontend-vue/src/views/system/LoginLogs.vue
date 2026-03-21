@@ -129,7 +129,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Grid } from 'ant-design-vue'
 import { loginLogApi } from '@/api/login-log'
-import dayjs from 'dayjs'
+import { formatDateTime as formatTime } from '@/utils/datetime'
+import { usePagination } from '@/composables/usePagination'
 
 const { useBreakpoint } = Grid
 const screens = useBreakpoint()
@@ -145,13 +146,7 @@ const filters = reactive({
   dateRange: null
 })
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
-})
+const { pagination, handleTableChange, handleSearch } = usePagination(fetchData)
 
 const columns = [
   { title: '时间', key: 'createdAt', dataIndex: 'createdAt', width: 170 },
@@ -183,21 +178,6 @@ const fetchData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const handleTableChange = (pag) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchData()
-}
-
-const handleSearch = () => {
-  pagination.current = 1
-  fetchData()
-}
-
-const formatTime = (time) => {
-  return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
 onMounted(() => {

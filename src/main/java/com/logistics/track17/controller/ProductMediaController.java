@@ -6,12 +6,8 @@ import com.logistics.track17.dto.DownloadUrlsRequest;
 import com.logistics.track17.dto.ProductMediaDTO;
 import com.logistics.track17.dto.ReferenceLinkRequest;
 import com.logistics.track17.dto.Result;
-import com.logistics.track17.entity.Product;
 import com.logistics.track17.entity.ProductMedia;
 import com.logistics.track17.entity.ProductMediaFile;
-import com.logistics.track17.entity.ProductVariant;
-import com.logistics.track17.mapper.ProductMapper;
-import com.logistics.track17.mapper.ProductVariantMapper;
 import com.logistics.track17.service.MinioService;
 import com.logistics.track17.service.ProductMediaFileService;
 import com.logistics.track17.service.ProductMediaService;
@@ -41,8 +37,6 @@ public class ProductMediaController {
 
     private final ProductMediaService productMediaService;
     private final ProductMediaFileService productMediaFileService;
-    private final ProductVariantMapper productVariantMapper;
-    private final ProductMapper productMapper;
     private final MinioService minioService;
 
     @Value("${minio.product-media-bucket:product-media}")
@@ -55,81 +49,7 @@ public class ProductMediaController {
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String title) {
-
-        Page<Product> productPage = new Page<>(current, size);
-        QueryWrapper<Product> qw = new QueryWrapper<Product>().orderByDesc("id");
-        if (title != null && !title.isBlank()) {
-            qw.like("title", title);
-        }
-        productMapper.selectPage(productPage, qw);
-
-        List<Product> products = productPage.getRecords();
-        if (products.isEmpty()) {
-            Page<ProductMediaDTO> emptyResult = new Page<>(current, size, 0);
-            emptyResult.setRecords(Collections.emptyList());
-            return Result.success(emptyResult);
-        }
-
-        List<Long> productIds = products.stream().map(Product::getId).toList();
-
-        // DB batch count (replaces N+1 MinIO calls)
-        Map<Long, Map<String, Long>> fileCounts = productMediaFileService.countByProductIds(productIds);
-
-        // Fetch first main_image for each product
-        List<ProductMediaFile> mainImages = productMediaFileService.list(
-                new QueryWrapper<ProductMediaFile>()
-                        .in("product_id", productIds)
-                        .eq("category", "main_image")
-                        .orderByAsc("product_id", "sort_order", "id"));
-        Map<Long, String> mainImageMap = new HashMap<>();
-        for (ProductMediaFile f : mainImages) {
-            mainImageMap.putIfAbsent(f.getProductId(), f.getUrl());
-        }
-
-        // Fallback: Fetch original CSV imported main image from ProductVariant
-        List<ProductVariant> variants = productVariantMapper.selectFirstVariantsByProductIds(productIds);
-        Map<Long, String> fallbackImageMap = new HashMap<>();
-        if (variants != null) {
-            for (ProductVariant v : variants) {
-                if (v.getImageUrl() != null && !v.getImageUrl().trim().isEmpty()) {
-                    fallbackImageMap.putIfAbsent(v.getProductId(), v.getImageUrl());
-                }
-            }
-        }
-
-        List<ProductMedia> mediaList = productMediaService.list(
-                new QueryWrapper<ProductMedia>().in("product_id", productIds));
-        Map<Long, ProductMedia> mediaMap = mediaList.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        ProductMedia::getProductId, m -> m, (a, b) -> a));
-
-        Page<ProductMediaDTO> result = new Page<>(current, size, productPage.getTotal());
-        List<ProductMediaDTO> dtos = products.stream().map(product -> {
-            ProductMediaDTO dto = new ProductMediaDTO();
-            dto.setProductId(product.getId());
-            dto.setProductName(product.getTitle());
-            dto.setDescription(product.getBodyHtml());
-            dto.setHandle(product.getHandle());
-
-            String imgUrl = mainImageMap.get(product.getId());
-            if (imgUrl == null || imgUrl.isBlank()) {
-                imgUrl = fallbackImageMap.get(product.getId());
-            }
-            dto.setImageUrl(imgUrl);
-
-            ProductMedia media = mediaMap.get(product.getId());
-            if (media != null) {
-                dto.setId(media.getId());
-                dto.setReferenceLink(media.getReferenceLink());
-            }
-
-            Map<String, Long> counts = fileCounts.getOrDefault(product.getId(), Collections.emptyMap());
-            dto.setTagFileCounts(counts);
-            return dto;
-        }).toList();
-
-        result.setRecords(dtos);
-        return Result.success(result);
+        return Result.success(productMediaFileService.listProductMedia(current, size, title));
     }
 
     // ─── 文件列表 ───

@@ -183,6 +183,9 @@ import productApi from '@/api/product'
 import { productPublishApi } from '@/api/product-publish'
 import { useUserStore } from '@/stores/user'
 import dayjs from 'dayjs'
+import { formatDateTime } from '@/utils/datetime'
+import { downloadBlob } from '@/utils/download'
+import { usePagination } from '@/composables/usePagination'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -196,14 +199,9 @@ const filters = reactive({
   status: undefined
 })
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 个产品`,
-  pageSizeOptions: ['10', '20', '50', '100']
-})
+const { pagination, handleTableChange, handleSearch } = usePagination(fetchList)
+pagination.showTotal = (total) => `共 ${total} 个产品`
+pagination.pageSizeOptions = ['10', '20', '50', '100']
 
 const columns = [
   {
@@ -286,21 +284,10 @@ const fetchList = async () => {
   }
 }
 
-const handleSearch = () => {
-  pagination.current = 1
-  fetchList()
-}
-
 const handleReset = () => {
   filters.keyword = ''
   filters.status = undefined
   pagination.current = 1
-  fetchList()
-}
-
-const handleTableChange = (pag) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
   fetchList()
 }
 
@@ -367,17 +354,11 @@ const handleExport = async () => {
   exporting.value = true
   try {
     const res = await productApi.exportShopifyCsv(selectedRowKeys.value)
-    
+
     // 创建并下载CSV文件
     const blob = new Blob([res], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = `shopify_products_${dayjs().format('YYYYMMDD_HHmmss')}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(link.href)
-    
+    downloadBlob(blob, `shopify_products_${dayjs().format('YYYYMMDD_HHmmss')}.csv`)
+
     message.success(`成功导出 ${selectedRowKeys.value.length} 个产品`)
     
     // 清空选择并刷新列表
@@ -392,8 +373,7 @@ const handleExport = async () => {
 }
 
 const formatTime = (time) => {
-  if (!time) return '-'
-  return dayjs(time).format('YYYY-MM-DD HH:mm')
+  return formatDateTime(time, 'YYYY-MM-DD HH:mm')
 }
 
 const formatPrice = (price) => {

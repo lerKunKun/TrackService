@@ -29,8 +29,8 @@
         )
     </insert>
 
-    <select id="selectByPage" resultMap="LoginLogResultMap">
-        SELECT * FROM login_logs
+    <!-- 共享 WHERE 条件 -->
+    <sql id="whereClause">
         <where>
             <if test="username != null and username != ''">
                 AND username LIKE CONCAT('%', #{username}, '%')
@@ -48,29 +48,18 @@
                 AND created_at &lt;= #{endTime}
             </if>
         </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="LoginLogResultMap">
+        SELECT * FROM login_logs
+        <include refid="whereClause"/>
         ORDER BY created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
 
     <select id="countAll" resultType="long">
         SELECT COUNT(*) FROM login_logs
-        <where>
-            <if test="username != null and username != ''">
-                AND username LIKE CONCAT('%', #{username}, '%')
-            </if>
-            <if test="loginType != null and loginType != ''">
-                AND login_type = #{loginType}
-            </if>
-            <if test="loginResult != null and loginResult != ''">
-                AND login_result = #{loginResult}
-            </if>
-            <if test="startTime != null">
-                AND created_at &gt;= #{startTime}
-            </if>
-            <if test="endTime != null">
-                AND created_at &lt;= #{endTime}
-            </if>
-        </where>
+        <include refid="whereClause"/>
     </select>
 
 </mapper>

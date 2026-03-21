@@ -464,13 +464,15 @@ import {
   PlusOutlined,
   SearchOutlined,
   DeleteOutlined,
-  EnvironmentOutlined,
   UploadOutlined,
   DownloadOutlined
 } from '@ant-design/icons-vue'
 import { trackingApi } from '@/api/tracking'
 import { shopApi } from '@/api/shop'
 import dayjs from 'dayjs'
+import { formatDateTime as formatDate } from '@/utils/datetime'
+import { downloadBlob } from '@/utils/download'
+import { usePagination } from '@/composables/usePagination'
 
 const route = useRoute()
 
@@ -521,13 +523,7 @@ const columns = [
 
 const loading = ref(false)
 const tableData = ref([])
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
-})
+const { pagination, handleTableChange, handleSearch } = usePagination(fetchTrackings)
 
 const useBreakpoint = Grid.useBreakpoint
 const screens = useBreakpoint()
@@ -665,19 +661,6 @@ const fetchCarriers = async () => {
   }
 }
 
-// 表格分页变化
-const handleTableChange = (pag) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchTrackings()
-}
-
-// 搜索
-const handleSearch = () => {
-  pagination.current = 1
-  fetchTrackings()
-}
-
 // 重置
 const handleReset = () => {
   Object.assign(searchParams, {
@@ -685,7 +668,9 @@ const handleReset = () => {
     shopId: undefined,
     status: undefined,
     carrierCode: undefined,
-    dateRange: []
+    dateRange: [],
+    startDate: null,
+    endDate: null
   })
   handleSearch()
 }
@@ -884,15 +869,7 @@ const downloadTemplate = () => {
 9400100000000000000000,usps,示例运单3`
 
   const blob = new Blob(['\ufeff' + template], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(blob)
-
-  link.setAttribute('href', url)
-  link.setAttribute('download', '运单导入模板.csv')
-  link.style.visibility = 'hidden'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
+  downloadBlob(blob, '运单导入模板.csv')
 
   message.success('模板下载成功')
 }
@@ -1017,11 +994,6 @@ const getEventColor = (status) => {
   }
   
   return colors[status] || 'blue'
-}
-
-// 格式化日期
-const formatDate = (date) => {
-  return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
 // 格式化事件日期（用于物流轨迹）

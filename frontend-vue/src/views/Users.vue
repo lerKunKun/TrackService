@@ -279,6 +279,7 @@ import { message, Grid } from 'ant-design-vue'
 import { PlusOutlined, MailOutlined } from '@ant-design/icons-vue'
 import { userApi } from '@/api/user'
 import { formatDateTime } from '@/utils/datetime'
+import { usePagination } from '@/composables/usePagination'
 
 // 表格列定义
 const columns = [
@@ -307,13 +308,7 @@ const filterStatus = ref(undefined)
 // 数据状态
 const loading = ref(false)
 const allUsers = ref([])
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
-})
+const { pagination, handleTableChange } = usePagination(fetchUsers, 10)
 
 const filteredUsers = computed(() => {
   let result = allUsers.value
@@ -434,12 +429,6 @@ const fetchUsers = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 表格分页变化
-const handleTableChange = (pag) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
 }
 
 // 显示新增弹窗

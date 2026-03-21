@@ -358,6 +358,8 @@ import {
   FilePdfOutlined, FileExcelOutlined, FileWordOutlined, FileOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
+import { copyToClipboard } from '@/utils/clipboard'
+import { downloadBlob } from '@/utils/download'
 import { useReferenceLinks } from '@/composables/useReferenceLinks'
 import {
   getProductMediaList, getProductMediaFiles,
@@ -373,8 +375,6 @@ const CATEGORY_LIST = [
   { value: 'ad_media',     label: '广告素材', dotColor: '#fa8c16' },
   { value: 'document',     label: '文档',     dotColor: '#13c2c2' }
 ]
-
-const SOURCE_LABELS = { URL_DOWNLOAD: '链接', SHOPIFY_SYNC: '同步', SUPPLIER: '供应商' }
 
 // ─── 产品列表 ───
 const productList  = ref([])
@@ -657,8 +657,7 @@ function confirmDelete(file) {
 
 // ─── 复制 ───
 async function copyUrl(file) {
-  try { await navigator.clipboard.writeText(file.url); message.success('已复制') }
-  catch (_) { message.error('复制失败') }
+  await copyToClipboard(file.url)
 }
 
 // ─── 预览 ───
@@ -666,23 +665,11 @@ const previewOpen = ref(false)
 const previewFile = ref(null)
 function openPreview(file) { previewFile.value = file; previewOpen.value = true }
 
-// ─── 下载文件 ───
-function triggerBlobDownload(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
 async function doDownloadFile(file) {
   try {
     message.loading({ content: '下载中...', key: 'dl' })
     const blob = await downloadMediaFile(file.id)
-    triggerBlobDownload(blob, file.originalName || 'download')
+    downloadBlob(blob, file.originalName || 'download')
     message.success({ content: '下载完成', key: 'dl' })
   } catch (e) {
     message.error({ content: '下载失败', key: 'dl' })
@@ -696,7 +683,7 @@ async function doBatchDownload() {
   try {
     message.loading({ content: '正在打包下载...', key: 'bdl' })
     const blob = await batchDownloadMediaFiles(selectedFileIds.value)
-    triggerBlobDownload(blob, `media-files-${Date.now()}.zip`)
+    downloadBlob(blob, `media-files-${Date.now()}.zip`)
     message.success({ content: '下载完成', key: 'bdl' })
   } catch (e) {
     message.error({ content: '批量下载失败', key: 'bdl' })

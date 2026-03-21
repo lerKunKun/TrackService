@@ -1,5 +1,6 @@
 package com.logistics.track17.service;
 
+import com.logistics.track17.constant.UserStatus;
 import com.logistics.track17.dto.*;
 import com.logistics.track17.entity.Role;
 import com.logistics.track17.entity.User;
@@ -10,12 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -82,7 +84,7 @@ public class UserService {
         user.setPhone(request.getPhone());
         user.setRealName(request.getRealName());
         user.setRole(request.getRole() != null ? request.getRole() : "USER");
-        user.setStatus(1); // 默认启用
+        user.setStatus(UserStatus.ENABLED); // 默认启用
 
         int result = userMapper.insert(user);
         if (result > 0) {
@@ -236,15 +238,15 @@ public class UserService {
         user.setAvatar(dingTalkUserInfo.getAvatarUrl());
         user.setLoginSource("DINGTALK");
         user.setRole("USER"); // 默认普通用户
-        user.setStatus(1); // 默认启用
+        user.setStatus(UserStatus.ENABLED); // 默认启用
         // 随机密码,钉钉用户不需要密码登录
-        user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
 
         try {
             userMapper.insert(user);
             log.info("Created new user from DingTalk: {}", user.getUsername());
             return user;
-        } catch (org.springframework.dao.DuplicateKeyException e) {
+        } catch (DuplicateKeyException e) {
             // 极端并发情况：在检查和插入之间，另一个请求创建了相同username
             log.warn("Duplicate key after check, attempting final unionId lookup");
             User finalCheck = userMapper.selectByDingUnionId(dingTalkUserInfo.getUnionId());
@@ -347,7 +349,7 @@ public class UserService {
     /**
      * 获取用户的角色列表
      */
-    public List<com.logistics.track17.entity.Role> getUserRoles(Long userId) {
+    public List<Role> getUserRoles(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw BusinessException.of(404, "用户不存在");
@@ -377,7 +379,7 @@ public class UserService {
         if (effectiveRoleIds == null || effectiveRoleIds.isEmpty()) {
             Role defaultRole = roleMapper.selectByRoleCode("USER");
             if (defaultRole != null) {
-                effectiveRoleIds = java.util.Collections.singletonList(defaultRole.getId());
+                effectiveRoleIds = Collections.singletonList(defaultRole.getId());
                 log.warn("updateUserRoles called with empty roleIds for user {}, falling back to default USER role {}",
                         userId, defaultRole.getId());
             } else {
@@ -396,14 +398,14 @@ public class UserService {
     /**
      * 获取用户列表（带角色信息）- 优化版，避免 N+1 查询
      */
-    public java.util.Map<String, Object> getUsersWithRoles(int page, int size) {
+    public Map<String, Object> getUsersWithRoles(int page, int size) {
         int offset = (page - 1) * size;
         List<User> users = userMapper.selectByPage(offset, size);
         Long total = userMapper.count();
 
-        List<java.util.Map<String, Object>> usersWithRoles = buildUsersWithRoles(users, false);
+        List<Map<String, Object>> usersWithRoles = buildUsersWithRoles(users, false);
 
-        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        Map<String, Object> result = new HashMap<>();
         result.put("list", usersWithRoles);
         result.put("total", total);
         result.put("page", page);
@@ -414,13 +416,13 @@ public class UserService {
     /**
      * 获取所有用户列表（带角色信息）- 不分页
      */
-    public java.util.Map<String, Object> getAllUsersWithRoles() {
+    public Map<String, Object> getAllUsersWithRoles() {
         List<User> users = userMapper.selectAll();
         Long total = (long) users.size();
 
-        List<java.util.Map<String, Object>> usersWithRoles = buildUsersWithRoles(users, true);
+        List<Map<String, Object>> usersWithRoles = buildUsersWithRoles(users, true);
 
-        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        Map<String, Object> result = new HashMap<>();
         result.put("list", usersWithRoles);
         result.put("total", total);
         return result;
@@ -429,18 +431,18 @@ public class UserService {
     /**
      * 批量构建用户+角色列表（消除重复代码）
      */
-    private List<java.util.Map<String, Object>> buildUsersWithRoles(List<User> users, boolean includeDepartment) {
+    private List<Map<String, Object>> buildUsersWithRoles(List<User> users, boolean includeDepartment) {
         if (users.isEmpty()) {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
 
         // 批量获取所有用户的角色（单次查询）
         List<Long> userIds = users.stream().map(User::getId).collect(Collectors.toList());
-        List<java.util.Map<String, Object>> userRoleMappings = userMapper.selectRolesByUserIds(userIds);
+        List<Map<String, Object>> userRoleMappings = userMapper.selectRolesByUserIds(userIds);
 
         // 构建用户ID到角色列表的映射
-        java.util.Map<Long, List<Role>> userRolesMap = new java.util.HashMap<>();
-        for (java.util.Map<String, Object> mapping : userRoleMappings) {
+        Map<Long, List<Role>> userRolesMap = new HashMap<>();
+        for (Map<String, Object> mapping : userRoleMappings) {
             Long userId = ((Number) mapping.get("user_id")).longValue();
             Role role = new Role();
             role.setId(((Number) mapping.get("role_id")).longValue());
@@ -457,13 +459,13 @@ public class UserService {
                 role.setStatus(1);
             }
 
-            userRolesMap.computeIfAbsent(userId, k -> new java.util.ArrayList<>()).add(role);
+            userRolesMap.computeIfAbsent(userId, k -> new ArrayList<>()).add(role);
         }
 
         // 构建返回结果
         return users.stream()
                 .map(user -> {
-                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    Map<String, Object> map = new HashMap<>();
                     UserDTO dto = convertToDTO(user);
                     map.put("id", dto.getId());
                     map.put("username", dto.getUsername());
@@ -475,7 +477,7 @@ public class UserService {
                     if (includeDepartment) {
                         map.put("department", user.getCorpId());
                     }
-                    map.put("roles", userRolesMap.getOrDefault(user.getId(), java.util.Collections.emptyList()));
+                    map.put("roles", userRolesMap.getOrDefault(user.getId(), Collections.emptyList()));
                     return map;
                 })
                 .collect(Collectors.toList());

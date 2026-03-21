@@ -9,13 +9,14 @@ import com.logistics.track17.entity.ProductImport;
 import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.mapper.ProductImageMapper;
 import com.logistics.track17.mapper.ProductMapper;
+import com.logistics.track17.mapper.ProductMediaFileMapper;
 import com.logistics.track17.mapper.ProductShopMapper;
 import com.logistics.track17.mapper.ProductVariantMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,22 +40,18 @@ import java.util.*;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ProductService {
 
-    @Autowired
-    private ProductMapper productMapper;
+    private final ProductMapper productMapper;
 
-    @Autowired
-    private ProductShopMapper productShopMapper;
+    private final ProductShopMapper productShopMapper;
 
-    @Autowired
-    private ProductVariantMapper productVariantMapper;
+    private final ProductVariantMapper productVariantMapper;
 
-    @Autowired
-    private ProductImageMapper productImageMapper;
+    private final ProductImageMapper productImageMapper;
 
-    @Autowired
-    private com.logistics.track17.mapper.ProductMediaFileMapper productMediaFileMapper;
+    private final ProductMediaFileMapper productMediaFileMapper;
 
     @Value("${storage.local.base-path:./storage/product-imports}")
     private String storagePath;

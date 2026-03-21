@@ -1,6 +1,8 @@
 package com.logistics.track17.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.logistics.track17.dto.ProductMediaDTO;
 import com.logistics.track17.entity.ProductMediaFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -8,6 +10,11 @@ import java.util.List;
 import java.util.Map;
 
 public interface ProductMediaFileService extends IService<ProductMediaFile> {
+
+    /**
+     * 产品媒体列表（带文件统计、首图、对标链接等），供 controller 直接返回
+     */
+    Page<ProductMediaDTO> listProductMedia(Integer current, Integer size, String title);
 
     /**
      * 按产品+分类查询文件列表（按 sort_order 排序）

@@ -1,5 +1,6 @@
 package com.logistics.track17.controller;
 
+import com.logistics.track17.constant.UserStatus;
 import com.logistics.track17.dto.LoginRequest;
 import com.logistics.track17.dto.LoginResponse;
 import com.logistics.track17.dto.Result;
@@ -100,7 +101,7 @@ public class AuthController {
         }
 
         // 检查用户状态
-        if (user.getStatus() == 0) {
+        if (user.getStatus() == UserStatus.DISABLED) {
             loginLogService.recordLogin(user.getId(), user.getUsername(), "PASSWORD", "FAILURE",
                     loginIp, userAgent, "账号已被禁用");
             throw BusinessException.of(403, "账号已被禁用，请联系管理员");

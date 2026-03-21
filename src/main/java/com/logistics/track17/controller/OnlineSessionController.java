@@ -4,14 +4,12 @@ import com.logistics.track17.annotation.RequireAuth;
 import com.logistics.track17.dto.OnlineSession;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.service.OnlineSessionService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @RestController
 @RequestMapping("/online-sessions")
 @RequireAuth(admin = true)
@@ -32,8 +30,9 @@ public class OnlineSessionController {
     @GetMapping("/count")
     public Result<Map<String, Long>> count() {
         List<OnlineSession> sessions = onlineSessionService.getAllOnlineSessions();
+        long userCount = sessions.stream().map(OnlineSession::getUserId).distinct().count();
         Map<String, Long> counts = new HashMap<>();
-        counts.put("userCount", onlineSessionService.getOnlineUserCount());
+        counts.put("userCount", userCount);
         counts.put("sessionCount", (long) sessions.size());
         return Result.success(counts);
     }

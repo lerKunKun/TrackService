@@ -526,6 +526,7 @@ import {
 } from '@ant-design/icons-vue'
 import { updateReferenceLink } from '@/api/product-media-template'
 import { useReferenceLinks } from '@/composables/useReferenceLinks'
+import { usePagination } from '@/composables/usePagination'
 import { Modal } from 'ant-design-vue'
 import productApi from '@/api/product'
 import { shopApi } from '@/api/shop'
@@ -540,13 +541,13 @@ const shops = ref([])
 const selectedRowKeys = ref([])
 
 // 表格选择配置
-const rowSelection = {
-  selectedRowKeys: selectedRowKeys,
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
   preserveSelectedRowKeys: true,
   onChange: (keys) => {
     selectedRowKeys.value = keys
   }
-}
+}))
 
 const filters = reactive({
   title: null,
@@ -555,13 +556,7 @@ const filters = reactive({
   shopId: null
 })
 
-const pagination = reactive({
-  current: 1,
-  pageSize: 20,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total) => `共 ${total} 条`
-})
+const { pagination, handleTableChange, handleSearch } = usePagination(fetchProducts)
 
 const columns = [
   {
@@ -641,19 +636,6 @@ const fetchShops = async () => {
   } catch (error) {
     console.error('获取商店列表失败:', error)
   }
-}
-
-// 表格分页变化
-const handleTableChange = (pag) => {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  fetchProducts()
-}
-
-// 搜索
-const handleSearch = () => {
-  pagination.current = 1
-  fetchProducts()
 }
 
 // 获取标签数组

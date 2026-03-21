@@ -5,6 +5,7 @@ import com.logistics.track17.entity.ProductMediaFile;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
@@ -33,4 +34,20 @@ public interface ProductMediaFileMapper extends BaseMapper<ProductMediaFile> {
     @Select("SELECT COALESCE(MAX(sort_order), 0) FROM product_media_files " +
             "WHERE product_id = #{productId} AND category = #{category}")
     int getMaxSortOrder(@Param("productId") Long productId, @Param("category") String category);
+
+    /**
+     * 批量更新排序（CASE/WHEN 单条 SQL）
+     */
+    @Update("<script>" +
+            "UPDATE product_media_files SET sort_order = CASE id " +
+            "<foreach item='item' collection='items'>" +
+            "WHEN #{item.id} THEN #{item.sortOrder} " +
+            "</foreach>" +
+            "END " +
+            "WHERE id IN " +
+            "<foreach item='item' collection='items' open='(' separator=',' close=')'>" +
+            "#{item.id}" +
+            "</foreach>" +
+            "</script>")
+    int batchUpdateSort(@Param("items") List<Map<String, Object>> items);
 }

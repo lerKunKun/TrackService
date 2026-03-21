@@ -5,13 +5,11 @@ import com.logistics.track17.dto.PageResult;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.entity.LoginLog;
 import com.logistics.track17.service.LoginLogService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 
-@Slf4j
 @RestController
 @RequestMapping("/login-logs")
 @RequireAuth(admin = true)

@@ -2,8 +2,8 @@ package com.logistics.track17.service;
 
 import com.logistics.track17.entity.AuditLogEntity;
 import com.logistics.track17.mapper.AuditLogMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +15,10 @@ import java.util.List;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class AuditLogService {
 
-    @Autowired
-    private AuditLogMapper auditLogMapper;
+    private final AuditLogMapper auditLogMapper;
 
     /**
      * 异步保存审计日志

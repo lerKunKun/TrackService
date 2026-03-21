@@ -1,12 +1,19 @@
 package com.logistics.track17.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.logistics.track17.dto.ProductMediaDTO;
+import com.logistics.track17.entity.Product;
+import com.logistics.track17.entity.ProductMedia;
 import com.logistics.track17.entity.ProductMediaFile;
+import com.logistics.track17.entity.ProductVariant;
 import com.logistics.track17.mapper.ProductMapper;
 import com.logistics.track17.mapper.ProductMediaFileMapper;
+import com.logistics.track17.mapper.ProductVariantMapper;
 import com.logistics.track17.service.MinioService;
 import com.logistics.track17.service.ProductMediaFileService;
+import com.logistics.track17.service.ProductMediaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,9 +39,86 @@ public class ProductMediaFileServiceImpl
 
     private final MinioService minioService;
     private final ProductMapper productMapper;
+    private final ProductVariantMapper productVariantMapper;
+    private final ProductMediaService productMediaService;
 
     @Value("${minio.product-media-bucket:product-media}")
     private String bucket;
+
+    @Override
+    public Page<ProductMediaDTO> listProductMedia(Integer current, Integer size, String title) {
+        Page<Product> productPage = new Page<>(current, size);
+        QueryWrapper<Product> qw = new QueryWrapper<Product>().orderByDesc("id");
+        if (title != null && !title.isBlank()) {
+            qw.like("title", title);
+        }
+        productMapper.selectPage(productPage, qw);
+
+        List<Product> products = productPage.getRecords();
+        if (products.isEmpty()) {
+            Page<ProductMediaDTO> emptyResult = new Page<>(current, size, 0);
+            emptyResult.setRecords(Collections.emptyList());
+            return emptyResult;
+        }
+
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+
+        Map<Long, Map<String, Long>> fileCounts = countByProductIds(productIds);
+
+        List<ProductMediaFile> mainImages = list(
+                new QueryWrapper<ProductMediaFile>()
+                        .in("product_id", productIds)
+                        .eq("category", "main_image")
+                        .orderByAsc("product_id", "sort_order", "id"));
+        Map<Long, String> mainImageMap = new HashMap<>();
+        for (ProductMediaFile f : mainImages) {
+            mainImageMap.putIfAbsent(f.getProductId(), f.getUrl());
+        }
+
+        List<ProductVariant> variants = productVariantMapper.selectFirstVariantsByProductIds(productIds);
+        Map<Long, String> fallbackImageMap = new HashMap<>();
+        if (variants != null) {
+            for (ProductVariant v : variants) {
+                if (v.getImageUrl() != null && !v.getImageUrl().trim().isEmpty()) {
+                    fallbackImageMap.putIfAbsent(v.getProductId(), v.getImageUrl());
+                }
+            }
+        }
+
+        List<ProductMedia> mediaList = productMediaService.list(
+                new QueryWrapper<ProductMedia>().in("product_id", productIds));
+        Map<Long, ProductMedia> mediaMap = mediaList.stream()
+                .collect(Collectors.toMap(
+                        ProductMedia::getProductId, m -> m, (a, b) -> a));
+
+        Page<ProductMediaDTO> result = new Page<>(current, size, productPage.getTotal());
+        List<ProductMediaDTO> dtos = products.stream().map(product -> {
+            ProductMediaDTO dto = new ProductMediaDTO();
+            dto.setProductId(product.getId());
+            dto.setProductName(product.getTitle());
+            dto.setDescription(product.getBodyHtml());
+            dto.setHandle(product.getHandle());
+
+            String imgUrl = mainImageMap.get(product.getId());
+            if (imgUrl == null || imgUrl.isBlank()) {
+                imgUrl = fallbackImageMap.get(product.getId());
+            }
+            dto.setImageUrl(imgUrl);
+
+            ProductMedia media = mediaMap.get(product.getId());
+            if (media != null) {
+                dto.setId(media.getId());
+                dto.setReferenceLink(media.getReferenceLink());
+            }
+
+            Map<String, Long> counts = fileCounts.getOrDefault(product.getId(), Collections.emptyMap());
+            dto.setTagFileCounts(counts);
+            return dto;
+        }).toList();
+
+        result.setRecords(dtos);
+        return result;
+    }
 
     @Override
     public List<ProductMediaFile> listByProductAndCategory(Long productId, String category) {
@@ -206,12 +290,15 @@ public class ProductMediaFileServiceImpl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateSort(Long productId, String category, List<Long> sortedIds) {
+        if (sortedIds == null || sortedIds.isEmpty()) return;
+        List<Map<String, Object>> items = new ArrayList<>();
         for (int i = 0; i < sortedIds.size(); i++) {
-            ProductMediaFile update = new ProductMediaFile();
-            update.setId(sortedIds.get(i));
-            update.setSortOrder(i);
-            updateById(update);
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", sortedIds.get(i));
+            item.put("sortOrder", i);
+            items.add(item);
         }
+        baseMapper.batchUpdateSort(items);
     }
 
     @Override
@@ -341,10 +428,11 @@ public class ProductMediaFileServiceImpl
         List<MinioService.MinioFileInfo> allFiles = minioService.listFiles(bucket, "");
         int migrated = 0, skipped = 0;
 
+        Set<String> existingObjectNames = list(new QueryWrapper<ProductMediaFile>().select("object_name"))
+                .stream().map(ProductMediaFile::getObjectName).collect(Collectors.toSet());
+
         for (MinioService.MinioFileInfo f : allFiles) {
-            long existing = count(new QueryWrapper<ProductMediaFile>()
-                    .eq("object_name", f.getObjectName()));
-            if (existing > 0) { skipped++; continue; }
+            if (existingObjectNames.contains(f.getObjectName())) { skipped++; continue; }
 
             String[] parts = f.getObjectName().split("/");
             if (parts.length < 3) { skipped++; continue; }

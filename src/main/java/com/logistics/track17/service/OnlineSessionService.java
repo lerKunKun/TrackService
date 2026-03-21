@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -147,8 +149,14 @@ public class OnlineSessionService {
      * 获取所有在线会话
      */
     public List<OnlineSession> getAllOnlineSessions() {
-        Set<String> keys = redisTemplate.keys(SESSION_PREFIX + "*");
-        if (keys == null || keys.isEmpty()) {
+        Set<String> keys = new HashSet<>();
+        ScanOptions options = ScanOptions.scanOptions().match(SESSION_PREFIX + "*").count(100).build();
+        try (Cursor<String> cursor = redisTemplate.scan(options)) {
+            while (cursor.hasNext()) {
+                keys.add(cursor.next());
+            }
+        }
+        if (keys.isEmpty()) {
             return Collections.emptyList();
         }
         return keys.stream()

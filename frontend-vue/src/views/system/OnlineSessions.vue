@@ -122,7 +122,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Grid, message } from 'ant-design-vue'
 import { TeamOutlined, LaptopOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { onlineSessionApi } from '@/api/online-session'
-import dayjs from 'dayjs'
+import { formatDateTime as formatTime } from '@/utils/datetime'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client/dist/sockjs.min.js'
 
@@ -190,10 +190,6 @@ const handleForceLogout = async (record) => {
   } catch (e) {
     message.error('操作失败: ' + e.message)
   }
-}
-
-const formatTime = (time) => {
-  return time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'
 }
 
 const connectWebSocket = () => {
