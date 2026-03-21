@@ -145,20 +145,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Grid } from 'ant-design-vue'
 import { auditLogApi } from '@/api/audit-log'
 import dayjs from 'dayjs'
 
 const { useBreakpoint } = Grid
 const screens = useBreakpoint()
-const isMobile = ref(false)
-
-// 响应式检测
-const checkMobile = () => {
-  isMobile.value = !screens.value.md
-}
-onMounted(() => { checkMobile() })
+const isMobile = computed(() => !screens.value.md)
 
 const loading = ref(false)
 const tableData = ref([])

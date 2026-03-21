@@ -39,6 +39,14 @@ public interface ProductMapper extends BaseMapper<Product> {
         Product selectById(@Param("id") Long id);
 
         /**
+         * 根据ID列表批量查询产品
+         *
+         * @param ids 产品ID列表
+         * @return 产品列表
+         */
+        List<Product> selectByIds(@Param("ids") List<Long> ids);
+
+        /**
          * 根据handle查询产品
          * 
          * @param handle 产品唯一标识

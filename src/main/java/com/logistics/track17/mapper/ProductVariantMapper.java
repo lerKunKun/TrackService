@@ -45,6 +45,14 @@ public interface ProductVariantMapper {
     List<ProductVariant> selectByProductId(@Param("productId") Long productId);
 
     /**
+     * 根据产品ID列表批量查询所有变体
+     *
+     * @param productIds 产品ID列表
+     * @return 变体列表
+     */
+    List<ProductVariant> selectByProductIds(@Param("productIds") List<Long> productIds);
+
+    /**
      * 根据产品ID查询第一个变体
      * 
      * @param productId 产品ID
@@ -110,6 +118,18 @@ public interface ProductVariantMapper {
      * @return 影响行数
      */
     int updatePrice(@Param("id") Long id,
+            @Param("price") java.math.BigDecimal price,
+            @Param("compareAtPrice") java.math.BigDecimal compareAtPrice);
+
+    /**
+     * 按产品ID批量更新所有变体价格
+     *
+     * @param productId      产品ID
+     * @param price          销售价格
+     * @param compareAtPrice 原价
+     * @return 影响行数
+     */
+    int updatePriceByProductId(@Param("productId") Long productId,
             @Param("price") java.math.BigDecimal price,
             @Param("compareAtPrice") java.math.BigDecimal compareAtPrice);
 }

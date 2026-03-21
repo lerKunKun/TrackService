@@ -524,7 +524,8 @@ import {
   CopyOutlined,
   LinkOutlined
 } from '@ant-design/icons-vue'
-import { getReferenceLink, updateReferenceLink } from '@/api/product-media-template'
+import { updateReferenceLink } from '@/api/product-media-template'
+import { useReferenceLinks } from '@/composables/useReferenceLinks'
 import { Modal } from 'ant-design-vue'
 import productApi from '@/api/product'
 import { shopApi } from '@/api/shop'
@@ -731,41 +732,15 @@ const editLoading = ref(false)
 const editForm = ref(null)
 
 // 对标页链接
-const editRefLinks = ref([])
-const editingRefLinkIdx = ref(-1)
-
-async function loadEditRefLinks(productId) {
-  try {
-    const res = await getReferenceLink(productId)
-    editRefLinks.value = Array.isArray(res.data) && res.data.length ? [...res.data] : []
-  } catch (_) {
-    editRefLinks.value = []
-  }
-  editingRefLinkIdx.value = -1
-}
-
-function addEditRefLink() {
-  editRefLinks.value.push('')
-  editingRefLinkIdx.value = editRefLinks.value.length - 1
-}
-
-function removeEditRefLink(idx) {
-  editRefLinks.value.splice(idx, 1)
-  editingRefLinkIdx.value = -1
-}
-
-function onEditRefLinkBlur(idx) {
-  // 失焦时退出编辑态，但不立即保存（等弹窗确认时统一保存）
-  if (!editRefLinks.value[idx]?.trim()) {
-    editRefLinks.value.splice(idx, 1)
-  }
-  editingRefLinkIdx.value = -1
-}
-
-async function copyEditRefLink(link) {
-  try { await navigator.clipboard.writeText(link); message.success('已复制') }
-  catch (_) { message.error('复制失败') }
-}
+const {
+  referenceLinks: editRefLinks,
+  editingLinkIdx: editingRefLinkIdx,
+  loadRefLinks: loadEditRefLinks,
+  addRefLink: addEditRefLink,
+  removeRefLink: removeEditRefLink,
+  onRefLinkBlur: onEditRefLinkBlur,
+  copyRefLink: copyEditRefLink
+} = useReferenceLinks({ autoSave: false })
 const avgProcurementPrice = ref('0.00')
 
 // 计算预计利润

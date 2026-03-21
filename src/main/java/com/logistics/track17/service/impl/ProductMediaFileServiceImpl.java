@@ -383,18 +383,29 @@ public class ProductMediaFileServiceImpl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> fixUrls() {
-        List<ProductMediaFile> allFiles = list();
         int fixed = 0, skipped = 0;
+        int batchSize = 500;
+        int page = 1;
 
-        for (ProductMediaFile file : allFiles) {
-            String correctUrl = minioService.getDirectUrl(bucket, file.getObjectName());
-            if (!correctUrl.equals(file.getUrl())) {
-                file.setUrl(correctUrl);
-                updateById(file);
-                fixed++;
-            } else {
-                skipped++;
+        while (true) {
+            com.baomidou.mybatisplus.extension.plugins.pagination.Page<ProductMediaFile> pageResult =
+                    page(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, batchSize));
+            List<ProductMediaFile> batch = pageResult.getRecords();
+            if (batch.isEmpty()) break;
+
+            for (ProductMediaFile file : batch) {
+                String correctUrl = minioService.getDirectUrl(bucket, file.getObjectName());
+                if (!correctUrl.equals(file.getUrl())) {
+                    file.setUrl(correctUrl);
+                    updateById(file);
+                    fixed++;
+                } else {
+                    skipped++;
+                }
             }
+
+            if (!pageResult.hasNext()) break;
+            page++;
         }
 
         return Map.of("fixed", fixed, "skipped", skipped,

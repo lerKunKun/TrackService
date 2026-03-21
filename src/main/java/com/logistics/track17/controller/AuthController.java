@@ -4,6 +4,7 @@ import com.logistics.track17.dto.LoginRequest;
 import com.logistics.track17.dto.LoginResponse;
 import com.logistics.track17.dto.Result;
 import com.logistics.track17.dto.UserDTO;
+import com.logistics.track17.entity.Role;
 import com.logistics.track17.entity.User;
 import com.logistics.track17.exception.BusinessException;
 import com.logistics.track17.service.UserService;
@@ -11,6 +12,10 @@ import com.logistics.track17.service.DingTalkService;
 import com.logistics.track17.service.LoginLogService;
 import com.logistics.track17.service.OnlineSessionService;
 import com.logistics.track17.service.PermissionService;
+import com.logistics.track17.service.RoleService;
+import com.logistics.track17.config.DingTalkConfig;
+import com.logistics.track17.dto.DingTalkLoginRequest;
+import com.logistics.track17.dto.DingTalkUserInfo;
 import com.logistics.track17.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +26,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -37,8 +46,8 @@ public class AuthController {
     private final PermissionService permissionService;
     private final LoginLogService loginLogService;
     private final OnlineSessionService onlineSessionService;
-    private final com.logistics.track17.config.DingTalkConfig dingTalkConfig;
-    private final com.logistics.track17.service.RoleService roleService;
+    private final DingTalkConfig dingTalkConfig;
+    private final RoleService roleService;
 
     @Value("${jwt.expiration}")
     private Long expiration;
@@ -56,8 +65,8 @@ public class AuthController {
             PermissionService permissionService,
             LoginLogService loginLogService,
             OnlineSessionService onlineSessionService,
-            com.logistics.track17.config.DingTalkConfig dingTalkConfig,
-            com.logistics.track17.service.RoleService roleService,
+            DingTalkConfig dingTalkConfig,
+            RoleService roleService,
             RedisTemplate<String, Object> redisTemplate) {
         this.jwtUtil = jwtUtil;
         this.userService = userService;
@@ -104,28 +113,8 @@ public class AuthController {
             throw BusinessException.of(401, "用户名或密码错误");
         }
 
-        // 生成Token
-        String token = jwtUtil.generateToken(user.getUsername());
-
-        // 获取用户权限
-        java.util.List<String> permissions = new java.util.ArrayList<>(
-                permissionService.getUserPermissionCodes(user.getId()));
-
-        // 获取用户角色
-        java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
-
-        // 更新最后登录信息
-        userService.updateLastLogin(user.getId(), loginIp);
-
-        // 记录登录日志
-        loginLogService.recordLogin(user.getId(), user.getUsername(), "PASSWORD", "SUCCESS",
-                loginIp, userAgent, null);
-
-        // 创建在线会话
-        onlineSessionService.createSession(user.getId(), user.getUsername(), token, loginIp, userAgent, "PASSWORD");
-
-        LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                expiration, permissions, roles);
+        // 生成Token并构建登录响应
+        LoginResponse response = buildLoginSuccessResponse(user, loginIp, userAgent, "PASSWORD");
 
         log.info("User {} logged in successfully from IP: {}", user.getUsername(), loginIp);
         return Result.success("登录成功", response);
@@ -151,8 +140,10 @@ public class AuthController {
                 User user = userService.getUserByUsername(username);
                 loginLogService.recordLogin(user != null ? user.getId() : null, username, "LOGOUT", "SUCCESS",
                         getClientIp(httpRequest), httpRequest.getHeader("User-Agent"), null);
+                log.info("User {} logged out", username);
+            } else {
+                log.info("User logged out with invalid token");
             }
-            log.info("User {} logged out", username);
         }
         return Result.success("登出成功", null);
     }
@@ -212,10 +203,10 @@ public class AuthController {
      * 快速生成UUID（比UUID.randomUUID()快约2-3倍）
      */
     private String generateFastUUID() {
-        java.util.concurrent.ThreadLocalRandom random = java.util.concurrent.ThreadLocalRandom.current();
+        ThreadLocalRandom random = ThreadLocalRandom.current();
         long mostSigBits = random.nextLong();
         long leastSigBits = random.nextLong();
-        return new java.util.UUID(mostSigBits, leastSigBits).toString();
+        return new UUID(mostSigBits, leastSigBits).toString();
     }
 
     /**
@@ -278,7 +269,7 @@ public class AuthController {
      */
     @PostMapping("/dingtalk/callback")
     public Result<LoginResponse> dingTalkCallback(
-            @org.springframework.validation.annotation.Validated @RequestBody com.logistics.track17.dto.DingTalkLoginRequest request,
+            @Validated @RequestBody DingTalkLoginRequest request,
             HttpServletRequest httpRequest) {
         log.info("DingTalk login callback with code: {}", request.getCode());
         String loginIp = getClientIp(httpRequest);
@@ -289,48 +280,46 @@ public class AuthController {
             String accessToken = dingTalkService.getAccessToken(request.getCode());
 
             // 2. 获取用户信息
-            com.logistics.track17.dto.DingTalkUserInfo userInfo = dingTalkService.getUserInfo(accessToken);
+            DingTalkUserInfo userInfo = dingTalkService.getUserInfo(accessToken);
 
-            // 3. 验证CorpId（这里简化处理，使用配置的CorpId）
+            // 3. 验证CorpId
             if (!dingTalkService.validateCorpId(dingTalkConfig.getCorpId())) {
                 loginLogService.recordLogin(null, null, "DINGTALK", "FAILURE",
                         loginIp, userAgent, "非本企业用户");
-                throw com.logistics.track17.exception.BusinessException.of(403, "非本企业用户，禁止登录");
+                throw BusinessException.of(403, "非本企业用户，禁止登录");
             }
 
             // 4. 登录或注册用户
             User user = userService.loginOrRegisterWithDingTalk(userInfo, dingTalkConfig.getCorpId());
 
-            // 5. 生成JWT Token
-            String token = jwtUtil.generateToken(user.getUsername());
-
-            // 6. 获取用户权限和角色
-            java.util.List<String> permissions = new java.util.ArrayList<>(
-                    permissionService.getUserPermissionCodes(user.getId()));
-            java.util.List<com.logistics.track17.entity.Role> roles = roleService.getRolesByUserId(user.getId());
-
-            // 7. 更新最后登录信息
-            userService.updateLastLogin(user.getId(), loginIp);
-
-            // 8. 记录登录日志
-            loginLogService.recordLogin(user.getId(), user.getUsername(), "DINGTALK", "SUCCESS",
-                    loginIp, userAgent, null);
-
-            // 9. 创建在线会话
-            onlineSessionService.createSession(user.getId(), user.getUsername(), token, loginIp, userAgent, "DINGTALK");
-
-            LoginResponse response = new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
-                    expiration, permissions, roles);
+            // 5. 生成Token并构建登录响应
+            LoginResponse response = buildLoginSuccessResponse(user, loginIp, userAgent, "DINGTALK");
 
             log.info("User {} logged in via DingTalk from IP: {}", user.getUsername(), loginIp);
             return Result.success("登录成功", response);
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("DingTalk login failed", e);
             loginLogService.recordLogin(null, null, "DINGTALK", "FAILURE",
                     loginIp, userAgent, e.getMessage());
-            throw com.logistics.track17.exception.BusinessException.of("钉钉登录失败: " + e.getMessage());
+            throw BusinessException.of("钉钉登录失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 登录成功后的通用处理：生成token、获取权限角色、记录日志、创建会话
+     */
+    private LoginResponse buildLoginSuccessResponse(User user, String loginIp, String userAgent, String loginType) {
+        String token = jwtUtil.generateToken(user.getUsername());
+        List<String> permissions = new ArrayList<>(permissionService.getUserPermissionCodes(user.getId()));
+        List<Role> roles = roleService.getRolesByUserId(user.getId());
+        userService.updateLastLogin(user.getId(), loginIp);
+        loginLogService.recordLogin(user.getId(), user.getUsername(), loginType, "SUCCESS", loginIp, userAgent, null);
+        onlineSessionService.createSession(user.getId(), user.getUsername(), token, loginIp, userAgent, loginType);
+        return new LoginResponse(token, user.getUsername(), user.getRealName(), user.getAvatar(),
+                expiration, permissions, roles);
     }
 
     /**

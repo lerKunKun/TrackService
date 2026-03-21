@@ -597,13 +597,9 @@ public class ProductService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updateAllVariantsPrice(Long productId, BigDecimal price, BigDecimal compareAtPrice) {
-        List<ProductVariant> variants = productVariantMapper.selectByProductId(productId);
+        int updated = productVariantMapper.updatePriceByProductId(productId, price, compareAtPrice);
 
-        for (ProductVariant variant : variants) {
-            productVariantMapper.updatePrice(variant.getId(), price, compareAtPrice);
-        }
-
-        log.info("批量更新产品变体价格 Product ID: {}, 变体数: {}", productId, variants.size());
+        log.info("批量更新产品变体价格 Product ID: {}, 变体数: {}", productId, updated);
     }
 
     /**
@@ -686,14 +682,8 @@ public class ProductService {
         // 查询产品列表
         List<Product> products;
         if (productIds != null && !productIds.isEmpty()) {
-            // 按指定产品ID导出
-            products = new ArrayList<>();
-            for (Long id : productIds) {
-                Product p = productMapper.selectById(id);
-                if (p != null) {
-                    products.add(p);
-                }
-            }
+            // 按指定产品ID导出（批量查询）
+            products = productMapper.selectByIds(productIds);
         } else {
             // 导出全部产品
             products = productMapper.selectByPage(null, null, null, shopId, 0, Integer.MAX_VALUE);
@@ -728,18 +718,36 @@ public class ProductService {
             }
         }
 
+        // 预加载 shop 关联（避免循环中逐产品查询）
+        Map<Long, List<Long>> productShopIdsMap = new HashMap<>();
+        if (shopId != null && !pIdsForMedia.isEmpty()) {
+            List<com.logistics.track17.entity.ProductShop> shopMappings = productShopMapper.selectByProductIds(pIdsForMedia);
+            for (com.logistics.track17.entity.ProductShop ps : shopMappings) {
+                productShopIdsMap.computeIfAbsent(ps.getProductId(), k -> new ArrayList<>()).add(ps.getShopId());
+            }
+        }
+
+        // 预加载所有产品的变体（避免循环中逐产品查询）
+        Map<Long, List<ProductVariant>> productVariantsMap = new HashMap<>();
+        if (!pIdsForMedia.isEmpty()) {
+            List<ProductVariant> allVariants = productVariantMapper.selectByProductIds(pIdsForMedia);
+            for (ProductVariant v : allVariants) {
+                productVariantsMap.computeIfAbsent(v.getProductId(), k -> new ArrayList<>()).add(v);
+            }
+        }
+
         // 遍历产品
         for (Product product : products) {
             // 如果指定了shopId,检查产品是否关联该店铺
             if (shopId != null) {
-                List<Long> shopIds = productShopMapper.selectShopIdsByProductId(product.getId());
+                List<Long> shopIds = productShopIdsMap.getOrDefault(product.getId(), Collections.emptyList());
                 if (!shopIds.contains(shopId)) {
                     continue; // 跳过不属于该店铺的产品
                 }
             }
 
-            // 查询产品的所有变体
-            List<ProductVariant> variants = productVariantMapper.selectByProductId(product.getId());
+            // 从预加载的变体映射中获取
+            List<ProductVariant> variants = productVariantsMap.getOrDefault(product.getId(), Collections.emptyList());
 
             if (variants.isEmpty()) {
                 continue; // 跳过没有变体的产品

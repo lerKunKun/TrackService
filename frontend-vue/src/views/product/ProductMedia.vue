@@ -358,11 +358,11 @@ import {
   FilePdfOutlined, FileExcelOutlined, FileWordOutlined, FileOutlined
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
+import { useReferenceLinks } from '@/composables/useReferenceLinks'
 import {
   getProductMediaList, getProductMediaFiles,
   uploadProductMediaFile, deleteProductMediaFile,
   batchDeleteFiles, updateFilesSort, moveFileCategory,
-  getReferenceLink, updateReferenceLink,
   downloadFromUrls, syncProductImages,
   downloadMediaFile, batchDownloadMediaFiles
 } from '@/api/product-media-template'
@@ -540,57 +540,14 @@ async function onDragEnd() {
 }
 
 // ─── 对标链接 ───
-const referenceLinks = ref([])
-const savingLink = ref(false)
-const editingLinkIdx = ref(-1)
-const editInputRefs = {}
-
-function setEditInputRef(idx, el) {
-  editInputRefs[idx] = el
-}
-
-async function loadRefLinks() {
-  try {
-    const res = await getReferenceLink(selectedProduct.value.productId)
-    referenceLinks.value = Array.isArray(res.data) && res.data.length ? [...res.data] : []
-    editingLinkIdx.value = -1
-  } catch (_) { referenceLinks.value = [] }
-}
-
-function addRefLink() {
-  referenceLinks.value.push('')
-  editingLinkIdx.value = referenceLinks.value.length - 1
-  nextTick(() => {
-    const inp = editInputRefs[editingLinkIdx.value]
-    if (inp?.$el) inp.focus()
-  })
-}
-
-function removeRefLink(idx) {
-  referenceLinks.value.splice(idx, 1)
-  editingLinkIdx.value = -1
-  autoSaveRefLinks()
-}
-
-async function onRefLinkBlur(idx) {
-  editingLinkIdx.value = -1
-  await autoSaveRefLinks()
-}
-
-async function autoSaveRefLinks() {
-  const cleaned = referenceLinks.value.filter(l => l.trim())
-  referenceLinks.value = cleaned.length ? cleaned : []
-  savingLink.value = true
-  try {
-    await updateReferenceLink(selectedProduct.value.productId, cleaned)
-  } catch (err) { message.error('保存失败') }
-  finally { savingLink.value = false }
-}
-
-async function copyRefLink(link) {
-  try { await navigator.clipboard.writeText(link); message.success('已复制') }
-  catch (_) { message.error('复制失败') }
-}
+const {
+  referenceLinks, savingLink, editingLinkIdx,
+  setEditInputRef, loadRefLinks, addRefLink,
+  removeRefLink, onRefLinkBlur, saveRefLinks: autoSaveRefLinks, copyRefLink
+} = useReferenceLinks({
+  getProductId: () => selectedProduct.value?.productId,
+  autoSave: true
+})
 
 // ─── 同步主图 ───
 const syncing = ref(false)

@@ -74,7 +74,7 @@ public class JwtUtil {
                 return false;
             }
             // 检查是否被强制下线（通过 sessionId）
-            String tokenHash = token.length() > 16 ? token.substring(token.length() - 16) : token;
+            String tokenHash = getTokenHash(token);
             if (Boolean.TRUE.equals(redisTemplate.hasKey(SESSION_BLACKLIST_PREFIX + tokenHash))) {
                 return false;
             }
@@ -110,6 +110,23 @@ public class JwtUtil {
         } catch (Exception e) {
             log.warn("Failed to check token blacklist: {}", e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * 使用 SHA-256 摘要生成 token hash，与 OnlineSessionService 保持一致
+     */
+    public String getTokenHash(String token) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                sb.append(String.format("%02x", digest[i]));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 }

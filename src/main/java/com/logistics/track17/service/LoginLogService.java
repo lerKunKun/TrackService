@@ -2,6 +2,7 @@ package com.logistics.track17.service;
 
 import com.logistics.track17.entity.LoginLog;
 import com.logistics.track17.mapper.LoginLogMapper;
+import com.logistics.track17.util.UserAgentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,9 @@ public class LoginLogService {
 
             // 解析 User-Agent
             if (userAgent != null) {
-                loginLog.setDevice(parseDevice(userAgent));
-                loginLog.setBrowser(parseBrowser(userAgent));
-                loginLog.setOs(parseOs(userAgent));
+                loginLog.setDevice(UserAgentParser.parseDevice(userAgent));
+                loginLog.setBrowser(UserAgentParser.parseBrowser(userAgent));
+                loginLog.setOs(UserAgentParser.parseOs(userAgent));
             }
 
             loginLogMapper.insert(loginLog);
@@ -60,33 +61,4 @@ public class LoginLogService {
         return loginLogMapper.countAll(username, loginType, loginResult, startTime, endTime);
     }
 
-    private String parseDevice(String ua) {
-        if (ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone")) {
-            if (ua.contains("iPad")) return "iPad";
-            if (ua.contains("iPhone")) return "iPhone";
-            if (ua.contains("Android")) return "Android";
-            return "Mobile";
-        }
-        return "PC";
-    }
-
-    private String parseBrowser(String ua) {
-        if (ua.contains("Edg/")) return "Edge";
-        if (ua.contains("Chrome/") && !ua.contains("Edg/")) return "Chrome";
-        if (ua.contains("Firefox/")) return "Firefox";
-        if (ua.contains("Safari/") && !ua.contains("Chrome/")) return "Safari";
-        if (ua.contains("DingTalk")) return "DingTalk";
-        return "Other";
-    }
-
-    private String parseOs(String ua) {
-        if (ua.contains("Windows NT 10")) return "Windows 10";
-        if (ua.contains("Windows NT")) return "Windows";
-        if (ua.contains("Mac OS X")) return "macOS";
-        if (ua.contains("Linux") && ua.contains("Android")) return "Android";
-        if (ua.contains("Linux")) return "Linux";
-        if (ua.contains("iPhone OS")) return "iOS";
-        if (ua.contains("iPad")) return "iPadOS";
-        return "Other";
-    }
 }

@@ -2,6 +2,7 @@ package com.logistics.track17.service;
 
 import com.logistics.track17.dto.OnlineSession;
 import com.logistics.track17.util.JwtUtil;
+import com.logistics.track17.util.UserAgentParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -57,9 +58,9 @@ public class OnlineSessionService {
             session.setLoginSource(loginSource);
 
             if (userAgent != null) {
-                session.setDevice(parseDevice(userAgent));
-                session.setBrowser(parseBrowser(userAgent));
-                session.setOs(parseOs(userAgent));
+                session.setDevice(UserAgentParser.parseDevice(userAgent));
+                session.setBrowser(UserAgentParser.parseBrowser(userAgent));
+                session.setOs(UserAgentParser.parseOs(userAgent));
             }
 
             String sessionJson = objectMapper.writeValueAsString(session);
@@ -190,52 +191,6 @@ public class OnlineSessionService {
     }
 
     private String getTokenHash(String token) {
-        // 使用 token 的前16个字符作为 hash，足够唯一
-        return token.length() > 16 ? token.substring(token.length() - 16) : token;
-    }
-
-    private String parseDevice(String ua) {
-        if (ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone")) {
-            if (ua.contains("iPad"))
-                return "iPad";
-            if (ua.contains("iPhone"))
-                return "iPhone";
-            if (ua.contains("Android"))
-                return "Android";
-            return "Mobile";
-        }
-        return "PC";
-    }
-
-    private String parseBrowser(String ua) {
-        if (ua.contains("Edg/"))
-            return "Edge";
-        if (ua.contains("Chrome/") && !ua.contains("Edg/"))
-            return "Chrome";
-        if (ua.contains("Firefox/"))
-            return "Firefox";
-        if (ua.contains("Safari/") && !ua.contains("Chrome/"))
-            return "Safari";
-        if (ua.contains("DingTalk"))
-            return "DingTalk";
-        return "Other";
-    }
-
-    private String parseOs(String ua) {
-        if (ua.contains("Windows NT 10"))
-            return "Windows 10";
-        if (ua.contains("Windows NT"))
-            return "Windows";
-        if (ua.contains("Mac OS X"))
-            return "macOS";
-        if (ua.contains("Linux") && ua.contains("Android"))
-            return "Android";
-        if (ua.contains("Linux"))
-            return "Linux";
-        if (ua.contains("iPhone OS"))
-            return "iOS";
-        if (ua.contains("iPad"))
-            return "iPadOS";
-        return "Other";
+        return jwtUtil.getTokenHash(token);
     }
 }

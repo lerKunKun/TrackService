@@ -128,12 +128,7 @@ import SockJS from 'sockjs-client/dist/sockjs.min.js'
 
 const { useBreakpoint } = Grid
 const screens = useBreakpoint()
-const isMobile = ref(false)
-
-const checkMobile = () => {
-  isMobile.value = !screens.value.md
-}
-onMounted(() => { checkMobile() })
+const isMobile = computed(() => !screens.value.md)
 
 const loading = ref(false)
 const sessions = ref([])
@@ -141,7 +136,18 @@ const searchUsername = ref('')
 const stats = ref({ userCount: 0, sessionCount: 0 })
 
 const token = localStorage.getItem('token') || ''
-const currentSessionId = ref(token.length > 16 ? token.substring(token.length - 16) : token)
+const currentSessionId = ref('')
+
+// 与后端 JwtUtil.getTokenHash 保持一致：SHA-256 前16个hex字符
+async function computeTokenHash(t) {
+  if (!t) return ''
+  const encoder = new TextEncoder()
+  const data = encoder.encode(t)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = new Uint8Array(hashBuffer)
+  return Array.from(hashArray.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+computeTokenHash(token).then(h => { currentSessionId.value = h })
 
 let stompClient = null
 

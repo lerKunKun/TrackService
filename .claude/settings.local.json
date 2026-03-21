@@ -12,7 +12,14 @@
       "Bash(mysql:*)",
       "Bash(python3:*)",
       "Bash(docker cp:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(ls D:/develop/backend-project/track-service-git/mvnw* D:/develop/backend-project/track-service-git/gradlew*)",
+      "Read(//c/Users/**)",
+      "Read(//d//**)",
+      "Bash(echo \"$USERPROFILE\")"
     ]
   }
 }
